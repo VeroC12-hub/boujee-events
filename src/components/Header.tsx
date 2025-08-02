@@ -11,7 +11,7 @@ const Header = () => {
           {/* Logo */}
           <a href="/" className="flex items-center space-x-4">
             <img 
-              src="/be-logo.png" 
+              src="/favicon.png" 
               alt="Boujee Events Logo" 
               className="h-12 w-auto logo-glow"
               onError={(e) => {
