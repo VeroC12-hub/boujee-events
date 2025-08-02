@@ -11,7 +11,10 @@ const Header = () => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-4">
-            <div className="text-3xl font-bold text-luxury">be</div>
+            <img
+              src="/favicon.png"
+              alt="Boujee Logo"
+            />
             <div className="hidden md:block">
               <h1 className="text-xl font-semibold text-foreground">Boujee Events</h1>
               <p className="text-xs text-muted-foreground">Setting the new standard</p>
