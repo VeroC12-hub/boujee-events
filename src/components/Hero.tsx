@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Play, Volume2, VolumeX, Calendar, MapPin, Users, Sparkles } from 'lucide-react';
 
-const EnhancedHero = () => {
+const Hero = () => {
   const [isMuted, setIsMuted] = useState(true);
   const [currentEvent, setCurrentEvent] = useState(0);
   
@@ -48,8 +48,19 @@ const EnhancedHero = () => {
           loop
           muted={isMuted}
           playsInline
+          poster="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920"
         >
-          <source src="https://assets.mixkit.co/videos/preview/mixkit-people-partying-with-sparklers-4145-large.mp4" type="video/mp4" />
+          {/* Add your video sources here - you can use multiple formats for browser compatibility */}
+          <source src="/hero-video.mp4" type="video/mp4" />
+          <source src="/hero-video.webm" type="video/webm" />
+          
+          {/* Fallback for browsers that don't support video */}
+          <div 
+            className="w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920')"
+            }}
+          />
         </video>
       </div>
 
@@ -63,11 +74,7 @@ const EnhancedHero = () => {
       <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">
         {/* Logo Animation */}
         <div className="mb-8 animate-fade-in">
-          <img 
-            src="/be-logo.png" 
-            alt="Boujee Events" 
-            className="h-24 md:h-32 w-auto mx-auto mb-4 drop-shadow-2xl"
-          />
+          <div className="text-6xl font-bold text-luxury mb-4 logo-glow">be</div>
           <div className="text-sm tracking-[0.3em] text-primary/80 uppercase">Luxury Event Experiences</div>
         </div>
 
@@ -155,6 +162,7 @@ const EnhancedHero = () => {
         <button
           onClick={() => setIsMuted(!isMuted)}
           className="absolute bottom-8 right-8 p-3 glass-effect rounded-full text-white hover:text-primary transition-colors duration-300"
+          title={isMuted ? "Unmute video" : "Mute video"}
         >
           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
@@ -168,4 +176,4 @@ const EnhancedHero = () => {
   );
 };
 
-export default EnhancedHero;
+export default Hero;
