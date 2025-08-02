@@ -1,4 +1,3 @@
-// src/App.tsx
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import MemberDashboard from "./pages/MemberDashboard";
-import ProtectedAdminDashboard from "./pages/ProtectedAdminDashboard"; // ✅ Import your new page
+import AdminDashboard from "./pages/AdminDashboard"; // Import the admin dashboard
 
 const queryClient = new QueryClient();
 
@@ -22,7 +21,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/member" element={<MemberDashboard />} />
-          <Route path="/admin-dashboard-2025" element={<ProtectedAdminDashboard />} /> {/* ✅ New Route */}
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin-dashboard-2025" element={<AdminDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
