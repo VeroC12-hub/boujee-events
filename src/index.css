@@ -6,51 +6,51 @@
 
 @layer base {
   :root {
-    /* Core luxury palette - deep blacks and rich golds */
+    /* Core luxury palette - deep blacks and rich golds matching logo */
     --background: 0 0% 4%;
-    --foreground: 45 100% 85%;
+    --foreground: 43 92% 75%;
 
     --card: 0 0% 8%;
-    --card-foreground: 45 100% 85%;
+    --card-foreground: 43 92% 75%;
 
     --popover: 0 0% 6%;
-    --popover-foreground: 45 100% 85%;
+    --popover-foreground: 43 92% 75%;
 
-    /* Gold primary - matching logo */
-    --primary: 45 95% 68%;
+    /* Gold primary - matching your logo exactly */
+    --primary: 43 74% 66%;
     --primary-foreground: 0 0% 4%;
 
     /* Elegant secondary - deep charcoal */
     --secondary: 0 0% 12%;
-    --secondary-foreground: 45 100% 85%;
+    --secondary-foreground: 43 92% 75%;
 
     /* Muted tones */
     --muted: 0 0% 10%;
-    --muted-foreground: 45 20% 65%;
+    --muted-foreground: 43 20% 65%;
 
-    /* Luxury accent - champagne gold */
-    --accent: 45 80% 75%;
+    /* Luxury accent - deeper gold */
+    --accent: 43 84% 56%;
     --accent-foreground: 0 0% 4%;
 
     /* Premium destructive */
     --destructive: 0 75% 55%;
-    --destructive-foreground: 45 100% 95%;
+    --destructive-foreground: 43 100% 95%;
 
     /* Elegant borders and inputs */
-    --border: 45 25% 20%;
+    --border: 43 25% 20%;
     --input: 0 0% 12%;
-    --ring: 45 95% 68%;
+    --ring: 43 74% 66%;
 
     --radius: 0.75rem;
 
-    /* Luxury gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(45 95% 68%) 0%, hsl(45 80% 58%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(0 0% 4%) 0%, hsl(0 0% 8%) 50%, hsl(45 95% 68% / 0.1) 100%);
+    /* Luxury gradients with logo gold */
+    --gradient-primary: linear-gradient(135deg, hsl(43 74% 66%) 0%, hsl(43 84% 56%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 4%) 0%, hsl(0 0% 8%) 50%, hsl(43 74% 66% / 0.1) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 6%) 0%, hsl(0 0% 10%) 100%);
     
     /* Premium shadows */
     --shadow-luxury: 0 25px 50px -12px hsl(0 0% 0% / 0.5);
-    --shadow-gold: 0 10px 30px -10px hsl(45 95% 68% / 0.3);
+    --shadow-gold: 0 10px 30px -10px hsl(43 74% 66% / 0.3);
     --shadow-elegant: 0 4px 20px hsl(0 0% 0% / 0.3);
 
     /* Animations */
@@ -58,39 +58,32 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .light {
     /* Light mode - elegant ivory and gold */
-    --background: 45 40% 96%;
+    --background: 43 40% 96%;
     --foreground: 0 0% 8%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 8%;
-    --primary: 45 95% 48%;
-    --primary-foreground: 45 100% 95%;
-    --secondary: 45 20% 90%;
+    --primary: 43 74% 48%;
+    --primary-foreground: 43 100% 95%;
+    --secondary: 43 20% 90%;
     --secondary-foreground: 0 0% 8%;
-    --muted: 45 20% 92%;
+    --muted: 43 20% 92%;
     --muted-foreground: 0 0% 40%;
-    --accent: 45 80% 55%;
-    --accent-foreground: 45 100% 95%;
-    --border: 45 25% 85%;
-    --input: 45 20% 90%;
-    --ring: 45 95% 48%;
+    --accent: 43 84% 55%;
+    --accent-foreground: 43 100% 95%;
+    --border: 43 25% 85%;
+    --input: 43 20% 90%;
+    --ring: 43 74% 48%;
   }
 
   /* Sidebar theme consistency */
@@ -150,7 +143,7 @@
     backdrop-filter: blur(10px);
   }
 
-  /* Gold text effect */
+  /* Gold text effect matching logo */
   .text-luxury {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
@@ -163,5 +156,102 @@
     backdrop-filter: blur(16px) saturate(180%);
     background: hsl(var(--card) / 0.8);
     border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  /* Logo glow effect */
+  .logo-glow {
+    filter: drop-shadow(0 0 20px hsl(43 74% 66% / 0.5));
+    transition: filter 0.3s ease;
+  }
+  
+  .logo-glow:hover {
+    filter: drop-shadow(0 0 30px hsl(43 74% 66% / 0.8));
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+
+  .animation-delay-800 {
+    animation-delay: 800ms;
+  }
+
+  .animation-delay-1000 {
+    animation-delay: 1000ms;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2000ms;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Perspective for 3D effects */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-style-preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Toggle styles */
+  input[type="checkbox"].toggle {
+    @apply appearance-none w-11 h-6 bg-gray-700 rounded-full relative cursor-pointer transition-colors;
+  }
+
+  input[type="checkbox"].toggle:checked {
+    @apply bg-primary;
+  }
+
+  input[type="checkbox"].toggle::after {
+    @apply content-[''] absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform;
+  }
+
+  input[type="checkbox"].toggle:checked::after {
+    @apply translate-x-5;
   }
 }
