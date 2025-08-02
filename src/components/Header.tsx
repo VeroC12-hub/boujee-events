@@ -8,18 +8,15 @@ const Header = () => {
   return (
     <header className="fixed top-0 w-full z-50 glass-effect border-b border-border/30">
       <div className="container mx-auto px-6 py-4">
+      <Link to="/" className="flex items-center space-x-2">  
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-4">
-            <img
-              src="/favicon.png"
-              alt="Boujee Logo"
-            />
-            <div className="hidden md:block">
-              <h1 className="text-xl font-semibold text-foreground">Boujee Events</h1>
-              <p className="text-xs text-muted-foreground">Setting the new standard</p>
-            </div>
+          <img src="/be-logo.png" alt="Boujee Events Logo" className="h-8 w-auto" />
+          <div className="text-left leading-tight">
+            <h1 className="text-lg font-semibold">Boujee Events</h1>
+            <p className="text-xs text-gray-400">Setting the new standard</p>
           </div>
+        </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-8">
