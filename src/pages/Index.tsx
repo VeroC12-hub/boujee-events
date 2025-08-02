@@ -1,10 +1,196 @@
 import React from "react";
-import Header from "../components/Header";
-import Hero from "../components/Hero";
-import EventsShowcase from "../components/EventsShowcase";
-import AboutSection from "../components/AboutSection";
-import Footer from "../components/Footer";
-import { Star, Crown, Sparkles, Users, MapPin, Calendar, ArrowRight, Play, Volume2 } from "lucide-react";
+import { Star, Crown, Sparkles, Users, MapPin, Calendar, ArrowRight, Play, Volume2, TrendingUp, Shield, Award } from "lucide-react";
+
+// Header Component (inline since we need to see it)
+const Header = () => {
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+
+  return (
+    <header className="fixed top-0 w-full z-50 glass-effect border-b border-border/30">
+      <div className="container mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center space-x-4">
+            <div className="text-3xl font-bold text-luxury">be</div>
+            <div className="hidden md:block">
+              <h1 className="text-xl font-semibold text-foreground">Boujee Events</h1>
+              <p className="text-xs text-muted-foreground">Setting the new standard</p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-8">
+            <a href="#events" className="text-foreground hover:text-primary transition-colors">
+              Events
+            </a>
+            <a href="#about" className="text-foreground hover:text-primary transition-colors">
+              About
+            </a>
+            <a href="#testimonials" className="text-foreground hover:text-primary transition-colors">
+              Testimonials
+            </a>
+            <a href="#contact" className="text-foreground hover:text-primary transition-colors">
+              Contact
+            </a>
+          </nav>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-4">
+            <button className="btn-luxury hidden md:flex">
+              Get Tickets
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// Hero Component (enhanced version)
+const Hero = () => {
+  const [currentEvent, setCurrentEvent] = React.useState(0);
+  
+  const featuredEvents = [
+    {
+      title: "Midnight in Paradise",
+      date: "Dec 31, 2025",
+      location: "Private Island, Maldives",
+      attendees: "500 VIP Guests",
+      type: "New Year's Gala"
+    },
+    {
+      title: "Golden Hour Festival",
+      date: "Mar 15, 2025",
+      location: "Château de Versailles",
+      attendees: "2000 Exclusive",
+      type: "Music Festival"
+    },
+    {
+      title: "The Yacht Week Elite",
+      date: "Jul 20-27, 2025",
+      location: "French Riviera",
+      attendees: "200 Curated",
+      type: "Sailing Experience"
+    }
+  ];
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentEvent((prev) => (prev + 1) % featuredEvents.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <section className="relative h-screen overflow-hidden">
+      {/* Background with overlay */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black z-10" />
+        <div 
+          className="w-full h-full bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920')"
+          }}
+        />
+      </div>
+
+      {/* Floating Elements */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse animation-delay-2000" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-20 h-full flex flex-col justify-center items-center text-center px-4">
+        {/* Logo Animation */}
+        <div className="mb-8 animate-fade-in">
+          <div className="text-6xl font-bold text-luxury mb-4 logo-glow">be</div>
+          <div className="text-sm tracking-[0.3em] text-primary/80 uppercase">Luxury Event Experiences</div>
+        </div>
+
+        {/* Main Heading */}
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 max-w-5xl leading-tight animate-fade-in-up animation-delay-200">
+          Where Luxury Meets
+          <span className="text-luxury block">Unforgettable Moments</span>
+        </h1>
+
+        {/* Subheading */}
+        <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl animate-fade-in-up animation-delay-400">
+          Curated experiences for those who demand excellence. 
+          From exclusive festivals to private galas, we create magic.
+        </p>
+
+        {/* Featured Event Carousel */}
+        <div className="glass-effect rounded-2xl p-6 mb-8 max-w-2xl w-full animate-fade-in-up animation-delay-600">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-primary text-sm font-semibold tracking-wide uppercase">Next Featured Event</span>
+            <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+          </div>
+          
+          <div className="text-left">
+            <h3 className="text-2xl font-bold text-white mb-2">{featuredEvents[currentEvent].title}</h3>
+            <p className="text-primary mb-4">{featuredEvents[currentEvent].type}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                {featuredEvents[currentEvent].date}
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                {featuredEvents[currentEvent].location}
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                {featuredEvents[currentEvent].attendees}
+              </div>
+            </div>
+          </div>
+
+          {/* Carousel Indicators */}
+          <div className="flex justify-center gap-2 mt-4">
+            {featuredEvents.map((_, index) => (
+              <button
+                key={index}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  index === currentEvent ? 'w-8 bg-primary' : 'bg-white/30'
+                }`}
+                onClick={() => setCurrentEvent(index)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in-up animation-delay-800">
+          <button className="btn-luxury group relative overflow-hidden">
+            <span className="relative z-10">Explore Exclusive Events</span>
+            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          </button>
+          <button className="px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-black transition-all duration-300 font-semibold">
+            Become a Member
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-8 text-center animate-fade-in-up animation-delay-1000">
+          <div>
+            <div className="text-3xl font-bold text-primary">500+</div>
+            <div className="text-sm text-gray-400">Exclusive Events</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-primary">50K+</div>
+            <div className="text-sm text-gray-400">VIP Members</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-primary">98%</div>
+            <div className="text-sm text-gray-400">Satisfaction</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 // Premium Features Section
 const PremiumFeatures = () => {
@@ -67,6 +253,168 @@ const PremiumFeatures = () => {
   );
 };
 
+// Events Section
+const EventsSection = () => {
+  const events = [
+    {
+      title: "Sunset Yacht Gala",
+      date: "Dec 15, 2025",
+      location: "Monaco",
+      image: "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=800",
+      price: "From $750",
+      type: "VIP Experience"
+    },
+    {
+      title: "Golden Hour Festival",
+      date: "Mar 20-22, 2025",
+      location: "Ibiza",
+      image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800",
+      price: "From $450",
+      type: "Festival"
+    },
+    {
+      title: "Executive Summit Gala",
+      date: "Feb 10, 2025",
+      location: "Dubai",
+      image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800",
+      price: "From $1,000",
+      type: "Corporate"
+    }
+  ];
+
+  return (
+    <section id="events" className="py-20 px-4 md:px-6 lg:px-8 bg-background">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Upcoming <span className="text-luxury">Exclusive Events</span>
+          </h2>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            Discover our carefully curated selection of luxury experiences designed for the discerning elite.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {events.map((event, index) => (
+            <div key={index} className="card-luxury group hover:scale-105 transition-all duration-500 overflow-hidden">
+              <div className="relative h-64 mb-6 rounded-lg overflow-hidden">
+                <img 
+                  src={event.image} 
+                  alt={event.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                
+                <div className="absolute top-4 left-4">
+                  <span className="bg-primary text-black px-3 py-1 rounded-full text-xs font-semibold">
+                    {event.type}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-4 right-4">
+                  <div className="text-white font-bold text-xl">
+                    <span className="text-primary">{event.price}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
+                    {event.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-gray-400">
+                    <Calendar className="h-4 w-4 mr-2 text-primary" />
+                    {event.date}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-400">
+                    <MapPin className="h-4 w-4 mr-2 text-primary" />
+                    {event.location}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button className="btn-luxury flex-1">
+                    Get Tickets
+                  </button>
+                  <button className="px-4 py-2 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                    Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center mt-12">
+          <button className="btn-luxury">
+            View All Exclusive Events
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// About Section
+const AboutSection = () => {
+  return (
+    <section id="about" className="py-20 px-4 md:px-6 lg:px-8 bg-card">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
+              <Award className="w-4 h-4" />
+              About Boujee Events
+            </div>
+            
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Setting the New <span className="text-luxury">Standard</span>
+            </h2>
+            
+            <p className="text-lg text-gray-400 mb-6 leading-relaxed">
+              Boujee Events redefines modern event planning with digital-first, luxury-driven experiences. 
+              From beach festivals to high-end socials, we design moments that stand out and scale effortlessly.
+            </p>
+            
+            <p className="text-lg text-gray-400 mb-8 leading-relaxed">
+              Our commitment to excellence has made us the preferred choice for industry leaders, 
+              celebrities, and discerning individuals who demand nothing but the finest.
+            </p>
+
+            <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="text-center p-4 bg-primary/10 rounded-lg">
+                <div className="text-2xl font-bold text-primary mb-1">10+</div>
+                <div className="text-sm text-gray-400">Years Experience</div>
+              </div>
+              <div className="text-center p-4 bg-primary/10 rounded-lg">
+                <div className="text-2xl font-bold text-primary mb-1">500+</div>
+                <div className="text-sm text-gray-400">Events Delivered</div>
+              </div>
+            </div>
+
+            <button className="btn-luxury">
+              Learn More About Us
+            </button>
+          </div>
+
+          <div className="relative">
+            <img 
+              src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800"
+              alt="Luxury Event"
+              className="w-full h-96 object-cover rounded-lg"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-lg" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // Testimonials Section
 const TestimonialsSection = () => {
   const testimonials = [
@@ -94,7 +442,7 @@ const TestimonialsSection = () => {
   ];
 
   return (
-    <section className="py-20 px-4 md:px-6 lg:px-8 bg-background">
+    <section id="testimonials" className="py-20 px-4 md:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
@@ -131,38 +479,6 @@ const TestimonialsSection = () => {
                   <h4 className="font-semibold text-white">{testimonial.name}</h4>
                   <p className="text-sm text-gray-400">{testimonial.role}</p>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// Statistics Section
-const StatsSection = () => {
-  const stats = [
-    { number: "500+", label: "Exclusive Events", description: "Curated luxury experiences" },
-    { number: "50K+", label: "VIP Members", description: "Elite community worldwide" },
-    { number: "98%", label: "Satisfaction Rate", description: "Exceeding expectations" },
-    { number: "25+", label: "Global Cities", description: "Premium venues worldwide" }
-  ];
-
-  return (
-    <section className="py-20 px-4 md:px-6 lg:px-8 bg-card">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((stat, index) => (
-            <div key={index} className="text-center group">
-              <div className="text-4xl md:text-5xl font-bold text-luxury mb-2 group-hover:scale-110 transition-transform duration-300">
-                {stat.number}
-              </div>
-              <div className="text-lg font-semibold text-white mb-1">
-                {stat.label}
-              </div>
-              <div className="text-sm text-gray-400">
-                {stat.description}
               </div>
             </div>
           ))}
@@ -218,14 +534,70 @@ const CTASection = () => {
   );
 };
 
+// Footer Component
+const Footer = () => {
+  return (
+    <footer className="py-8 px-4 md:px-6 lg:px-8 bg-card border-t border-border">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div>
+            <div className="text-2xl font-bold text-luxury mb-4">be</div>
+            <p className="text-gray-400 text-sm mb-4">
+              Setting the new standard in luxury event experiences.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Shield className="w-4 h-4 text-primary" />
+              <span>Premium & Secure</span>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-white mb-4">Services</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li><a href="#" className="hover:text-primary transition-colors">VIP Events</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Corporate Galas</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Private Parties</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Yacht Experiences</a></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-white mb-4">Company</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Press</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-white mb-4">Support</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Concierge</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="border-t border-border pt-6 text-center text-sm text-gray-500">
+          © 2025 NexaCore Innovations. Built by Godwin Ocloo. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+// Main Index Component
 export default function IndexPage() {
   return (
     <div className="overflow-x-hidden">
       <Header />
       <Hero />
       <PremiumFeatures />
-      <EventsShowcase />
-      <StatsSection />
+      <EventsSection />
       <AboutSection />
       <TestimonialsSection />
       <CTASection />
