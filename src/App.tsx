@@ -16,6 +16,7 @@ import Settings from './components/admin/Settings';
 import HomePage from './pages/public/HomePage';
 import EventsPage from './pages/public/EventsPage';
 import EventDetailPage from './pages/public/EventDetailPage';
+import BookingPage from './pages/public/BookingPage';
 
 // App Context for global state
 const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,6 +43,7 @@ const AppLayout: React.FC = () => {
       <Route path="/" element={<HomePage />} />
       <Route path="/events" element={<EventsPage />} />
       <Route path="/events/:id" element={<EventDetailPage />} />
+      <Route path="/booking/:id" element={<BookingPage />} />
       <Route path="/login" element={<Login />} />
       
       {/* Protected Admin Routes */}
