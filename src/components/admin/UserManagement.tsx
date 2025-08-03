@@ -1,158 +1,306 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Edit2, Trash2, Mail, Phone, Eye } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ShieldCheckIcon,
+  ShieldExclamationIcon,
+  UserIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CalendarIcon,
+  BanIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
-  role: 'user' | 'admin' | 'organizer';
-  status: 'active' | 'suspended' | 'pending';
+  role: 'admin' | 'organizer' | 'user';
+  status: 'active' | 'inactive' | 'banned';
+  avatar: string;
   joinDate: string;
+  lastLogin: string;
+  eventsCreated: number;
   eventsAttended: number;
   totalSpent: number;
-  avatar?: string;
+  verified: boolean;
 }
 
 const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Mock data - replace with real API calls
-  useEffect(() => {
-    const mockUsers: User[] = [
-      {
-        id: 1,
-        name: "John Doe",
-        email: "john.doe@email.com",
-        phone: "+1 234 567 8901",
-        role: "user",
-        status: "active",
-        joinDate: "2024-01-15",
-        eventsAttended: 5,
-        totalSpent: 450.99
-      },
-      {
-        id: 2,
-        name: "Jane Smith",
-        email: "jane.smith@email.com",
-        phone: "+1 234 567 8902",
-        role: "organizer",
-        status: "active",
-        joinDate: "2024-02-20",
-        eventsAttended: 12,
-        totalSpent: 890.50
-      },
-      {
-        id: 3,
-        name: "Mike Johnson",
-        email: "mike.johnson@email.com",
-        phone: "+1 234 567 8903",
-        role: "admin",
-        status: "active",
-        joinDate: "2024-01-01",
-        eventsAttended: 8,
-        totalSpent: 320.00
-      },
-      {
-        id: 4,
-        name: "Sarah Wilson",
-        email: "sarah.wilson@email.com",
-        phone: "+1 234 567 8904",
-        role: "user",
-        status: "suspended",
-        joinDate: "2024-03-10",
-        eventsAttended: 2,
-        totalSpent: 125.99
-      }
-    ];
-    setUsers(mockUsers);
-  }, []);
+  const [users, setUsers] = useState<User[]>([
+    {
+      id: '1',
+      name: 'VeroC12-hub',
+      email: 'veroc12@example.com',
+      phone: '+1-555-0123',
+      role: 'admin',
+      status: 'active',
+      avatar: 'https://via.placeholder.com/100x100/8B5CF6/FFFFFF?text=V',
+      joinDate: '2025-01-15',
+      lastLogin: '2025-08-03 02:32:32',
+      eventsCreated: 8,
+      eventsAttended: 12,
+      totalSpent: 1250,
+      verified: true
+    },
+    {
+      id: '2',
+      name: 'John Smith',
+      email: 'john.smith@example.com',
+      phone: '+1-555-0234',
+      role: 'organizer',
+      status: 'active',
+      avatar: 'https://via.placeholder.com/100x100/3B82F6/FFFFFF?text=JS',
+      joinDate: '2025-02-10',
+      lastLogin: '2025-08-02 18:45:21',
+      eventsCreated: 5,
+      eventsAttended: 8,
+      totalSpent: 650,
+      verified: true
+    },
+    {
+      id: '3',
+      name: 'Sarah Johnson',
+      email: 'sarah.j@example.com',
+      phone: '+1-555-0345',
+      role: 'user',
+      status: 'active',
+      avatar: 'https://via.placeholder.com/100x100/10B981/FFFFFF?text=SJ',
+      joinDate: '2025-03-05',
+      lastLogin: '2025-08-01 14:20:15',
+      eventsCreated: 0,
+      eventsAttended: 15,
+      totalSpent: 890,
+      verified: true
+    },
+    {
+      id: '4',
+      name: 'Mike Davis',
+      email: 'mike.davis@example.com',
+      phone: '+1-555-0456',
+      role: 'organizer',
+      status: 'inactive',
+      avatar: 'https://via.placeholder.com/100x100/F59E0B/FFFFFF?text=MD',
+      joinDate: '2025-01-20',
+      lastLogin: '2025-07-15 09:30:45',
+      eventsCreated: 3,
+      eventsAttended: 4,
+      totalSpent: 320,
+      verified: false
+    },
+    {
+      id: '5',
+      name: 'Emma Wilson',
+      email: 'emma.w@example.com',
+      phone: '+1-555-0567',
+      role: 'user',
+      status: 'banned',
+      avatar: 'https://via.placeholder.com/100x100/EF4444/FFFFFF?text=EW',
+      joinDate: '2025-04-12',
+      lastLogin: '2025-07-28 16:12:33',
+      eventsCreated: 0,
+      eventsAttended: 2,
+      totalSpent: 0,
+      verified: false
+    },
+    {
+      id: '6',
+      name: 'Alex Chen',
+      email: 'alex.chen@example.com',
+      phone: '+1-555-0678',
+      role: 'user',
+      status: 'active',
+      avatar: 'https://via.placeholder.com/100x100/6366F1/FFFFFF?text=AC',
+      joinDate: '2025-05-18',
+      lastLogin: '2025-08-03 01:15:42',
+      eventsCreated: 1,
+      eventsAttended: 6,
+      totalSpent: 450,
+      verified: true
+    }
+  ]);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleDeleteUser = (id: number) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== id));
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-purple-100 text-purple-800';
+      case 'organizer': return 'bg-blue-100 text-blue-800';
+      case 'user': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleRoleChange = (id: number, newRole: 'user' | 'admin' | 'organizer') => {
-    setUsers(users.map(user =>
-      user.id === id ? { ...user, role: newRole } : user
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-yellow-100 text-yellow-800';
+      case 'banned': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      setUsers(users.filter(user => user.id !== userId));
+    }
+  };
+
+  const handleStatusChange = (userId: string, newStatus: string) => {
+    setUsers(users.map(user => 
+      user.id === userId ? { ...user, status: newStatus as User['status'] } : user
     ));
   };
 
-  const handleStatusChange = (id: number, newStatus: 'active' | 'suspended' | 'pending') => {
-    setUsers(users.map(user =>
-      user.id === id ? { ...user, status: newStatus } : user
+  const handleRoleChange = (userId: string, newRole: string) => {
+    setUsers(users.map(user => 
+      user.id === userId ? { ...user, role: newRole as User['role'] } : user
     ));
+  };
+
+  const stats = {
+    total: users.length,
+    active: users.filter(u => u.status === 'active').length,
+    admins: users.filter(u => u.role === 'admin').length,
+    organizers: users.filter(u => u.role === 'organizer').length,
+    verified: users.filter(u => u.verified).length
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="text-gray-600">Manage user accounts and permissions</p>
-        </div>
-        <div className="text-sm text-gray-500">
-          Total Users: {users.length}
+    <div className="p-8">
+      <div className="mb-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+            <p className="text-gray-600 mt-2">Manage users, roles, and permissions across your platform</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:32:32 UTC | User: VeroC12-hub</p>
+          </div>
+          
+          <button
+            onClick={() => alert('Create User Modal would open here')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>Add New User</span>
+          </button>
         </div>
       </div>
 
-      {/* Search and Filter */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <UserIcon className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <CheckCircleIcon className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <ShieldCheckIcon className="h-8 w-8 text-purple-600" />
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Admins</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.admins}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <ShieldExclamationIcon className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Organizers</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.organizers}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <CheckCircleIcon className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Verified</h3>
+              <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-6 rounded-lg shadow mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search users by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="organizer">Organizer</option>
+                <option value="user">User</option>
+              </select>
+            </div>
+            
             <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Roles</option>
-              <option value="user">User</option>
-              <option value="organizer">Organizer</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div className="relative">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
+              <option value="banned">Banned</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -161,16 +309,19 @@ const UserManagement: React.FC = () => {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Activity
+                  Events
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Spent
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Login
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -182,76 +333,78 @@ const UserManagement: React.FC = () => {
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                          <span className="text-sm font-medium text-purple-600">
-                            {user.name.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <img 
+                          className="h-10 w-10 rounded-full" 
+                          src={user.avatar} 
+                          alt={user.name}
+                        />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">Joined {user.joinDate}</div>
+                        <div className="flex items-center">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          {user.verified && (
+                            <CheckCircleIcon className="h-4 w-4 text-green-500 ml-2" />
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                      {user.email}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                      {user.phone}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
-                      className={`text-sm rounded-full px-3 py-1 border-0 font-medium ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user.role === 'organizer' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className={`text-xs font-medium rounded-full px-3 py-1 border-0 focus:ring-2 focus:ring-blue-500 ${getRoleColor(user.role)}`}
                     >
-                      <option value="user">User</option>
-                      <option value="organizer">Organizer</option>
                       <option value="admin">Admin</option>
+                      <option value="organizer">Organizer</option>
+                      <option value="user">User</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={user.status}
-                      onChange={(e) => handleStatusChange(user.id, e.target.value as any)}
-                      className={`text-sm rounded-full px-3 py-1 border-0 font-medium ${
-                        user.status === 'active' ? 'bg-green-100 text-green-800' :
-                        user.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}
+                      onChange={(e) => handleStatusChange(user.id, e.target.value)}
+                      className={`text-xs font-medium rounded-full px-3 py-1 border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(user.status)}`}
                     >
                       <option value="active">Active</option>
-                      <option value="pending">Pending</option>
-                      <option value="suspended">Suspended</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="banned">Banned</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>{user.eventsAttended} events</div>
-                    <div className="text-gray-500">${user.totalSpent}</div>
+                    <div>Created: {user.eventsCreated}</div>
+                    <div className="text-gray-500">Attended: {user.eventsAttended}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ${user.totalSpent.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.lastLogin}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-purple-600 hover:text-purple-900">
-                        <Eye className="h-4 w-4" />
+                      <button
+                        onClick={() => setSelectedUser(user)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View Details"
+                      >
+                        <EyeIcon className="h-4 w-4" />
                       </button>
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <Edit2 className="h-4 w-4" />
+                      <button
+                        onClick={() => alert(`Edit ${user.name}`)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Edit User"
+                      >
+                        <PencilIcon className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteUser(user.id)}
                         className="text-red-600 hover:text-red-900"
+                        title="Delete User"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -260,17 +413,103 @@ const UserManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
-
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-8">
-            <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Try adjusting your search or filter criteria.
-            </p>
-          </div>
-        )}
       </div>
+
+      {filteredUsers.length === 0 && (
+        <div className="text-center py-12">
+          <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+          <p className="text-gray-500">Try adjusting your search or filters.</p>
+        </div>
+      )}
+
+      {/* User Details Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-4 mb-6">
+                <img 
+                  className="h-20 w-20 rounded-full" 
+                  src={selectedUser.avatar} 
+                  alt={selectedUser.name}
+                />
+                <div>
+                  <div className="flex items-center">
+                    <h3 className="text-xl font-semibold text-gray-900">{selectedUser.name}</h3>
+                    {selectedUser.verified && (
+                      <CheckCircleIcon className="h-5 w-5 text-green-500 ml-2" />
+                    )}
+                  </div>
+                  <p className="text-gray-600">{selectedUser.email}</p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(selectedUser.role)}`}>
+                      {selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedUser.status)}`}>
+                      {selectedUser.status.charAt(0).toUpperCase() + selectedUser.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="text-gray-900">{selectedUser.phone}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Join Date</label>
+                  <p className="text-gray-900">{selectedUser.joinDate}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Events Created</label>
+                  <p className="text-gray-900">{selectedUser.eventsCreated}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Events Attended</label>
+                  <p className="text-gray-900">{selectedUser.eventsAttended}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Total Spent</label>
+                  <p className="text-gray-900">${selectedUser.totalSpent.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Login</label>
+                  <p className="text-gray-900">{selectedUser.lastLogin}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => alert(`Edit ${selectedUser.name}`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Edit User
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
