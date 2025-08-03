@@ -1,3 +1,5 @@
+import React from 'react';
+
 // Brand system based on your golden logo
 export const brandColors = {
   // Primary Gold Colors from your logo

@@ -107,7 +107,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -118,37 +118,41 @@ const AdminDashboard: React.FC = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card shadow-luxury transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-border">
           <div className="flex items-center">
-            <span className="text-2xl">🎫</span>
-            <span className="ml-2 text-xl font-bold text-gray-900">EventHub</span>
+            <img 
+              src="/be-logo.png" 
+              alt="Boujee Events Logo" 
+              className="w-8 h-8 logo-glow"
+            />
+            <span className="ml-2 text-xl font-bold text-luxury">Boujee Events</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
+            className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
           >
             ✕
           </button>
         </div>
 
         {/* User Info */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-border">
           <div className="flex items-center">
             <img
               src={authState.user.avatar}
               alt={authState.user.name}
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full border-2 border-primary/20"
             />
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-900">{authState.user.name}</p>
-              <p className="text-xs text-gray-500 capitalize">{authState.user.role}</p>
+              <p className="text-sm font-medium text-foreground">{authState.user.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">{authState.user.role}</p>
             </div>
           </div>
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-3 text-xs text-muted-foreground">
             <p>Last login: {authState.user.lastLogin}</p>
             <p>Status: ✅ {authState.user.status}</p>
           </div>
@@ -167,25 +171,25 @@ const AdminDashboard: React.FC = () => {
                 }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-all relative ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 border-r-4 border-blue-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-primary/10 text-primary border-r-4 border-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <div className="flex items-center">
                   <span className="text-lg mr-3">{item.icon}</span>
                   <div>
                     <span className="font-medium">{item.name}</span>
-                    <p className="text-xs text-gray-500">{item.description}</p>
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
                   </div>
                 </div>
                 <div className="flex items-center">
                   {item.isNew && (
-                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full mr-2">
+                    <span className="bg-gradient-to-r from-primary to-accent text-primary-foreground text-xs px-2 py-1 rounded-full mr-2">
                       NEW
                     </span>
                   )}
                   {item.badge && (
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    <span className="bg-primary/20 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -197,7 +201,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* VIP Quick Stats */}
         {vipData.analytics && (
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-border">
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -243,24 +247,24 @@ const AdminDashboard: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-6">
+        <header className="bg-card shadow-elegant border-b border-border">
+          <div className="flex items-center justify-between h-16 px-4 sm:px-6">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-500 hover:text-gray-700 mr-4"
+                className="lg:hidden text-muted-foreground hover:text-foreground mr-4 p-2 hover:bg-muted rounded-lg transition-colors"
               >
                 ☰
               </button>
               <div className="flex items-center">
                 <span className="text-xl mr-2">{getPageIcon()}</span>
-                <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
+                <h1 className="text-xl font-semibold text-foreground">{getPageTitle()}</h1>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
-              {/* Real-time clock */}
-              <div className="text-sm text-gray-500">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Real-time clock - hidden on mobile */}
+              <div className="hidden sm:block text-sm text-muted-foreground">
                 2025-08-03 04:59:40 UTC
               </div>
 
@@ -269,11 +273,11 @@ const AdminDashboard: React.FC = () => {
                 <div className="relative">
                   <button 
                     onClick={() => navigate('/admin/vip')}
-                    className="relative p-2 text-purple-600 hover:text-purple-700 bg-purple-50 rounded-lg"
+                    className="relative p-2 text-primary hover:text-accent bg-primary/10 rounded-lg transition-colors"
                     title="Pending VIP Reservations"
                   >
-                    <span className="text-xl">🌟</span>
-                    <span className="absolute -top-1 -right-1 block h-5 w-5 rounded-full bg-red-400 text-white text-xs flex items-center justify-center">
+                    <span className="text-lg sm:text-xl">🌟</span>
+                    <span className="absolute -top-1 -right-1 block h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
                       {vipData.reservations.filter(r => r.status === 'pending').length}
                     </span>
                   </button>
@@ -282,10 +286,10 @@ const AdminDashboard: React.FC = () => {
 
               {/* Regular Notifications */}
               <div className="relative">
-                <button className="relative p-2 text-gray-400 hover:text-gray-500">
-                  <span className="text-xl">🔔</span>
+                <button className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                  <span className="text-lg sm:text-xl">🔔</span>
                   {notifications.length > 0 && (
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
+                    <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-destructive"></span>
                   )}
                 </button>
               </div>
@@ -300,9 +304,9 @@ const AdminDashboard: React.FC = () => {
                   }
                 }}
                 disabled={analytics.loading || vipData.tiersLoading}
-                className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50"
+                className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 hover:bg-muted rounded-lg transition-colors"
               >
-                <span className={analytics.loading || vipData.tiersLoading ? 'animate-spin' : ''}>
+                <span className={`text-lg ${analytics.loading || vipData.tiersLoading ? 'animate-spin' : ''}`}>
                   🔄
                 </span>
               </button>
@@ -312,24 +316,36 @@ const AdminDashboard: React.FC = () => {
                 <img
                   src={authState.user.avatar}
                   alt={authState.user.name}
-                  className="w-8 h-8 rounded-full border-2 border-gray-200"
+                  className="w-8 h-8 rounded-full border-2 border-primary/20"
                 />
-                <span className="absolute -bottom-1 -right-1 block h-3 w-3 rounded-full bg-green-400 border-2 border-white"></span>
+                <span className="absolute -bottom-1 -right-1 block h-3 w-3 rounded-full bg-green-400 border-2 border-card"></span>
               </div>
+
+              {/* Logout Button - Mobile */}
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                title="Logout"
+              >
+                <span className="text-lg">🚪</span>
+              </button>
             </div>
           </div>
         </header>
 
         {/* Breadcrumb */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-2">
-          <div className="flex items-center text-sm text-gray-600">
+        <div className="bg-muted/30 border-b border-border px-4 sm:px-6 py-2">
+          <div className="flex items-center text-sm text-muted-foreground">
             <span>🏠 Admin</span>
             <span className="mx-2">›</span>
-            <span className="text-gray-900">{getPageTitle()}</span>
+            <span className="text-foreground">{getPageTitle()}</span>
             {location.pathname.includes('vip') && (
               <>
                 <span className="mx-2">›</span>
-                <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded text-xs">
+                <span className="bg-gradient-to-r from-primary to-accent text-primary-foreground px-2 py-1 rounded text-xs">
                   🌟 Premium
                 </span>
               </>
@@ -343,7 +359,7 @@ const AdminDashboard: React.FC = () => {
         </main>
 
         {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 px-6 py-4">
+        <footer className="bg-card border-t border-border px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between text-sm text-gray-500">
             <div>
               EventHub Admin Dashboard v1.0 | Connected to Mock API + VIP System
