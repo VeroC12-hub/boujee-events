@@ -5,7 +5,7 @@ import { useEventManagement } from '../../hooks/useEvents';
 import { exportToCSV, exportHTMLReport, printReport } from '../../utils/exportUtils';
 import { getDateRangePresets } from '../../utils/dateUtils';
 import LoadingSpinner from '../common/LoadingSpinner';
-import GoalTracking from './GoalTracking';
+import GoalTracking from '../analytics/GoalTracking';
 
 // Simple Chart Components (embedded in same file)
 const SimpleBarChart: React.FC<{

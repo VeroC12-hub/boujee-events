@@ -12,6 +12,11 @@ import EventManagement from './components/admin/EventManagement';
 import VIPManagement from './components/admin/VIPManagement';
 import UserManagement from './components/admin/UserManagement';
 import Settings from './components/admin/Settings';
+import PublicLayout from './components/public/PublicLayout';
+import PublicHomepage from './components/public/PublicHomepage';
+import PublicEvents from './components/public/PublicEvents';
+import PublicEventDetails from './components/public/PublicEventDetails';
+import PublicVIPBooking from './components/public/PublicVIPBooking';
 
 // App Context for global state
 const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,6 +40,14 @@ const AppLayout: React.FC = () => {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/" element={<PublicLayout />}>
+        <Route index element={<PublicHomepage />} />
+        <Route path="events" element={<PublicEvents />} />
+        <Route path="events/:id" element={<PublicEventDetails />} />
+        <Route path="vip-booking/:eventId" element={<PublicVIPBooking />} />
+      </Route>
+      
+      {/* Authentication Route */}
       <Route path="/login" element={<Login />} />
       
       {/* Protected Admin Routes */}
@@ -52,9 +65,6 @@ const AppLayout: React.FC = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
       
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/admin" replace />} />
-      
       {/* 404 Not Found */}
       <Route path="*" element={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -65,13 +75,13 @@ const AppLayout: React.FC = () => {
               The page you're looking for doesn't exist or has been moved.
             </p>
             <button
-              onClick={() => window.location.href = '/admin'}
+              onClick={() => window.location.href = '/'}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              🏠 Go to Dashboard
+              🏠 Go to Homepage
             </button>
             <p className="text-xs text-gray-500 mt-4">
-              2025-08-03 04:59:40 UTC | EventHub
+              2025-08-03 04:59:40 UTC | Boujee Events
             </p>
           </div>
         </div>
