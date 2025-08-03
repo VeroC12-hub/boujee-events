@@ -13,6 +13,10 @@ import VIPManagement from './components/admin/VIPManagement';
 import UserManagement from './components/admin/UserManagement';
 import Settings from './components/admin/Settings';
 
+// Import your public pages
+import HomePage from './pages/HomePage';
+import IndexPage from './pages/Index';
+
 // App Context for global state
 const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { toasts, removeToast, success, error, warning, info } = useToast();
@@ -34,10 +38,16 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppLayout: React.FC = () => {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* PUBLIC ROUTES - What customers see */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/home" element={<HomePage />} />
+      <Route path="/index" element={<IndexPage />} />
+      <Route path="/events" element={<IndexPage />} />
+      
+      {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
       
-      {/* Protected Admin Routes */}
+      {/* Protected Admin Routes - What you see as admin */}
       <Route path="/admin" element={
         <ProtectedRoute requiredRole="admin">
           <AdminDashboard />
@@ -52,9 +62,6 @@ const AppLayout: React.FC = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
       
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/admin" replace />} />
-      
       {/* 404 Not Found */}
       <Route path="*" element={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -64,14 +71,22 @@ const AppLayout: React.FC = () => {
             <p className="text-gray-600 mb-6">
               The page you're looking for doesn't exist or has been moved.
             </p>
-            <button
-              onClick={() => window.location.href = '/admin'}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              🏠 Go to Dashboard
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                🏠 Go to Homepage
+              </button>
+              <button
+                onClick={() => window.location.href = '/admin'}
+                className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                🛠️ Admin Dashboard
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mt-4">
-              2025-08-03 04:59:40 UTC | EventHub
+              2025-08-03 19:47:19 UTC | EventHub
             </p>
           </div>
         </div>
