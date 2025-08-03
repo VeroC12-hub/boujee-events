@@ -15,6 +15,8 @@ import Settings from './components/admin/Settings';
 import PublicLayout from './components/public/PublicLayout';
 import PublicHomepage from './components/public/PublicHomepage';
 import PublicEvents from './components/public/PublicEvents';
+import PublicEventDetails from './components/public/PublicEventDetails';
+import PublicVIPBooking from './components/public/PublicVIPBooking';
 
 // App Context for global state
 const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,6 +43,8 @@ const AppLayout: React.FC = () => {
       <Route path="/" element={<PublicLayout />}>
         <Route index element={<PublicHomepage />} />
         <Route path="events" element={<PublicEvents />} />
+        <Route path="events/:id" element={<PublicEventDetails />} />
+        <Route path="vip-booking/:eventId" element={<PublicVIPBooking />} />
       </Route>
       
       {/* Authentication Route */}
