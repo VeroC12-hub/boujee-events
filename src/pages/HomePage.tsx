@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Star, Crown, Sparkles, Users, MapPin, Calendar, ArrowRight, Play,
-  Shield, Award, ChevronDown, Volume2, VolumeX, Search, Filter
+  Shield, Award, ChevronDown, Volume2, VolumeX, Search, Filter, UserPlus, LogIn
 } from 'lucide-react';
 import Header from '@/components/Header';
 import EventCard from '@/components/EventCard';
 import EventDiscovery from '@/components/EventDiscovery';
+import PublicAuth from '@/components/PublicAuth';
+import UserProfile from '@/components/UserProfile';
+import { PublicUserProvider, usePublicUser } from '@/contexts/PublicUserContext';
 import { Event } from '@/types/api';
 
 // Hero Section Component
-const Hero = ({ onExploreEvents }: { onExploreEvents: () => void }) => {
+const Hero = ({ onExploreEvents, onShowAuth }: { 
+  onExploreEvents: () => void;
+  onShowAuth: (mode: 'login' | 'register') => void;
+}) => {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true);
   const [currentEvent, setCurrentEvent] = useState(0);
@@ -151,9 +157,10 @@ const Hero = ({ onExploreEvents }: { onExploreEvents: () => void }) => {
             <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           </button>
           <button 
-            onClick={() => navigate('/login')}
-            className="px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-black transition-all duration-300 font-semibold"
+            onClick={() => onShowAuth('register')}
+            className="px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-black transition-all duration-300 font-semibold flex items-center gap-2"
           >
+            <UserPlus className="w-5 h-5" />
             Become a Member
           </button>
         </div>
@@ -478,7 +485,7 @@ const TestimonialsSection = () => {
 };
 
 // Call to Action Section
-const CTASection = () => {
+const CTASection = ({ onShowAuth }: { onShowAuth: (mode: 'login' | 'register') => void }) => {
   const navigate = useNavigate();
   
   return (
@@ -493,10 +500,11 @@ const CTASection = () => {
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => onShowAuth('register')}
             className="btn-luxury group relative overflow-hidden px-8 py-4 text-lg"
           >
             <span className="relative z-10 flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
               Become a Member
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
@@ -585,8 +593,12 @@ const Footer = () => {
 };
 
 // Main HomePage Component
-const HomePage = () => {
+const HomePageContent = () => {
   const [showEventDiscovery, setShowEventDiscovery] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const { isAuthenticated, user } = usePublicUser();
   
   const handleExploreEvents = () => {
     setShowEventDiscovery(true);
@@ -603,10 +615,65 @@ const HomePage = () => {
     alert(`Selected: ${event.title}\nDate: ${event.date}\nLocation: ${event.location}`);
   };
 
+  const handleAuthSuccess = () => {
+    setShowAuth(false);
+    // You could show a welcome message or redirect
+  };
+
+  const handleShowAuth = (mode: 'login' | 'register' = 'login') => {
+    setAuthMode(mode);
+    setShowAuth(true);
+  };
+
+  const handleShowProfile = () => {
+    if (isAuthenticated) {
+      setShowProfile(true);
+    } else {
+      handleShowAuth('login');
+    }
+  };
+
+  // Auth Modal
+  if (showAuth) {
+    return (
+      <PublicAuth
+        initialMode={authMode}
+        onClose={() => setShowAuth(false)}
+        onSuccess={handleAuthSuccess}
+      />
+    );
+  }
+
+  // User Profile
+  if (showProfile && isAuthenticated) {
+    return (
+      <div className="overflow-x-hidden min-h-screen bg-background">
+        <Header 
+          onBackToHome={() => setShowProfile(false)} 
+          showBackButton 
+          user={user}
+          onShowAuth={handleShowAuth}
+          onShowProfile={handleShowProfile}
+        />
+        <div className="pt-20">
+          <UserProfile onClose={() => setShowProfile(false)} />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Event Discovery
   if (showEventDiscovery) {
     return (
       <div className="overflow-x-hidden min-h-screen bg-background">
-        <Header onBackToHome={handleBackToHome} showBackButton />
+        <Header 
+          onBackToHome={handleBackToHome} 
+          showBackButton 
+          user={user}
+          onShowAuth={handleShowAuth}
+          onShowProfile={handleShowProfile}
+        />
         <div className="pt-20">
           <EventDiscovery onEventSelect={handleEventSelect} />
         </div>
@@ -615,17 +682,30 @@ const HomePage = () => {
     );
   }
 
+  // Main Homepage
   return (
     <div className="overflow-x-hidden">
-      <Header />
-      <Hero onExploreEvents={handleExploreEvents} />
+      <Header 
+        user={user}
+        onShowAuth={handleShowAuth}
+        onShowProfile={handleShowProfile}
+      />
+      <Hero onExploreEvents={handleExploreEvents} onShowAuth={handleShowAuth} />
       <PremiumFeatures />
       <EventsSection onExploreEvents={handleExploreEvents} />
       <AboutSection />
       <TestimonialsSection />
-      <CTASection />
+      <CTASection onShowAuth={handleShowAuth} />
       <Footer />
     </div>
+  );
+};
+
+const HomePage = () => {
+  return (
+    <PublicUserProvider>
+      <HomePageContent />
+    </PublicUserProvider>
   );
 };
 

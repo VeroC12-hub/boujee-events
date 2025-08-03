@@ -1,19 +1,33 @@
 import React, { useState } from "react";
-import { Menu, Search, Calendar, User, LogOut, Shield, Briefcase, ArrowLeft } from "lucide-react";
+import { Menu, Search, Calendar, User, LogOut, Shield, Briefcase, ArrowLeft, Bell, Crown } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { PublicUser } from "@/contexts/PublicUserContext";
 
 interface HeaderProps {
   onBackToHome?: () => void;
   showBackButton?: boolean;
+  user?: PublicUser | null;
+  onShowAuth?: (mode: 'login' | 'register') => void;
+  onShowProfile?: () => void;
 }
 
-const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
+const Header = ({ 
+  onBackToHome, 
+  showBackButton = false, 
+  user,
+  onShowAuth,
+  onShowProfile 
+}: HeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user: adminUser, logout } = useAuth();
+
+  // Determine which user system we're using
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const currentUser = isAdminRoute ? adminUser : user;
 
   const handleLogout = () => {
     logout();
@@ -21,17 +35,20 @@ const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
   };
 
   const getDashboardLink = () => {
-    if (!user) return '/login';
-    switch (user.role) {
-      case 'admin':
-        return '/admin';
-      case 'organizer':
-        return '/organizer';
-      case 'member':
-        return '/member';
-      default:
-        return '/login';
+    if (!currentUser) return '/login';
+    if (isAdminRoute && 'role' in currentUser) {
+      switch (currentUser.role) {
+        case 'admin':
+          return '/admin';
+        case 'organizer':
+          return '/organizer';
+        case 'member':
+          return '/member';
+        default:
+          return '/login';
+      }
     }
+    return '/admin'; // Default for public users trying to access admin
   };
 
   const navLinks = [
@@ -117,35 +134,85 @@ const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
             
             {/* User Menu */}
             <div className="relative">
-              {user ? (
+              {currentUser ? (
                 <>
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="p-2 text-gray-400 hover:text-primary transition-colors flex items-center gap-2"
                   >
-                    {user.role === 'admin' && <Shield className="h-5 w-5" />}
-                    {user.role === 'organizer' && <Briefcase className="h-5 w-5" />}
-                    {user.role === 'member' && <User className="h-5 w-5" />}
-                    <span className="hidden md:inline text-sm">{user.email?.split('@')[0]}</span>
+                    {/* Admin user icons */}
+                    {'role' in currentUser && (
+                      <>
+                        {currentUser.role === 'admin' && <Shield className="h-5 w-5" />}
+                        {currentUser.role === 'organizer' && <Briefcase className="h-5 w-5" />}
+                        {currentUser.role === 'member' && <User className="h-5 w-5" />}
+                      </>
+                    )}
+                    
+                    {/* Public user elements */}
+                    {!('role' in currentUser) && (
+                      <>
+                        <div className="relative">
+                          <img 
+                            src={currentUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser.name}`}
+                            alt={currentUser.name}
+                            className="w-8 h-8 rounded-full object-cover border-2 border-primary/20"
+                          />
+                          {currentUser.isVip && (
+                            <Crown className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500" />
+                          )}
+                        </div>
+                      </>
+                    )}
+                    
+                    <span className="hidden md:inline text-sm">
+                      {'role' in currentUser ? currentUser.email?.split('@')[0] : currentUser.name}
+                    </span>
                   </button>
                   
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-xl animate-fade-in">
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-xl animate-fade-in z-50">
+                      {!('role' in currentUser) ? (
+                        // Public user menu
+                        <>
+                          <button
+                            onClick={() => {
+                              onShowProfile?.();
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
+                          >
+                            <User className="h-4 w-4" />
+                            My Profile
+                          </button>
+                          <div className="px-4 py-2 border-t border-border">
+                            <div className="text-xs text-muted-foreground">Loyalty Points</div>
+                            <div className="text-sm font-medium text-primary">{currentUser.loyaltyPoints.toLocaleString()}</div>
+                          </div>
+                        </>
+                      ) : (
+                        // Admin user menu
+                        <button
+                          onClick={() => {
+                            navigate(getDashboardLink());
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors text-sm"
+                        >
+                          Dashboard
+                        </button>
+                      )}
+                      
                       <button
                         onClick={() => {
-                          navigate(getDashboardLink());
+                          if ('role' in currentUser) {
+                            logout();
+                          } else {
+                            // Handle public user logout if needed
+                          }
                           setIsUserMenuOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors text-sm"
-                      >
-                        Dashboard
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setIsUserMenuOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors text-sm text-red-400 flex items-center gap-2"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors text-sm text-red-400 flex items-center gap-2 border-t border-border"
                       >
                         <LogOut className="h-4 w-4" />
                         Sign Out
@@ -154,21 +221,35 @@ const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
                   )}
                 </>
               ) : (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="p-2 text-gray-400 hover:text-primary transition-colors"
-                >
-                  <User className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onShowAuth?.('login')}
+                    className="px-4 py-2 text-sm text-foreground hover:text-primary transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => onShowAuth?.('register')}
+                    className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/80 transition-colors text-sm"
+                  >
+                    Join
+                  </button>
+                </div>
               )}
             </div>
 
-            {location.pathname === '/' && (
+            {(location.pathname === '/' && !showBackButton) && (
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => {
+                  if (currentUser) {
+                    onShowProfile?.();
+                  } else {
+                    onShowAuth?.('login');
+                  }
+                }}
                 className="btn-luxury hidden md:flex px-6 py-2"
               >
-                {user ? 'Dashboard' : 'Get Tickets'}
+                {currentUser ? 'My Profile' : 'Get Tickets'}
               </button>
             )}
             
@@ -200,12 +281,16 @@ const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
               ))}
               <button 
                 onClick={() => {
-                  navigate(user ? getDashboardLink() : '/login');
+                  if (currentUser) {
+                    onShowProfile?.();
+                  } else {
+                    onShowAuth?.('login');
+                  }
                   setIsMenuOpen(false);
                 }}
                 className="btn-luxury w-full mt-4 py-3"
               >
-                {user ? 'Go to Dashboard' : 'Get Tickets'}
+                {currentUser ? 'My Profile' : 'Get Tickets'}
               </button>
             </div>
           </nav>
