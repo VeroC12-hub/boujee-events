@@ -1,20 +1,4 @@
 import React, { useState } from 'react';
-import {
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  EyeIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  ShieldCheckIcon,
-  ShieldExclamationIcon,
-  UserIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  CalendarIcon,
-  BanIcon,
-  CheckCircleIcon
-} from '@heroicons/react/24/outline';
 
 interface User {
   id: string;
@@ -48,7 +32,7 @@ const UserManagement: React.FC = () => {
       status: 'active',
       avatar: 'https://via.placeholder.com/100x100/8B5CF6/FFFFFF?text=V',
       joinDate: '2025-01-15',
-      lastLogin: '2025-08-03 02:32:32',
+      lastLogin: '2025-08-03 03:11:25',
       eventsCreated: 8,
       eventsAttended: 12,
       totalSpent: 1250,
@@ -190,14 +174,14 @@ const UserManagement: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
             <p className="text-gray-600 mt-2">Manage users, roles, and permissions across your platform</p>
-            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:32:32 UTC | User: VeroC12-hub</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 03:11:25 UTC | User: VeroC12-hub</p>
           </div>
           
           <button
             onClick={() => alert('Create User Modal would open here')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
-            <PlusIcon className="h-5 w-5" />
+            <span className="text-lg">➕</span>
             <span>Add New User</span>
           </button>
         </div>
@@ -207,8 +191,8 @@ const UserManagement: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <UserIcon className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
+            <span className="text-3xl text-blue-600 mr-4">👤</span>
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
               <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
@@ -217,8 +201,8 @@ const UserManagement: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <CheckCircleIcon className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
+            <span className="text-3xl text-green-600 mr-4">✅</span>
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
               <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
             </div>
@@ -227,8 +211,8 @@ const UserManagement: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <ShieldCheckIcon className="h-8 w-8 text-purple-600" />
-            <div className="ml-4">
+            <span className="text-3xl text-purple-600 mr-4">🛡️</span>
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Admins</h3>
               <p className="text-2xl font-bold text-gray-900">{stats.admins}</p>
             </div>
@@ -237,8 +221,8 @@ const UserManagement: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <ShieldExclamationIcon className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
+            <span className="text-3xl text-blue-600 mr-4">🎯</span>
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Organizers</h3>
               <p className="text-2xl font-bold text-gray-900">{stats.organizers}</p>
             </div>
@@ -247,8 +231,8 @@ const UserManagement: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <CheckCircleIcon className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
+            <span className="text-3xl text-green-600 mr-4">✓</span>
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Verified</h3>
               <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
             </div>
@@ -260,7 +244,7 @@ const UserManagement: React.FC = () => {
       <div className="bg-white p-6 rounded-lg shadow mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
-            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+            <span className="absolute left-3 top-3 text-gray-400">🔍</span>
             <input
               type="text"
               placeholder="Search users by name or email..."
@@ -272,7 +256,7 @@ const UserManagement: React.FC = () => {
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <span className="text-gray-400">🔽</span>
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
@@ -344,7 +328,7 @@ const UserManagement: React.FC = () => {
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">{user.name}</div>
                           {user.verified && (
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 ml-2" />
+                            <span className="ml-2 text-green-500">✓</span>
                           )}
                         </div>
                         <div className="text-sm text-gray-500">{user.email}</div>
@@ -390,21 +374,21 @@ const UserManagement: React.FC = () => {
                         className="text-blue-600 hover:text-blue-900"
                         title="View Details"
                       >
-                        <EyeIcon className="h-4 w-4" />
+                        <span className="text-sm">👁️</span>
                       </button>
                       <button
                         onClick={() => alert(`Edit ${user.name}`)}
                         className="text-green-600 hover:text-green-900"
                         title="Edit User"
                       >
-                        <PencilIcon className="h-4 w-4" />
+                        <span className="text-sm">✏️</span>
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
                         className="text-red-600 hover:text-red-900"
                         title="Delete User"
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <span className="text-sm">🗑️</span>
                       </button>
                     </div>
                   </td>
@@ -417,7 +401,7 @@ const UserManagement: React.FC = () => {
 
       {filteredUsers.length === 0 && (
         <div className="text-center py-12">
-          <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <span className="text-6xl text-gray-400 block mb-4">👤</span>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
           <p className="text-gray-500">Try adjusting your search or filters.</p>
         </div>
@@ -432,11 +416,9 @@ const UserManagement: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-xl"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
               
@@ -450,7 +432,7 @@ const UserManagement: React.FC = () => {
                   <div className="flex items-center">
                     <h3 className="text-xl font-semibold text-gray-900">{selectedUser.name}</h3>
                     {selectedUser.verified && (
-                      <CheckCircleIcon className="h-5 w-5 text-green-500 ml-2" />
+                      <span className="ml-2 text-green-500 text-lg">✓</span>
                     )}
                   </div>
                   <p className="text-gray-600">{selectedUser.email}</p>
