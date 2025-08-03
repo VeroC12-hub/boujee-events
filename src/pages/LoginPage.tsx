@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/App';
+import { useAuth } from '../contexts/AuthContext';
 import { Shield, User, Briefcase, Crown, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
