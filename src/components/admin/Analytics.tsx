@@ -1,20 +1,11 @@
 import React, { useState } from 'react';
-import {
-  ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
-  CalendarIcon,
-  UsersIcon,
-  EyeIcon,
-  CurrencyDollarIcon
-} from '@heroicons/react/24/outline';
 
 interface AnalyticsData {
   metric: string;
   value: string;
   change: string;
   trend: 'up' | 'down';
-  icon: React.ComponentType<any>;
+  icon: string;
   color: string;
 }
 
@@ -27,7 +18,7 @@ const Analytics: React.FC = () => {
       value: '45,234',
       change: '+12.5%',
       trend: 'up',
-      icon: EyeIcon,
+      icon: '👁️',
       color: 'blue'
     },
     {
@@ -35,7 +26,7 @@ const Analytics: React.FC = () => {
       value: '1,234',
       change: '+8.2%',
       trend: 'up',
-      icon: CalendarIcon,
+      icon: '📅',
       color: 'green'
     },
     {
@@ -43,7 +34,7 @@ const Analytics: React.FC = () => {
       value: '892',
       change: '-2.1%',
       trend: 'down',
-      icon: UsersIcon,
+      icon: '👥',
       color: 'yellow'
     },
     {
@@ -51,7 +42,7 @@ const Analytics: React.FC = () => {
       value: '$12,456',
       change: '+15.3%',
       trend: 'up',
-      icon: CurrencyDollarIcon,
+      icon: '💰',
       color: 'purple'
     }
   ];
@@ -78,7 +69,7 @@ const Analytics: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
             <p className="text-gray-600 mt-2">Track your platform's performance and user engagement</p>
-            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:11:47 UTC | User: VeroC12-hub</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:46:58 UTC | User: VeroC12-hub</p>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -103,17 +94,16 @@ const Analytics: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {analyticsData.map((data, index) => {
-          const Icon = data.icon;
-          const TrendIcon = data.trend === 'up' ? TrendingUpIcon : TrendingDownIcon;
+          const trendIcon = data.trend === 'up' ? '📈' : '📉';
           
           return (
             <div key={index} className="bg-white p-6 rounded-lg shadow">
               <div className="flex items-center justify-between">
                 <div className={`p-3 rounded-lg bg-${data.color}-100`}>
-                  <Icon className={`h-6 w-6 text-${data.color}-600`} />
+                  <span className="text-2xl">{data.icon}</span>
                 </div>
                 <div className={`flex items-center ${data.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                  <TrendIcon className="h-4 w-4 mr-1" />
+                  <span className="text-lg mr-1">{trendIcon}</span>
                   <span className="text-sm font-medium">{data.change}</span>
                 </div>
               </div>
@@ -131,13 +121,13 @@ const Analytics: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-900">User Engagement</h3>
-            <ChartBarIcon className="h-5 w-5 text-gray-400" />
+            <span className="text-2xl">📊</span>
           </div>
           
           {/* Mock Chart */}
           <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
             <div className="text-center">
-              <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <span className="text-6xl text-gray-400 block mb-4">📊</span>
               <p className="text-gray-500">Interactive chart would go here</p>
               <p className="text-sm text-gray-400 mt-2">Showing user engagement over time</p>
             </div>
