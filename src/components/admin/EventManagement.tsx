@@ -1,15 +1,4 @@
 import React, { useState } from 'react';
-import {
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  EyeIcon,
-  CalendarIcon,
-  MapPinIcon,
-  UsersIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon
-} from '@heroicons/react/24/outline';
 
 interface Event {
   id: string;
@@ -126,14 +115,14 @@ const EventManagement: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Event Management</h1>
             <p className="text-gray-600 mt-2">Create, edit, and manage all events on your platform</p>
-            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:27:32 UTC | User: VeroC12-hub</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:49:54 UTC | User: VeroC12-hub</p>
           </div>
           
           <button
             onClick={() => alert('Create Event Modal would open here')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
-            <PlusIcon className="h-5 w-5" />
+            <span className="text-lg">➕</span>
             <span>Create New Event</span>
           </button>
         </div>
@@ -143,7 +132,7 @@ const EventManagement: React.FC = () => {
       <div className="bg-white p-6 rounded-lg shadow mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
-            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+            <span className="absolute left-3 top-3 text-gray-400">🔍</span>
             <input
               type="text"
               placeholder="Search events by title or organizer..."
@@ -155,7 +144,7 @@ const EventManagement: React.FC = () => {
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <span className="text-gray-400">🔽</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -200,36 +189,36 @@ const EventManagement: React.FC = () => {
                     className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                     title="View Details"
                   >
-                    <EyeIcon className="h-4 w-4" />
+                    <span className="text-sm">👁️</span>
                   </button>
                   <button
                     onClick={() => alert(`Edit ${event.title}`)}
                     className="p-2 text-gray-400 hover:text-green-600 transition-colors"
                     title="Edit Event"
                   >
-                    <PencilIcon className="h-4 w-4" />
+                    <span className="text-sm">✏️</span>
                   </button>
                   <button
                     onClick={() => handleDeleteEvent(event.id)}
                     className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                     title="Delete Event"
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    <span className="text-sm">🗑️</span>
                   </button>
                 </div>
               </div>
               
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  <span className="mr-2">📅</span>
                   <span>{event.date} at {event.time}</span>
                 </div>
                 <div className="flex items-center">
-                  <MapPinIcon className="h-4 w-4 mr-2" />
+                  <span className="mr-2">📍</span>
                   <span className="truncate">{event.location}</span>
                 </div>
                 <div className="flex items-center">
-                  <UsersIcon className="h-4 w-4 mr-2" />
+                  <span className="mr-2">👥</span>
                   <span>{event.attendees}/{event.maxAttendees} attendees</span>
                 </div>
               </div>
@@ -274,7 +263,7 @@ const EventManagement: React.FC = () => {
 
       {filteredEvents.length === 0 && (
         <div className="text-center py-12">
-          <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <span className="text-6xl text-gray-400 block mb-4">📅</span>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
           <p className="text-gray-500">Try adjusting your search or create a new event.</p>
         </div>
@@ -289,11 +278,9 @@ const EventManagement: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">{selectedEvent.title}</h2>
                 <button
                   onClick={() => setSelectedEvent(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-xl"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
               
