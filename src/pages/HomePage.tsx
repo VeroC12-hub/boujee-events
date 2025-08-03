@@ -5,6 +5,7 @@ import {
   Shield, Award, ChevronDown, Volume2, VolumeX
 } from 'lucide-react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import EventCard from '@/components/EventCard';
 import { Event } from '@/types';
 
@@ -81,107 +82,76 @@ const Hero = () => {
         {/* Logo Animation */}
         <div className="mb-8 animate-fade-in">
           <div className="text-6xl font-bold text-luxury mb-4 logo-glow">be</div>
-          <div className="text-sm tracking-[0.3em] text-primary/80 uppercase">Luxury Event Experiences</div>
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            Boujee Events
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-2xl">
+            Setting the new standard in luxury event experiences
+          </p>
         </div>
 
-        {/* Main Heading */}
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 max-w-5xl leading-tight animate-fade-in-up animation-delay-200">
-          Where Luxury Meets
-          <span className="text-luxury block">Unforgettable Moments</span>
-        </h1>
-
-        {/* Subheading */}
-        <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl animate-fade-in-up animation-delay-400">
-          Curated experiences for those who demand excellence. 
-          From exclusive festivals to private galas, we create magic.
-        </p>
-
         {/* Featured Event Carousel */}
-        <div className="glass-effect rounded-2xl p-6 mb-8 max-w-2xl w-full animate-fade-in-up animation-delay-600">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-primary text-sm font-semibold tracking-wide uppercase">Next Featured Event</span>
-            <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-          </div>
-          
-          <div className="text-left">
-            <h3 className="text-2xl font-bold text-white mb-2">{featuredEvents[currentEvent].title}</h3>
-            <p className="text-primary mb-4">{featuredEvents[currentEvent].type}</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
+        <div className="mb-12 max-w-4xl w-full">
+          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-8 border border-primary/20">
+            <div className="text-sm text-primary mb-2 uppercase tracking-wide">
+              {featuredEvents[currentEvent].type}
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">
+              {featuredEvents[currentEvent].title}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-300">
+              <div className="flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-primary" />
                 {featuredEvents[currentEvent].date}
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-primary" />
+              <div className="flex items-center">
+                <MapPin className="w-5 h-5 mr-2 text-primary" />
                 {featuredEvents[currentEvent].location}
               </div>
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
+              <div className="flex items-center">
+                <Users className="w-5 h-5 mr-2 text-primary" />
                 {featuredEvents[currentEvent].attendees}
               </div>
             </div>
           </div>
-
-          {/* Carousel Indicators */}
-          <div className="flex justify-center gap-2 mt-4">
+          
+          {/* Event indicators */}
+          <div className="flex justify-center mt-6 space-x-2">
             {featuredEvents.map((_, index) => (
               <button
                 key={index}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  index === currentEvent ? 'w-8 bg-primary' : 'bg-white/30'
-                }`}
                 onClick={() => setCurrentEvent(index)}
+                className={`w-3 h-3 rounded-full transition-all ${
+                  index === currentEvent ? 'bg-primary' : 'bg-white/30'
+                }`}
               />
             ))}
           </div>
         </div>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in-up animation-delay-800">
-          <button 
-            onClick={() => navigate('/login')}
-            className="btn-luxury group relative overflow-hidden"
-          >
-            <span className="relative z-10">Explore Exclusive Events</span>
-            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+        <div className="flex flex-col sm:flex-row gap-4 mb-12">
+          <button className="btn-luxury flex items-center">
+            <Crown className="w-5 h-5 mr-2" />
+            Explore VIP Events
           </button>
-          <button 
-            onClick={() => navigate('/login')}
-            className="px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-black transition-all duration-300 font-semibold"
-          >
-            Become a Member
+          <button className="btn-secondary flex items-center">
+            <Play className="w-5 h-5 mr-2" />
+            Watch Our Story
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-8 text-center animate-fade-in-up animation-delay-1000">
-          <div>
-            <div className="text-3xl font-bold text-primary">500+</div>
-            <div className="text-sm text-gray-400">Exclusive Events</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-primary">50K+</div>
-            <div className="text-sm text-gray-400">VIP Members</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-primary">98%</div>
-            <div className="text-sm text-gray-400">Satisfaction</div>
-          </div>
-        </div>
-
-        {/* Sound Toggle */}
+        {/* Audio Control */}
         <button
           onClick={() => setIsMuted(!isMuted)}
-          className="absolute bottom-8 right-8 p-3 glass-effect rounded-full text-white hover:text-primary transition-colors duration-300"
-          title={isMuted ? "Unmute video" : "Mute video"}
+          className="absolute bottom-8 right-8 p-3 bg-black/50 backdrop-blur rounded-full text-white hover:bg-black/70 transition-colors"
         >
           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
 
         {/* Scroll Indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <ChevronDown className="w-6 h-6 text-primary" />
+          <ChevronDown className="w-8 h-8 text-white/60" />
         </div>
       </div>
     </section>
@@ -192,53 +162,52 @@ const Hero = () => {
 const PremiumFeatures = () => {
   const features = [
     {
-      icon: <Crown className="w-8 h-8 text-primary" />,
-      title: "Exclusive VIP Access",
-      description: "Curated experiences for discerning guests with unparalleled luxury and sophistication."
+      icon: <Crown className="w-8 h-8" />,
+      title: "VIP Experiences",
+      description: "Exclusive access to luxury venues and premium services"
     },
     {
-      icon: <Sparkles className="w-8 h-8 text-primary" />,
-      title: "Bespoke Event Planning",
-      description: "Tailored experiences crafted to perfection, from intimate gatherings to grand celebrations."
+      icon: <Sparkles className="w-8 h-8" />,
+      title: "Curated Events",
+      description: "Hand-picked events for the most discerning clientele"
     },
     {
-      icon: <Users className="w-8 h-8 text-primary" />,
-      title: "Elite Network",
-      description: "Connect with like-minded individuals in an exclusive community of luxury event enthusiasts."
+      icon: <Shield className="w-8 h-8" />,
+      title: "Premium Security",
+      description: "Top-tier security and privacy for all attendees"
+    },
+    {
+      icon: <Award className="w-8 h-8" />,
+      title: "World-Class Service",
+      description: "Exceptional service that exceeds expectations"
     }
   ];
 
   return (
-    <section className="py-20 px-4 md:px-6 lg:px-8 bg-gradient-to-b from-background to-card">
+    <section className="py-20 px-4 bg-gradient-to-b from-background to-card">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
-            <Sparkles className="w-4 h-4" />
-            Premium Experience
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Redefining <span className="text-luxury">Luxury Events</span>
+          <h2 className="text-4xl font-bold text-foreground mb-6">
+            Why Choose Boujee Events?
           </h2>
-          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            We don't just organize events—we create transformative experiences that leave lasting impressions and forge meaningful connections.
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Experience the pinnacle of luxury event planning with our premium services
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <div 
+            <div
               key={index}
-              className="card-luxury group hover:scale-105 transition-all duration-500 text-center"
+              className="bg-card border border-border rounded-2xl p-8 text-center hover:shadow-luxury transition-all duration-300 hover:-translate-y-2"
             >
-              <div className="mb-6 flex justify-center">
-                <div className="p-4 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors duration-300">
-                  {feature.icon}
-                </div>
+              <div className="text-primary mb-4 flex justify-center">
+                {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-white mb-4 group-hover:text-primary transition-colors">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
                 {feature.title}
               </h3>
-              <p className="text-gray-400 leading-relaxed">
+              <p className="text-muted-foreground">
                 {feature.description}
               </p>
             </div>
@@ -249,85 +218,63 @@ const PremiumFeatures = () => {
   );
 };
 
-// Events Section using EventCard component
+// Events Section
 const EventsSection = () => {
-  const navigate = useNavigate();
-  
-  const events: Partial<Event>[] = [
+  const upcomingEvents = [
     {
-      id: '1',
-      title: "Sunset Yacht Gala",
-      subtitle: "An exclusive evening aboard a luxury yacht",
-      date: "Dec 15, 2025",
-      time: "6:00 PM",
-      venue: "Royal Marina",
-      location: "Monaco",
-      image: "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=800",
-      price: "From $750",
-      category: "VIP Experience" as any,
-      rating: 4.9,
+      id: "1",
+      title: "Luxury Yacht Party",
+      date: "2025-08-15",
+      location: "Monaco Harbor",
+      price: 299,
+      image: "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=500",
       attendees: 150,
-      isVip: true,
-      isPremium: true
+      category: "Luxury"
     },
     {
-      id: '2',
-      title: "Golden Hour Festival",
-      subtitle: "3-day luxury music experience",
-      date: "Mar 20-22, 2025",
-      time: "2:00 PM",
-      venue: "Paradise Beach",
-      location: "Ibiza",
-      image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800",
-      price: "From $450",
-      category: "Festival" as any,
-      rating: 4.8,
-      attendees: 2000,
-      isVip: true,
-      isPremium: false
+      id: "2", 
+      title: "Rooftop Gala Dinner",
+      date: "2025-08-22",
+      location: "Budapest Skyline",
+      price: 199,
+      image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+      attendees: 200,
+      category: "Dining"
     },
     {
-      id: '3',
-      title: "Executive Summit Gala",
-      subtitle: "High-profile networking event",
-      date: "Feb 10, 2025",
-      time: "7:00 PM",
-      venue: "The Ritz-Carlton",
-      location: "Dubai",
-      image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800",
-      price: "From $1,000",
-      category: "Corporate" as any,
-      rating: 5.0,
-      attendees: 300,
-      isVip: true,
-      isPremium: true
+      id: "3",
+      title: "Private Concert Series",
+      date: "2025-09-05",
+      location: "Vienna Opera House",
+      price: 449,
+      image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500",
+      attendees: 80,
+      category: "Music"
     }
   ];
 
   return (
-    <section id="events" className="py-20 px-4 md:px-6 lg:px-8 bg-background">
+    <section id="events" className="py-20 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Upcoming <span className="text-luxury">Exclusive Events</span>
+          <h2 className="text-4xl font-bold text-foreground mb-6">
+            Upcoming Events
           </h2>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Discover our carefully curated selection of luxury experiences designed for the discerning elite.
+          <p className="text-xl text-muted-foreground">
+            Discover our carefully curated selection of premium experiences
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event as any} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {upcomingEvents.map((event) => (
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
 
         <div className="text-center mt-12">
-          <button 
-            onClick={() => navigate('/login')}
-            className="btn-luxury"
-          >
-            View All Exclusive Events
+          <button className="btn-luxury">
+            View All Events
+            <ArrowRight className="w-5 h-5 ml-2" />
           </button>
         </div>
       </div>
@@ -337,58 +284,47 @@ const EventsSection = () => {
 
 // About Section
 const AboutSection = () => {
-  const navigate = useNavigate();
-  
   return (
-    <section id="about" className="py-20 px-4 md:px-6 lg:px-8 bg-card">
+    <section id="about" className="py-20 px-4 bg-card">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
-              <Award className="w-4 h-4" />
-              About Boujee Events
-            </div>
-            
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Setting the New <span className="text-luxury">Standard</span>
+            <h2 className="text-4xl font-bold text-foreground mb-6">
+              Setting New Standards in Luxury Events
             </h2>
-            
-            <p className="text-lg text-gray-400 mb-6 leading-relaxed">
-              Boujee Events redefines modern event planning with digital-first, luxury-driven experiences. 
-              From beach festivals to high-end socials, we design moments that stand out and scale effortlessly.
+            <p className="text-lg text-muted-foreground mb-6">
+              Since our founding, Boujee Events has been at the forefront of luxury event planning, 
+              creating unforgettable experiences that exceed expectations.
             </p>
-            
-            <p className="text-lg text-gray-400 mb-8 leading-relaxed">
-              Our commitment to excellence has made us the preferred choice for industry leaders, 
-              celebrities, and discerning individuals who demand nothing but the finest.
-            </p>
-
             <div className="grid grid-cols-2 gap-6 mb-8">
-              <div className="text-center p-4 bg-primary/10 rounded-lg">
-                <div className="text-2xl font-bold text-primary mb-1">10+</div>
-                <div className="text-sm text-gray-400">Years Experience</div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">500+</div>
+                <div className="text-sm text-muted-foreground">Premium Events</div>
               </div>
-              <div className="text-center p-4 bg-primary/10 rounded-lg">
-                <div className="text-2xl font-bold text-primary mb-1">500+</div>
-                <div className="text-sm text-gray-400">Events Delivered</div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">50K+</div>
+                <div className="text-sm text-muted-foreground">Happy Guests</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">25+</div>
+                <div className="text-sm text-muted-foreground">Luxury Venues</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">5★</div>
+                <div className="text-sm text-muted-foreground">Client Rating</div>
               </div>
             </div>
-
-            <button 
-              onClick={() => navigate('/login')}
-              className="btn-luxury"
-            >
+            <button className="btn-luxury">
               Learn More About Us
             </button>
           </div>
-
           <div className="relative">
-            <img 
-              src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800"
+            <img
+              src="https://images.unsplash.com/photo-1519167758481-83f29c8bc9eb?w=600"
               alt="Luxury Event"
-              className="w-full h-96 object-cover rounded-lg"
+              className="rounded-2xl shadow-luxury"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-lg" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-2xl" />
           </div>
         </div>
       </div>
@@ -400,65 +336,67 @@ const AboutSection = () => {
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      name: "Alexandra Chen",
-      role: "CEO, Luxury Brands International",
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-      content: "Boujee Events transformed our corporate gala into an unforgettable experience. The attention to detail and luxury service exceeded all expectations.",
+      name: "Sofia Andersson",
+      role: "CEO, Nordic Enterprises",
+      content: "Absolutely exceptional! Every detail was perfect, from the venue to the service.",
+      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100",
       rating: 5
     },
     {
-      name: "Marcus Rodriguez",
-      role: "Entertainment Mogul",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
-      content: "Working with Boujee Events was seamless. They understood our vision and delivered a world-class event that our guests are still talking about.",
+      name: "Marcus Chen",
+      role: "Investment Director",
+      content: "Boujee Events transformed our corporate gala into an unforgettable experience.",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
       rating: 5
     },
     {
-      name: "Sofia Dubois",
-      role: "Fashion Industry Executive",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
-      content: "The team's expertise in luxury event curation is unmatched. Every detail was perfect, from the venue to the final farewell.",
+      name: "Isabella Rodriguez",
+      role: "Fashion Designer",
+      content: "The attention to detail and luxury touches made our event truly special.",
+      avatar: "https://images.unsplash.com/photo-1534751516642-a1af1ef26a56?w=100",
       rating: 5
     }
   ];
 
   return (
-    <section id="testimonials" className="py-20 px-4 md:px-6 lg:px-8 bg-background">
+    <section id="testimonials" className="py-20 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Trusted by <span className="text-luxury">Industry Leaders</span>
+          <h2 className="text-4xl font-bold text-foreground mb-6">
+            What Our Clients Say
           </h2>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Don't just take our word for it—hear from the visionaries who've experienced the Boujee difference.
+          <p className="text-xl text-muted-foreground">
+            Hear from those who have experienced our premium services
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <div 
+            <div
               key={index}
-              className="card-luxury group hover:-translate-y-2 transition-all duration-500"
+              className="bg-card border border-border rounded-2xl p-8 hover:shadow-luxury transition-all duration-300"
             >
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 text-primary fill-current" />
                 ))}
               </div>
-              
-              <p className="text-gray-300 mb-6 italic leading-relaxed">
+              <p className="text-muted-foreground mb-6 italic">
                 "{testimonial.content}"
               </p>
-              
-              <div className="flex items-center gap-4">
-                <img 
-                  src={testimonial.image} 
+              <div className="flex items-center">
+                <img
+                  src={testimonial.avatar}
                   alt={testimonial.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-primary/30"
+                  className="w-12 h-12 rounded-full mr-4"
                 />
                 <div>
-                  <h4 className="font-semibold text-white">{testimonial.name}</h4>
-                  <p className="text-sm text-gray-400">{testimonial.role}</p>
+                  <div className="font-semibold text-foreground">
+                    {testimonial.name}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {testimonial.role}
+                  </div>
                 </div>
               </div>
             </div>
@@ -469,110 +407,29 @@ const TestimonialsSection = () => {
   );
 };
 
-// Call to Action Section
+// CTA Section
 const CTASection = () => {
-  const navigate = useNavigate();
-  
   return (
-    <section id="contact" className="py-20 px-4 md:px-6 lg:px-8 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20">
+    <section className="py-20 px-4 bg-gradient-to-r from-primary/10 to-accent/10">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-          Ready to Experience <span className="text-luxury">Excellence?</span>
+        <h2 className="text-4xl font-bold text-foreground mb-6">
+          Ready to Create Your Next Luxury Event?
         </h2>
-        <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-          Join the elite circle of discerning individuals who demand nothing but the finest in luxury event experiences.
+        <p className="text-xl text-muted-foreground mb-8">
+          Let us help you create an unforgettable experience that exceeds all expectations
         </p>
-        
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <button 
-            onClick={() => navigate('/login')}
-            className="btn-luxury group relative overflow-hidden px-8 py-4 text-lg"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              Become a Member
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
-            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <button className="btn-luxury">
+            <Crown className="w-5 h-5 mr-2" />
+            Plan Your Event
           </button>
-          
-          <button className="px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-black transition-all duration-300 font-semibold text-lg flex items-center gap-2">
-            <Play className="w-5 h-5" />
-            Watch Our Story
+          <button className="btn-secondary">
+            <Calendar className="w-5 h-5 mr-2" />
+            Schedule Consultation
           </button>
-        </div>
-
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-400">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            <span>Exclusive Access</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse animation-delay-200" />
-            <span>No Setup Fees</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse animation-delay-400" />
-            <span>24/7 Concierge</span>
-          </div>
         </div>
       </div>
     </section>
-  );
-};
-
-// Footer Component
-const Footer = () => {
-  return (
-    <footer className="py-8 px-4 md:px-6 lg:px-8 bg-card border-t border-border">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div>
-            <div className="text-2xl font-bold text-luxury mb-4">be</div>
-            <p className="text-gray-400 text-sm mb-4">
-              Setting the new standard in luxury event experiences.
-            </p>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Shield className="w-4 h-4 text-primary" />
-              <span>Premium & Secure</span>
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-white mb-4">Services</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-primary transition-colors">VIP Events</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Corporate Galas</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Private Parties</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Yacht Experiences</a></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-white mb-4">Company</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Press</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-white mb-4">Support</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Concierge</a></li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="border-t border-border pt-6 text-center text-sm text-gray-500">
-          © 2025 NexaCore Innovations. Built by Godwin Ocloo. All rights reserved.
-        </div>
-      </div>
-    </footer>
   );
 };
 
