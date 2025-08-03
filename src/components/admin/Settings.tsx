@@ -1,22 +1,9 @@
 import React, { useState } from 'react';
-import {
-  CogIcon,
-  BellIcon,
-  ShieldCheckIcon,
-  GlobeAltIcon,
-  PaintBrushIcon,
-  DatabaseIcon,
-  KeyIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon
-} from '@heroicons/react/24/outline';
 
 interface SettingsSection {
   id: string;
   title: string;
-  icon: React.ComponentType<any>;
+  icon: string;
   description: string;
 }
 
@@ -51,37 +38,37 @@ const Settings: React.FC = () => {
     {
       id: 'general',
       title: 'General Settings',
-      icon: CogIcon,
+      icon: '⚙️',
       description: 'Basic platform configuration and preferences'
     },
     {
       id: 'notifications',
       title: 'Notifications',
-      icon: BellIcon,
+      icon: '🔔',
       description: 'Email and push notification preferences'
     },
     {
       id: 'security',
       title: 'Security',
-      icon: ShieldCheckIcon,
+      icon: '🛡️',
       description: 'Security settings and access controls'
     },
     {
       id: 'appearance',
       title: 'Appearance',
-      icon: PaintBrushIcon,
+      icon: '🎨',
       description: 'Theme and visual customization options'
     },
     {
       id: 'integrations',
       title: 'Integrations',
-      icon: GlobeAltIcon,
+      icon: '🌐',
       description: 'Third-party services and API configurations'
     },
     {
       id: 'backup',
       title: 'Backup & Data',
-      icon: DatabaseIcon,
+      icon: '💾',
       description: 'Data backup and export settings'
     }
   ];
@@ -309,7 +296,7 @@ const Settings: React.FC = () => {
 
   const renderPlaceholderSection = (title: string) => (
     <div className="text-center py-12">
-      <CogIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+      <span className="text-6xl text-gray-400 block mb-4">⚙️</span>
       <h3 className="text-lg font-medium text-gray-900 mb-2">{title} Settings</h3>
       <p className="text-gray-500">This section is coming soon. Configure {title.toLowerCase()} options here.</p>
     </div>
@@ -339,7 +326,7 @@ const Settings: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Platform Settings</h1>
         <p className="text-gray-600 mt-2">Configure your platform settings and preferences</p>
-        <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:35:32 UTC | User: VeroC12-hub</p>
+        <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 03:23:17 UTC | User: VeroC12-hub</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -351,7 +338,6 @@ const Settings: React.FC = () => {
             </div>
             <nav className="p-2">
               {settingsSections.map((section) => {
-                const Icon = section.icon;
                 const isActive = activeSection === section.id;
                 
                 return (
@@ -364,7 +350,7 @@ const Settings: React.FC = () => {
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
-                    <Icon className="mr-3 h-5 w-5" />
+                    <span className="mr-3 text-lg">{section.icon}</span>
                     <div>
                       <div className="font-medium">{section.title}</div>
                       <div className="text-xs text-gray-500">{section.description}</div>
@@ -382,28 +368,28 @@ const Settings: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Database</span>
                 <div className="flex items-center">
-                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  <span className="text-green-500 mr-1">✅</span>
                   <span className="text-sm text-green-600">Healthy</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">API Services</span>
                 <div className="flex items-center">
-                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  <span className="text-green-500 mr-1">✅</span>
                   <span className="text-sm text-green-600">Online</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Email Service</span>
                 <div className="flex items-center">
-                  <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500 mr-1" />
+                  <span className="text-yellow-500 mr-1">⚠️</span>
                   <span className="text-sm text-yellow-600">Warning</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Backup</span>
                 <div className="flex items-center">
-                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  <span className="text-green-500 mr-1">✅</span>
                   <span className="text-sm text-green-600">Up to date</span>
                 </div>
               </div>
@@ -418,9 +404,9 @@ const Settings: React.FC = () => {
               <div className="flex items-center">
                 {settingsSections.find(s => s.id === activeSection) && (
                   <>
-                    {React.createElement(settingsSections.find(s => s.id === activeSection)!.icon, {
-                      className: "h-6 w-6 text-blue-600 mr-3"
-                    })}
+                    <span className="text-2xl text-blue-600 mr-3">
+                      {settingsSections.find(s => s.id === activeSection)!.icon}
+                    </span>
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900">
                         {settingsSections.find(s => s.id === activeSection)?.title}
