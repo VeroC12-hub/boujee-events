@@ -9,6 +9,7 @@ import Login from './components/auth/Login';
 import AdminDashboard from './components/admin/AdminDashboard';
 import Analytics from './components/admin/Analytics';
 import EventManagement from './components/admin/EventManagement';
+import VIPManagement from './components/admin/VIPManagement';
 import UserManagement from './components/admin/UserManagement';
 import Settings from './components/admin/Settings';
 
@@ -46,6 +47,7 @@ const AppLayout: React.FC = () => {
         <Route index element={<Navigate to="/admin/analytics" replace />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="events" element={<EventManagement />} />
+        <Route path="vip" element={<VIPManagement />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
       </Route>
@@ -69,7 +71,7 @@ const AppLayout: React.FC = () => {
               🏠 Go to Dashboard
             </button>
             <p className="text-xs text-gray-500 mt-4">
-              2025-08-03 03:52:31 UTC | EventHub
+              2025-08-03 04:59:40 UTC | EventHub
             </p>
           </div>
         </div>
