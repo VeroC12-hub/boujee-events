@@ -1,13 +1,5 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { 
-  ChartBarIcon, 
-  CalendarIcon, 
-  UsersIcon, 
-  CogIcon,
-  HomeIcon,
-  ArrowLeftOnRectangleIcon
-} from '@heroicons/react/24/outline';
 import Analytics from './Analytics';
 import EventManagement from './EventManagement';
 import UserManagement from './UserManagement';
@@ -17,11 +9,11 @@ const AdminDashboard: React.FC = () => {
   const location = useLocation();
   
   const navigation = [
-    { name: 'Overview', href: '/admin', icon: HomeIcon },
-    { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
-    { name: 'Events', href: '/admin/events', icon: CalendarIcon },
-    { name: 'Users', href: '/admin/users', icon: UsersIcon },
-    { name: 'Settings', href: '/admin/settings', icon: CogIcon },
+    { name: 'Overview', href: '/admin', icon: '🏠' },
+    { name: 'Analytics', href: '/admin/analytics', icon: '📊' },
+    { name: 'Events', href: '/admin/events', icon: '📅' },
+    { name: 'Users', href: '/admin/users', icon: '👥' },
+    { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
   ];
 
   return (
@@ -35,7 +27,6 @@ const AdminDashboard: React.FC = () => {
         
         <nav className="mt-6">
           {navigation.map((item) => {
-            const Icon = item.icon;
             const isActive = location.pathname === item.href;
             
             return (
@@ -48,7 +39,7 @@ const AdminDashboard: React.FC = () => {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <Icon className="mr-3 h-5 w-5" />
+                <span className="mr-3 text-lg">{item.icon}</span>
                 {item.name}
               </Link>
             );
@@ -60,7 +51,7 @@ const AdminDashboard: React.FC = () => {
             to="/"
             className="flex items-center text-sm text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeftOnRectangleIcon className="mr-2 h-4 w-4" />
+            <span className="mr-2">←</span>
             Back to Main Site
           </Link>
         </div>
@@ -82,20 +73,20 @@ const AdminDashboard: React.FC = () => {
 
 // Admin Overview Component
 const AdminOverview: React.FC = () => {
-  const currentDate = new Date('2025-08-03T01:48:15Z').toLocaleDateString();
+  const currentDateTime = '2025-08-03 02:42:09';
   
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-600 mt-2">Welcome back, VeroC12-hub! Here's what's happening today ({currentDate})</p>
+        <p className="text-gray-600 mt-2">Welcome back, VeroC12-hub! Current time: {currentDateTime} UTC</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <CalendarIcon className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
+            <div className="text-3xl text-blue-600 mr-4">📅</div>
+            <div>
               <h3 className="text-lg font-semibold text-gray-900">Total Events</h3>
               <p className="text-2xl font-bold text-blue-600">24</p>
               <p className="text-sm text-gray-500">+3 this week</p>
@@ -105,8 +96,8 @@ const AdminOverview: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <UsersIcon className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
+            <div className="text-3xl text-green-600 mr-4">👥</div>
+            <div>
               <h3 className="text-lg font-semibold text-gray-900">Total Users</h3>
               <p className="text-2xl font-bold text-green-600">1,234</p>
               <p className="text-sm text-gray-500">+12 today</p>
@@ -116,8 +107,8 @@ const AdminOverview: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <ChartBarIcon className="h-8 w-8 text-purple-600" />
-            <div className="ml-4">
+            <div className="text-3xl text-purple-600 mr-4">💰</div>
+            <div>
               <h3 className="text-lg font-semibold text-gray-900">Monthly Revenue</h3>
               <p className="text-2xl font-bold text-purple-600">$12,500</p>
               <p className="text-sm text-gray-500">+8% from last month</p>
@@ -127,8 +118,8 @@ const AdminOverview: React.FC = () => {
         
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <CogIcon className="h-8 w-8 text-orange-600" />
-            <div className="ml-4">
+            <div className="text-3xl text-orange-600 mr-4">🚀</div>
+            <div>
               <h3 className="text-lg font-semibold text-gray-900">Active Events</h3>
               <p className="text-2xl font-bold text-orange-600">8</p>
               <p className="text-sm text-gray-500">Running now</p>
