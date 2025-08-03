@@ -29,7 +29,6 @@ interface Event {
 const EventManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const [events, setEvents] = useState<Event[]>([
@@ -39,13 +38,13 @@ const EventManagement: React.FC = () => {
       date: '2025-08-15',
       time: '09:00',
       location: 'San Francisco Convention Center',
-      organizer: 'TechCorp Inc.',
+      organizer: 'VeroC12-hub',
       attendees: 234,
       maxAttendees: 500,
       status: 'published',
       category: 'Technology',
       price: 199,
-      image: '/api/placeholder/300/200'
+      image: 'https://via.placeholder.com/300x200/3B82F6/FFFFFF?text=Tech+Conference'
     },
     {
       id: '2',
@@ -59,7 +58,7 @@ const EventManagement: React.FC = () => {
       status: 'published',
       category: 'Music',
       price: 89,
-      image: '/api/placeholder/300/200'
+      image: 'https://via.placeholder.com/300x200/10B981/FFFFFF?text=Music+Festival'
     },
     {
       id: '3',
@@ -73,7 +72,7 @@ const EventManagement: React.FC = () => {
       status: 'draft',
       category: 'Art',
       price: 25,
-      image: '/api/placeholder/300/200'
+      image: 'https://via.placeholder.com/300x200/8B5CF6/FFFFFF?text=Art+Exhibition'
     },
     {
       id: '4',
@@ -81,13 +80,13 @@ const EventManagement: React.FC = () => {
       date: '2025-08-30',
       time: '19:00',
       location: 'Innovation Hub',
-      organizer: 'StartupAccelerator',
+      organizer: 'VeroC12-hub',
       attendees: 89,
       maxAttendees: 200,
       status: 'published',
       category: 'Business',
       price: 0,
-      image: '/api/placeholder/300/200'
+      image: 'https://via.placeholder.com/300x200/F59E0B/FFFFFF?text=Startup+Pitch'
     }
   ]);
 
@@ -127,10 +126,11 @@ const EventManagement: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Event Management</h1>
             <p className="text-gray-600 mt-2">Create, edit, and manage all events on your platform</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:27:32 UTC | User: VeroC12-hub</p>
           </div>
           
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => alert('Create Event Modal would open here')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
@@ -203,6 +203,7 @@ const EventManagement: React.FC = () => {
                     <EyeIcon className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => alert(`Edit ${event.title}`)}
                     className="p-2 text-gray-400 hover:text-green-600 transition-colors"
                     title="Edit Event"
                   >
@@ -338,7 +339,10 @@ const EventManagement: React.FC = () => {
                 >
                   Close
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button 
+                  onClick={() => alert(`Edit ${selectedEvent.title}`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
                   Edit Event
                 </button>
               </div>
