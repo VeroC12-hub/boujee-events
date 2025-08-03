@@ -8,7 +8,7 @@ const HomePage: React.FC = () => (
     <div className="text-center">
       <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to EventHub</h1>
       <p className="text-gray-600 mb-6">The premier event management platform</p>
-      <p className="text-sm text-gray-500 mb-6">Current time: 2025-08-03 02:37:42 UTC</p>
+      <p className="text-sm text-gray-500 mb-6">Current time: 2025-08-03 02:42:09 UTC</p>
       <p className="text-sm text-gray-600 mb-8">Logged in as: VeroC12-hub</p>
       <div className="space-x-4">
         <Link
@@ -79,7 +79,7 @@ const ProfilePage: React.FC = () => (
           <div>
             <h2 className="text-xl font-semibold text-gray-900">VeroC12-hub</h2>
             <p className="text-gray-600">Platform Administrator</p>
-            <p className="text-sm text-gray-500">Last login: 2025-08-03 02:37:42 UTC</p>
+            <p className="text-sm text-gray-500">Last login: 2025-08-03 02:42:09 UTC</p>
           </div>
         </div>
         <div className="space-y-4">
@@ -94,14 +94,6 @@ const ProfilePage: React.FC = () => (
           <div>
             <label className="block text-sm font-medium text-gray-700">Member Since</label>
             <p className="text-gray-900">January 2025</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Events Created</label>
-            <p className="text-gray-900">8 events</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Events Attended</label>
-            <p className="text-gray-900">12 events</p>
           </div>
         </div>
         <div className="mt-6 space-x-4">
@@ -125,7 +117,7 @@ const ProfilePage: React.FC = () => (
 
 // Navigation Component
 const Navigation: React.FC = () => {
-  const isAdmin = true; // Replace with real admin check logic
+  const isAdmin = true;
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -142,11 +134,10 @@ const Navigation: React.FC = () => {
               Profile
             </Link>
             
-            {/* Admin Link - Only show for admin users */}
             {isAdmin && (
               <Link 
                 to="/admin" 
-                className="text-purple-600 hover:text-purple-800 font-medium flex items-center"
+                className="text-purple-600 hover:text-purple-800 font-medium"
               >
                 🚀 Admin Dashboard
               </Link>
@@ -158,7 +149,7 @@ const Navigation: React.FC = () => {
               Welcome, VeroC12-hub
             </span>
             <span className="text-xs text-gray-400">
-              2025-08-03 02:37:42 UTC
+              2025-08-03 02:42:09 UTC
             </span>
           </div>
         </div>
@@ -181,7 +172,6 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          {/* Main application routes with navigation */}
           <Route path="/" element={
             <LayoutWithNav>
               <HomePage />
@@ -200,10 +190,8 @@ function App() {
             </LayoutWithNav>
           } />
           
-          {/* Admin Dashboard Routes - No navigation bar for admin */}
           <Route path="/admin/*" element={<AdminDashboard />} />
           
-          {/* Redirect any unknown routes to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
