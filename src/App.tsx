@@ -30,11 +30,15 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+// Import public pages
+import HomePage from './pages/HomePage';
+
 // Main App Layout with Navigation
 const AppLayout: React.FC = () => {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
       
       {/* Protected Admin Routes */}
@@ -52,9 +56,6 @@ const AppLayout: React.FC = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
       
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/admin" replace />} />
-      
       {/* 404 Not Found */}
       <Route path="*" element={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -64,14 +65,22 @@ const AppLayout: React.FC = () => {
             <p className="text-gray-600 mb-6">
               The page you're looking for doesn't exist or has been moved.
             </p>
-            <button
-              onClick={() => window.location.href = '/admin'}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              🏠 Go to Dashboard
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="w-full bg-primary text-black py-2 px-4 rounded-lg hover:bg-primary/80 transition-colors"
+              >
+                🏠 Go to Home
+              </button>
+              <button
+                onClick={() => window.location.href = '/admin'}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                📊 Admin Dashboard
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mt-4">
-              2025-08-03 04:59:40 UTC | EventHub
+              2025-08-03 16:33:05 UTC | Boujee Events
             </p>
           </div>
         </div>

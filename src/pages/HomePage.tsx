@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Star, Crown, Sparkles, Users, MapPin, Calendar, ArrowRight, Play,
-  Shield, Award, ChevronDown, Volume2, VolumeX
+  Shield, Award, ChevronDown, Volume2, VolumeX, Search, Filter
 } from 'lucide-react';
 import Header from '@/components/Header';
 import EventCard from '@/components/EventCard';
-import { Event } from '@/types';
+import EventDiscovery from '@/components/EventDiscovery';
+import { Event } from '@/types/api';
 
 // Hero Section Component
-const Hero = () => {
+const Hero = ({ onExploreEvents }: { onExploreEvents: () => void }) => {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true);
   const [currentEvent, setCurrentEvent] = useState(0);
@@ -140,10 +141,13 @@ const Hero = () => {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in-up animation-delay-800">
           <button 
-            onClick={() => navigate('/login')}
+            onClick={onExploreEvents}
             className="btn-luxury group relative overflow-hidden"
           >
-            <span className="relative z-10">Explore Exclusive Events</span>
+            <span className="relative z-10 flex items-center gap-2">
+              <Search className="w-5 h-5" />
+              Explore Exclusive Events
+            </span>
             <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           </button>
           <button 
@@ -250,7 +254,7 @@ const PremiumFeatures = () => {
 };
 
 // Events Section using EventCard component
-const EventsSection = () => {
+const EventsSection = ({ onExploreEvents }: { onExploreEvents: () => void }) => {
   const navigate = useNavigate();
   
   const events: Partial<Event>[] = [
@@ -324,10 +328,14 @@ const EventsSection = () => {
 
         <div className="text-center mt-12">
           <button 
-            onClick={() => navigate('/login')}
-            className="btn-luxury"
+            onClick={onExploreEvents}
+            className="btn-luxury group relative overflow-hidden"
           >
-            View All Exclusive Events
+            <span className="relative z-10 flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Discover All Events
+            </span>
+            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           </button>
         </div>
       </div>
@@ -578,12 +586,41 @@ const Footer = () => {
 
 // Main HomePage Component
 const HomePage = () => {
+  const [showEventDiscovery, setShowEventDiscovery] = useState(false);
+  
+  const handleExploreEvents = () => {
+    setShowEventDiscovery(true);
+  };
+
+  const handleBackToHome = () => {
+    setShowEventDiscovery(false);
+  };
+
+  const handleEventSelect = (event: Event) => {
+    // In a real app, this would navigate to event detail page
+    console.log('Selected event:', event);
+    // For now, just show an alert
+    alert(`Selected: ${event.title}\nDate: ${event.date}\nLocation: ${event.location}`);
+  };
+
+  if (showEventDiscovery) {
+    return (
+      <div className="overflow-x-hidden min-h-screen bg-background">
+        <Header onBackToHome={handleBackToHome} showBackButton />
+        <div className="pt-20">
+          <EventDiscovery onEventSelect={handleEventSelect} />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-hidden">
       <Header />
-      <Hero />
+      <Hero onExploreEvents={handleExploreEvents} />
       <PremiumFeatures />
-      <EventsSection />
+      <EventsSection onExploreEvents={handleExploreEvents} />
       <AboutSection />
       <TestimonialsSection />
       <CTASection />

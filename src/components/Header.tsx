@@ -1,9 +1,14 @@
 import React, { useState } from "react";
-import { Menu, Search, Calendar, User, LogOut, Shield, Briefcase } from "lucide-react";
+import { Menu, Search, Calendar, User, LogOut, Shield, Briefcase, ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/App";
+import { useAuth } from "@/contexts/AuthContext";
 
-const Header = () => {
+interface HeaderProps {
+  onBackToHome?: () => void;
+  showBackButton?: boolean;
+}
+
+const Header = ({ onBackToHome, showBackButton = false }: HeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -40,38 +45,50 @@ const Header = () => {
     <header className="fixed top-0 w-full z-50 glass-effect border-b border-border/30">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <a 
-            href="/" 
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/');
-            }}
-            className="flex items-center space-x-4"
-          >
-            <img 
-              src="/be-logo.png" 
-              alt="Boujee Events Logo" 
-              className="h-12 w-auto logo-glow"
-              onError={(e) => {
-                // Fallback to text logo if image fails
-                e.currentTarget.style.display = 'none';
-                const textLogo = e.currentTarget.nextElementSibling as HTMLElement;
-                if (textLogo) textLogo.style.display = 'block';
-              }}
-            />
-            {/* Fallback text logo (hidden by default) */}
-            <div className="text-3xl font-bold text-luxury logo-glow" style={{ display: 'none' }}>
-              be
-            </div>
-            <div className="hidden md:block text-left leading-tight">
-              <h1 className="text-lg font-semibold text-foreground">Boujee Events</h1>
-              <p className="text-xs text-muted-foreground">Setting the new standard</p>
-            </div>
-          </a>
+          {/* Back Button or Logo */}
+          <div className="flex items-center space-x-4">
+            {showBackButton && onBackToHome ? (
+              <button
+                onClick={onBackToHome}
+                className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">Back to Home</span>
+              </button>
+            ) : (
+              <a 
+                href="/" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/');
+                }}
+                className="flex items-center space-x-4"
+              >
+                <img 
+                  src="/be-logo.png" 
+                  alt="Boujee Events Logo" 
+                  className="h-12 w-auto logo-glow"
+                  onError={(e) => {
+                    // Fallback to text logo if image fails
+                    e.currentTarget.style.display = 'none';
+                    const textLogo = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (textLogo) textLogo.style.display = 'block';
+                  }}
+                />
+                {/* Fallback text logo (hidden by default) */}
+                <div className="text-3xl font-bold text-luxury logo-glow" style={{ display: 'none' }}>
+                  be
+                </div>
+                <div className="hidden md:block text-left leading-tight">
+                  <h1 className="text-lg font-semibold text-foreground">Boujee Events</h1>
+                  <p className="text-xs text-muted-foreground">Setting the new standard</p>
+                </div>
+              </a>
+            )}
+          </div>
 
-          {/* Desktop Navigation - Only show on homepage */}
-          {location.pathname === '/' && (
+          {/* Desktop Navigation - Only show on homepage and when not showing back button */}
+          {location.pathname === '/' && !showBackButton && (
             <nav className="hidden lg:flex items-center space-x-8">
               {navLinks.map((link) => (
                 <a 
@@ -87,7 +104,7 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center space-x-4">
-            {location.pathname === '/' && (
+            {(location.pathname === '/' && !showBackButton) && (
               <>
                 <button className="p-2 text-gray-400 hover:text-primary transition-colors hidden md:flex">
                   <Search className="h-5 w-5" />
