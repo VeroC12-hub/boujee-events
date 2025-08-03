@@ -1,21 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useToast } from './hooks/useToast';
-import { ToastContainer } from './components/common/ToastContainer';
+import { ToastContainer } from './components/common/Toast';
 
 // Pages
 import HomePage from './pages/HomePage';
 import IndexPage from './pages/Index';
-import Login from './pages/Login';
+import Login from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
 
 // Admin Components
-import AdminDashboard from './components/admin/AdminDashboard';
-import Analytics from './pages/admin/Analytics';
-import EventManagement from './pages/admin/EventManagement';
-import VIPManagement from './pages/admin/VIPManagement';
-import UserManagement from './pages/admin/UserManagement';
-import Settings from './pages/admin/Settings';
+import AdminDashboard from './pages/AdminDashboard';
+import Analytics from './components/admin/Analytics';
+import EventManagement from './components/admin/EventManagement';
+import VIPManagement from './components/admin/VIPManagement';
+import UserManagement from './components/admin/UserManagement';
+import Settings from './components/admin/Settings';
 
 // Contexts
 import { AuthProvider } from './contexts/AuthContext';
@@ -85,7 +85,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Make toast functions globally available
-    (window as any).toast = { success, error, warning, info };
+    (window as Record<string, unknown>).toast = { success, error, warning, info };
   }, [success, error, warning, info]);
 
   return (
@@ -167,7 +167,7 @@ const AppLayout: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-4 text-center">
-              2025-08-03 21:38:31 UTC | Emergency Access Route
+              2025-08-03 21:52:16 UTC | Emergency Access Route
             </p>
           </div>
         </div>

@@ -1,44 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { eventService } from '../services/eventService';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [currentEvent, setCurrentEvent] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // Featured events - this will be connected to admin panel
-  const [featuredEvents, setFeaturedEvents] = useState([
-    {
-      id: 1,
-      title: "Midnight in Paradise",
-      date: "Dec 31, 2025",
-      location: "Private Island, Maldives",
-      type: "New Year's Gala",
-      image: "/api/placeholder/800/400",
-      price: "From €2,500",
-      description: "An exclusive New Year celebration in paradise"
-    },
-    {
-      id: 2,
-      title: "Golden Hour Festival", 
-      date: "Mar 15, 2025",
-      location: "Château de Versailles",
-      type: "Music Festival",
-      image: "/api/placeholder/800/400",
-      price: "From €150",
-      description: "World-class musicians in a historic setting"
-    },
-    {
-      id: 3,
-      title: "The Yacht Week Elite",
-      date: "Jul 20-27, 2025", 
-      location: "French Riviera",
-      type: "Sailing Experience",
-      image: "/api/placeholder/800/400",
-      price: "From €5,000",
-      description: "Luxury sailing adventure along the Mediterranean"
-    }
-  ]);
+  const [featuredEvents, setFeaturedEvents] = useState<Array<any>>([]);
+  const [loading, setLoading] = useState(true);
+  // Load featured events from event service
+  useEffect(() => {
+    const loadFeaturedEvents = async () => {
+      setLoading(true);
+      try {
+        const events = await eventService.getFeaturedEvents(3);
+        if (events.length > 0) {
+          setFeaturedEvents(events);
+        } else {
+          // Fallback to sample events if no featured events exist
+          setFeaturedEvents([
+            {
+              id: 1,
+              title: "Midnight in Paradise",
+              date: "Dec 31, 2025",
+              location: "Private Island, Maldives",
+              type: "New Year's Gala",
+              image: "/api/placeholder/800/400",
+              price: "From €2,500",
+              description: "An exclusive New Year celebration in paradise"
+            },
+            {
+              id: 2,
+              title: "Golden Hour Festival", 
+              date: "Mar 15, 2025",
+              location: "Château de Versailles",
+              type: "Music Festival",
+              image: "/api/placeholder/800/400",
+              price: "From €150",
+              description: "World-class musicians in a historic setting"
+            },
+            {
+              id: 3,
+              title: "The Yacht Week Elite",
+              date: "Jul 20-27, 2025", 
+              location: "French Riviera",
+              type: "Sailing Experience",
+              image: "/api/placeholder/800/400",
+              price: "From €5,000",
+              description: "Luxury sailing adventure along the Mediterranean"
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to load featured events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFeaturedEvents();
+
+    // Refresh featured events periodically to sync with admin changes
+    const interval = setInterval(loadFeaturedEvents, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const services = [
     {
@@ -91,8 +116,15 @@ const HomePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [featuredEvents.length]);
 
-  const handleBookTicket = (eventId: number) => {
-    navigate(`/book/${eventId}`);
+  const handleBookTicket = async (eventId: number) => {
+    try {
+      // Record the event view for analytics
+      await eventService.recordEventView(eventId);
+      navigate(`/book/${eventId}`);
+    } catch (error) {
+      console.error('Failed to record event view:', error);
+      navigate(`/book/${eventId}`);
+    }
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -101,6 +133,19 @@ const HomePage: React.FC = () => {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-6xl mb-4">🎭</div>
+          <div className="text-white text-xl">Loading Boujee Events...</div>
+          <div className="text-yellow-400 text-sm mt-2">Fetching exclusive experiences</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
@@ -117,7 +162,8 @@ const HomePage: React.FC = () => {
                 onError={(e) => {
                   // Fallback to text logo if image fails
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling!.style.display = 'block';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
                 }}
               />
               <div style={{ display: 'none' }}>
@@ -249,7 +295,8 @@ const HomePage: React.FC = () => {
               className="h-24 w-auto mx-auto mb-4"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling!.style.display = 'block';
+                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'block';
               }}
             />
             <div className="text-8xl font-bold text-yellow-400 mb-4" style={{ display: 'none' }}>be</div>
@@ -572,7 +619,7 @@ const HomePage: React.FC = () => {
           
           <div className="border-t border-white/10 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              © 2025 Boujee Events. All rights reserved. | 2025-08-03 21:38:31 UTC | Premium Event Management
+              © 2025 Boujee Events. All rights reserved. | 2025-08-03 21:52:16 UTC | Premium Event Management
             </p>
           </div>
         </div>

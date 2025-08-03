@@ -1,19 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { eventService } from '../services/eventService';
 
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  type: string;
-  image: string;
-  price: string;
-  description: string;
-  basePrice: number;
-  maxCapacity: number;
-  availableTickets: number;
-}
+import { Event } from '../services/eventService';
 
 interface TicketType {
   id: string;
@@ -68,55 +57,12 @@ const BookingPage: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Simulate API call to fetch event details
+    // Fetch event details from event service
     const fetchEvent = async () => {
       setLoading(true);
       try {
-        // Mock event data - replace with real API call
-        const mockEvents: Event[] = [
-          {
-            id: 1,
-            title: "Midnight in Paradise",
-            date: "Dec 31, 2025",
-            location: "Private Island, Maldives",
-            type: "New Year's Gala",
-            image: "/api/placeholder/800/400",
-            price: "From €2,500",
-            description: "An exclusive New Year celebration in paradise with world-class entertainment, gourmet dining, and luxury accommodations.",
-            basePrice: 2500,
-            maxCapacity: 200,
-            availableTickets: 45
-          },
-          {
-            id: 2,
-            title: "Golden Hour Festival", 
-            date: "Mar 15, 2025",
-            location: "Château de Versailles",
-            type: "Music Festival",
-            image: "/api/placeholder/800/400",
-            price: "From €150",
-            description: "World-class musicians performing in the historic gardens of Versailles at sunset.",
-            basePrice: 150,
-            maxCapacity: 500,
-            availableTickets: 120
-          },
-          {
-            id: 3,
-            title: "The Yacht Week Elite",
-            date: "Jul 20-27, 2025", 
-            location: "French Riviera",
-            type: "Sailing Experience",
-            image: "/api/placeholder/800/400",
-            price: "From €5,000",
-            description: "Luxury sailing adventure along the Mediterranean with premium accommodations and exclusive shore excursions.",
-            basePrice: 5000,
-            maxCapacity: 50,
-            availableTickets: 12
-          }
-        ];
-
-        const foundEvent = mockEvents.find(e => e.id === parseInt(eventId || '0'));
-        setEvent(foundEvent || null);
+        const eventData = await eventService.getEvent(parseInt(eventId || '0'));
+        setEvent(eventData);
       } catch (error) {
         console.error('Error fetching event:', error);
       } finally {
@@ -160,8 +106,32 @@ const BookingPage: React.FC = () => {
     setProcessing(true);
 
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Enhanced payment processing simulation
+      console.log(`Processing ${paymentMethod} payment for €${calculateTotal()}`);
+      
+      // Simulate different payment methods
+      let paymentDelay = 2000;
+      let paymentMessage = '';
+      
+      switch (paymentMethod) {
+        case 'stripe':
+          paymentMessage = 'Processing Stripe payment...';
+          paymentDelay = 3000;
+          break;
+        case 'paypal':
+          paymentMessage = 'Redirecting to PayPal...';
+          paymentDelay = 2500;
+          break;
+        case 'bank':
+          paymentMessage = 'Processing bank transfer...';
+          paymentDelay = 4000;
+          break;
+        default:
+          paymentMessage = 'Processing payment...';
+      }
+
+      console.log(paymentMessage);
+      await new Promise(resolve => setTimeout(resolve, paymentDelay));
 
       // Create booking data
       const bookingData = {
@@ -172,7 +142,9 @@ const BookingPage: React.FC = () => {
         totalAmount: calculateTotal(),
         paymentMethod,
         bookingDate: new Date().toISOString(),
-        status: 'confirmed'
+        status: 'confirmed',
+        paymentStatus: 'completed',
+        currency: 'EUR'
       };
 
       // Save to localStorage (replace with real API call)
@@ -185,19 +157,30 @@ const BookingPage: React.FC = () => {
       existingBookings.push(newBooking);
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-      // Show success message
-      alert(`Booking confirmed! Your confirmation number is: ${newBooking.confirmationNumber}`);
+      // Record booking in event service
+      if (event?.id) {
+        await eventService.recordEventBooking(event.id, calculateTotal(), totalTickets);
+      }
+
+      // Enhanced success message with payment method info
+      let successMessage = `Booking confirmed! Your confirmation number is: ${newBooking.confirmationNumber}`;
+      if (paymentMethod === 'bank') {
+        successMessage += '\n\nBank transfer details will be sent to your email. Please complete the transfer within 48 hours to secure your booking.';
+      }
+      
+      alert(successMessage);
       
       // Redirect to confirmation page or home
       navigate('/', { 
         state: { 
-          message: 'Booking successful! Check your email for confirmation details.' 
+          message: 'Booking successful! Check your email for confirmation details.',
+          confirmationNumber: newBooking.confirmationNumber
         }
       });
 
     } catch (error) {
       console.error('Booking error:', error);
-      alert('Booking failed. Please try again.');
+      alert('Booking failed. Please try again or contact support.');
     } finally {
       setProcessing(false);
     }
@@ -286,7 +269,7 @@ const BookingPage: React.FC = () => {
                 </div>
                 <div className="flex items-center text-gray-300">
                   <span className="mr-3 text-xl">🎫</span>
-                  <span>{event.availableTickets} tickets remaining</span>
+                  <span>{Math.max(0, event.maxCapacity - event.ticketsSold)} tickets remaining</span>
                 </div>
               </div>
             </div>
