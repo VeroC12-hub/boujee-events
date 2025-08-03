@@ -1,26 +1,26 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import AdminDashboard from './components/admin/AdminDashboard';
 
-// Mock components for your main app (replace with your actual components)
+// Mock components for your main app
 const HomePage: React.FC = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
     <div className="text-center">
       <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to EventHub</h1>
       <p className="text-gray-600 mb-6">The premier event management platform</p>
       <div className="space-x-4">
-        <a
-          href="/events"
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+        <Link
+          to="/events"
+          className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
         >
           Browse Events
-        </a>
-        <a
-          href="/admin"
-          className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+        </Link>
+        <Link
+          to="/admin"
+          className="inline-block bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
         >
           Admin Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   </div>
@@ -33,12 +33,12 @@ const EventsPage: React.FC = () => (
       <div className="bg-white rounded-lg shadow p-6">
         <p className="text-gray-600">Events listing will go here...</p>
         <div className="mt-4">
-          <a
-            href="/"
+          <Link
+            to="/"
             className="text-blue-600 hover:text-blue-800"
           >
             ← Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -57,7 +57,7 @@ const ProfilePage: React.FC = () => (
           <div>
             <h2 className="text-xl font-semibold text-gray-900">VeroC12-hub</h2>
             <p className="text-gray-600">Administrator</p>
-            <p className="text-sm text-gray-500">Last login: 2025-08-03 02:00:05 UTC</p>
+            <p className="text-sm text-gray-500">Last login: 2025-08-03 02:03:22 UTC</p>
           </div>
         </div>
         <div className="space-y-4">
@@ -75,18 +75,18 @@ const ProfilePage: React.FC = () => (
           </div>
         </div>
         <div className="mt-6 space-x-4">
-          <a
-            href="/"
+          <Link
+            to="/"
             className="text-blue-600 hover:text-blue-800"
           >
             ← Back to Home
-          </a>
-          <a
-            href="/admin"
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          </Link>
+          <Link
+            to="/admin"
+            className="inline-block bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
           >
             Go to Admin Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -102,24 +102,24 @@ const Navigation: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-8">
-            <a href="/" className="text-xl font-bold text-gray-900">
+            <Link to="/" className="text-xl font-bold text-gray-900">
               EventHub
-            </a>
-            <a href="/events" className="text-gray-600 hover:text-gray-900">
+            </Link>
+            <Link to="/events" className="text-gray-600 hover:text-gray-900">
               Events
-            </a>
-            <a href="/profile" className="text-gray-600 hover:text-gray-900">
+            </Link>
+            <Link to="/profile" className="text-gray-600 hover:text-gray-900">
               Profile
-            </a>
+            </Link>
             
             {/* Admin Link - Only show for admin users */}
             {isAdmin && (
-              <a 
-                href="/admin" 
+              <Link 
+                to="/admin" 
                 className="text-purple-600 hover:text-purple-800 font-medium"
               >
                 Admin Dashboard
-              </a>
+              </Link>
             )}
           </div>
           
@@ -128,7 +128,7 @@ const Navigation: React.FC = () => {
               Welcome, VeroC12-hub
             </span>
             <span className="text-xs text-gray-400">
-              2025-08-03 02:00:05 UTC
+              2025-08-03 02:03:22 UTC
             </span>
           </div>
         </div>
@@ -137,32 +137,37 @@ const Navigation: React.FC = () => {
   );
 };
 
+// Layout component for pages with navigation
+const LayoutWithNav: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <>
+    <Navigation />
+    {children}
+  </>
+);
+
 // Main App Component
 function App() {
   return (
     <Router>
       <div className="App">
         <Routes>
-          {/* Main application routes */}
+          {/* Main application routes with navigation */}
           <Route path="/" element={
-            <>
-              <Navigation />
+            <LayoutWithNav>
               <HomePage />
-            </>
+            </LayoutWithNav>
           } />
           
           <Route path="/events" element={
-            <>
-              <Navigation />
+            <LayoutWithNav>
               <EventsPage />
-            </>
+            </LayoutWithNav>
           } />
           
           <Route path="/profile" element={
-            <>
-              <Navigation />
+            <LayoutWithNav>
               <ProfilePage />
-            </>
+            </LayoutWithNav>
           } />
           
           {/* Admin Dashboard Routes - No navigation bar for admin */}
