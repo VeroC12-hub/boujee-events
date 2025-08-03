@@ -58,7 +58,7 @@ const Analytics: React.FC = () => {
 
   const recentActivity = [
     { action: 'New user registration', user: 'john.doe@email.com', time: '2 minutes ago' },
-    { action: 'Event "Tech Conference" updated', user: 'admin@example.com', time: '15 minutes ago' },
+    { action: 'Event "Tech Conference" updated', user: 'VeroC12-hub@email.com', time: '15 minutes ago' },
     { action: 'User profile updated', user: 'jane.smith@email.com', time: '1 hour ago' },
     { action: 'New event created', user: 'organizer@example.com', time: '2 hours ago' },
     { action: 'Payment processed', user: 'user123@email.com', time: '3 hours ago' },
@@ -78,6 +78,7 @@ const Analytics: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
             <p className="text-gray-600 mt-2">Track your platform's performance and user engagement</p>
+            <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 02:11:47 UTC | User: VeroC12-hub</p>
           </div>
           
           <div className="flex items-center space-x-4">
