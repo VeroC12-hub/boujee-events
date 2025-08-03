@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { eventService, Event } from '../services/eventService';
+import { newsletterService } from '../services/newsletterService';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -7,39 +9,15 @@ const HomePage: React.FC = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Featured events - this will be connected to admin panel
-  const [featuredEvents, setFeaturedEvents] = useState([
-    {
-      id: 1,
-      title: "Midnight in Paradise",
-      date: "Dec 31, 2025",
-      location: "Private Island, Maldives",
-      type: "New Year's Gala",
-      image: "/api/placeholder/800/400",
-      price: "From €2,500",
-      description: "An exclusive New Year celebration in paradise"
-    },
-    {
-      id: 2,
-      title: "Golden Hour Festival", 
-      date: "Mar 15, 2025",
-      location: "Château de Versailles",
-      type: "Music Festival",
-      image: "/api/placeholder/800/400",
-      price: "From €150",
-      description: "World-class musicians in a historic setting"
-    },
-    {
-      id: 3,
-      title: "The Yacht Week Elite",
-      date: "Jul 20-27, 2025", 
-      location: "French Riviera",
-      type: "Sailing Experience",
-      image: "/api/placeholder/800/400",
-      price: "From €5,000",
-      description: "Luxury sailing adventure along the Mediterranean"
-    }
-  ]);
+  // Dynamic events from admin panel
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  
+  // Newsletter state
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState('');
+  const [subscriberCount, setSubscriberCount] = useState(0);
 
   const services = [
     {
@@ -86,6 +64,34 @@ const HomePage: React.FC = () => {
   ];
 
   useEffect(() => {
+    // Load events from admin-managed data
+    const loadEvents = () => {
+      const featured = eventService.getFeaturedEvents();
+      const all = eventService.getAllEvents();
+      setFeaturedEvents(featured);
+      setAllEvents(all);
+    };
+
+    // Load newsletter subscriber count
+    const loadNewsletterData = () => {
+      const count = newsletterService.getActiveSubscriberCount();
+      setSubscriberCount(count);
+    };
+
+    loadEvents();
+    loadNewsletterData();
+
+    // Listen for storage changes to update events in real-time
+    const handleStorageChange = () => {
+      loadEvents();
+      loadNewsletterData();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setCurrentEvent((prev) => (prev + 1) % featuredEvents.length);
     }, 6000);
@@ -107,6 +113,39 @@ const HomePage: React.FC = () => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewsletterLoading(true);
+    setNewsletterMessage('');
+
+    try {
+      const result = await newsletterService.subscribe(newsletterEmail);
+      setNewsletterMessage(result.message);
+      
+      if (result.success) {
+        setNewsletterEmail('');
+        setSubscriberCount(newsletterService.getActiveSubscriberCount());
+        
+        // Show success toast if available
+        if ((window as any).toast) {
+          (window as any).toast.success('Successfully subscribed to newsletter!');
+        }
+      } else {
+        // Show error toast if available
+        if ((window as any).toast) {
+          (window as any).toast.error(result.message);
+        }
+      }
+    } catch (error) {
+      setNewsletterMessage('An error occurred. Please try again.');
+      if ((window as any).toast) {
+        (window as any).toast.error('Newsletter subscription failed');
+      }
+    } finally {
+      setNewsletterLoading(false);
     }
   };
 
@@ -279,65 +318,69 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Enhanced Featured Event Carousel */}
-          <div className="mb-12">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto border border-white/20 shadow-2xl">
-              <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide font-semibold">
-                {featuredEvents[currentEvent].type}
-              </div>
-              <h3 className="text-3xl font-bold text-white mb-4">
-                {featuredEvents[currentEvent].title}
-              </h3>
-              <p className="text-gray-300 mb-4 leading-relaxed">
-                {featuredEvents[currentEvent].description}
-              </p>
-              <div className="flex flex-wrap justify-center gap-6 text-gray-300 mb-6">
-                <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
-                  <span className="mr-2">📅</span>
-                  {featuredEvents[currentEvent].date}
+          {featuredEvents.length > 0 && (
+            <div className="mb-12">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto border border-white/20 shadow-2xl">
+                <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide font-semibold">
+                  {featuredEvents[currentEvent]?.type || 'Featured Event'}
                 </div>
-                <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
-                  <span className="mr-2">📍</span>
-                  {featuredEvents[currentEvent].location}
+                <h3 className="text-3xl font-bold text-white mb-4">
+                  {featuredEvents[currentEvent]?.title || 'Loading...'}
+                </h3>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  {featuredEvents[currentEvent]?.description || 'Loading event details...'}
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 text-gray-300 mb-6">
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">📅</span>
+                    {featuredEvents[currentEvent]?.date || 'TBD'}
+                  </div>
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">📍</span>
+                    {featuredEvents[currentEvent]?.location || 'TBD'}
+                  </div>
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">💰</span>
+                    {featuredEvents[currentEvent]?.price || 'TBD'}
+                  </div>
                 </div>
-                <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
-                  <span className="mr-2">💰</span>
-                  {featuredEvents[currentEvent].price}
+                
+                {/* Enhanced Carousel Indicators */}
+                <div className="flex justify-center space-x-2 mb-6">
+                  {featuredEvents.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentEvent(index)}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                        index === currentEvent 
+                          ? 'bg-yellow-400 w-8 shadow-lg shadow-yellow-400/50' 
+                          : 'bg-white/30 hover:bg-white/50'
+                      }`}
+                    />
+                  ))}
                 </div>
-              </div>
-              
-              {/* Enhanced Carousel Indicators */}
-              <div className="flex justify-center space-x-2 mb-6">
-                {featuredEvents.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentEvent(index)}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      index === currentEvent 
-                        ? 'bg-yellow-400 w-8 shadow-lg shadow-yellow-400/50' 
-                        : 'bg-white/30 hover:bg-white/50'
-                    }`}
-                  />
-                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Enhanced CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button 
-              onClick={() => handleBookTicket(featuredEvents[currentEvent].id)}
-              className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-lg px-8 py-4 rounded-full hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl shadow-yellow-400/25"
-            >
-              Book Tickets →
-            </button>
-            
-            <button 
-              onClick={() => scrollToSection('events')}
-              className="border-2 border-white/30 text-white font-bold text-lg px-8 py-4 rounded-full hover:bg-white/10 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
-            >
-              View All Events
-            </button>
-          </div>
+          {featuredEvents.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <button 
+                onClick={() => handleBookTicket(featuredEvents[currentEvent]?.id || 1)}
+                className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-lg px-8 py-4 rounded-full hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl shadow-yellow-400/25"
+              >
+                Book Tickets →
+              </button>
+              
+              <button 
+                onClick={() => scrollToSection('events')}
+                className="border-2 border-white/30 text-white font-bold text-lg px-8 py-4 rounded-full hover:bg-white/10 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
+              >
+                View All Events
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Enhanced Scroll Indicator */}
@@ -384,7 +427,7 @@ const HomePage: React.FC = () => {
           </p>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredEvents.map((event, index) => (
+            {(allEvents.length > 0 ? allEvents : featuredEvents).map((event, index) => (
               <div key={event.id} className="group bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:bg-white/10 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-400/20">
                 <div className="relative aspect-video bg-gradient-to-br from-yellow-400/20 to-purple-500/20 overflow-hidden">
                   <img 
@@ -534,19 +577,31 @@ const HomePage: React.FC = () => {
           </p>
           
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 max-w-2xl mx-auto">
-            <form className="flex flex-col sm:flex-row gap-4">
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4">
               <input
                 type="email"
                 placeholder="Enter your email address"
-                className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                required
+                disabled={newsletterLoading}
+                className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all disabled:opacity-50"
               />
               <button
                 type="submit"
-                className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-semibold px-8 py-4 rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 whitespace-nowrap"
+                disabled={newsletterLoading || !newsletterEmail.trim()}
+                className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-semibold px-8 py-4 rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 whitespace-nowrap disabled:opacity-50 disabled:transform-none"
               >
-                Subscribe Now
+                {newsletterLoading ? 'Subscribing...' : 'Subscribe Now'}
               </button>
             </form>
+            
+            {newsletterMessage && (
+              <p className={`text-sm mt-4 ${newsletterMessage.includes('Success') ? 'text-green-400' : 'text-red-400'}`}>
+                {newsletterMessage}
+              </p>
+            )}
+            
             <p className="text-sm text-gray-400 mt-4">
               🔒 We respect your privacy. Unsubscribe at any time.
             </p>
@@ -554,7 +609,9 @@ const HomePage: React.FC = () => {
           
           {/* Social Proof */}
           <div className="mt-8 text-gray-300">
-            <p className="text-sm">Join over 10,000 luxury event enthusiasts</p>
+            <p className="text-sm">
+              Join over {subscriberCount > 0 ? subscriberCount.toLocaleString() : '10,000'} luxury event enthusiasts
+            </p>
           </div>
         </div>
       </section>
