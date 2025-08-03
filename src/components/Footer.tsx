@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +10,8 @@ import {
   Mail,
   MapPin,
   Phone,
-  Calendar
+  Calendar,
+  Shield
 } from "lucide-react";
 
 const Footer = () => {
@@ -32,6 +34,12 @@ const Footer = () => {
               From exclusive VIP events to world-class entertainment.
             </p>
             
+            {/* Premium Badge */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+              <Shield className="w-4 h-4 text-primary" />
+              <span>Premium & Secure</span>
+            </div>
+            
             {/* Social Links */}
             <div className="flex space-x-4">
               <Button variant="outline" size="icon" className="border-primary hover:bg-primary/10">
@@ -49,101 +57,89 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Services */}
           <div>
-            <h4 className="text-lg font-semibold text-foreground mb-6">Quick Links</h4>
+            <h4 className="text-lg font-semibold text-foreground mb-6">Services</h4>
             <ul className="space-y-3">
-              <li><a href="#events" className="text-muted-foreground hover:text-primary transition-colors">Browse Events</a></li>
-              <li><a href="#artists" className="text-muted-foreground hover:text-primary transition-colors">Featured Artists</a></li>
-              <li><a href="#venues" className="text-muted-foreground hover:text-primary transition-colors">Premium Venues</a></li>
-              <li><a href="#vip" className="text-muted-foreground hover:text-primary transition-colors">VIP Experiences</a></li>
-              <li><a href="#about" className="text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">VIP Events</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Corporate Galas</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Private Parties</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Yacht Experiences</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Premium Venues</a></li>
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Company */}
+          <div>
+            <h4 className="text-lg font-semibold text-foreground mb-6">Company</h4>
+            <ul className="space-y-3">
+              <li><a href="#about" className="text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Careers</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Press</a></li>
+              <li><a href="#contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Partners</a></li>
+            </ul>
+          </div>
+
+          {/* Support & Contact */}
           <div>
             <h4 className="text-lg font-semibold text-foreground mb-6">Support</h4>
             <ul className="space-y-3">
               <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Help Center</a></li>
               <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Contact Support</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Refund Policy</a></li>
               <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
               <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Concierge</a></li>
             </ul>
-          </div>
 
-          {/* Newsletter */}
-          <div>
-            <h4 className="text-lg font-semibold text-foreground mb-6">Stay Updated</h4>
-            <p className="text-muted-foreground mb-4">
-              Get exclusive access to presales and luxury event announcements.
-            </p>
-            <div className="space-y-3">
+            {/* Contact Info */}
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Mail className="h-4 w-4 mr-2 text-primary" />
+                <span>hello@boujeeevents.com</span>
+              </div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Phone className="h-4 w-4 mr-2 text-primary" />
+                <span>+36 1 234 5678</span>
+              </div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <MapPin className="h-4 w-4 mr-2 text-primary" />
+                <span>Budapest, Hungary</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Newsletter Signup */}
+        <div className="border-t border-border/30 pt-8 mb-8">
+          <div className="max-w-md mx-auto text-center">
+            <h4 className="text-lg font-semibold text-foreground mb-2">Stay Updated</h4>
+            <p className="text-muted-foreground mb-4">Get exclusive event invitations and updates</p>
+            <div className="flex gap-2">
               <Input 
+                type="email" 
                 placeholder="Enter your email" 
-                className="bg-input border-border"
+                className="bg-background border-border"
               />
-              <Button className="btn-luxury w-full">
-                <Mail className="mr-2 h-4 w-4" />
+              <Button className="bg-primary hover:bg-primary/90">
                 Subscribe
               </Button>
             </div>
           </div>
         </div>
 
+        {/* Bottom Section */}
         <Separator className="my-8" />
-
-        {/* Contact Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <MapPin className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Headquarters</p>
-              <p className="text-sm text-muted-foreground">Budapest, Hungary</p>
-            </div>
+        <div className="flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground">
+          <div className="mb-4 md:mb-0">
+            © 2025 Boujee Events by VeroC12-hub. All rights reserved.
           </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Phone className="h-5 w-5 text-primary" />
+          <div className="flex items-center space-x-4">
+            <span>Made with ❤️ in Hungary</span>
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-1" />
+              <span>{new Date().getFullYear()}</span>
             </div>
-            <div>
-              <p className="font-semibold text-foreground">24/7 Support</p>
-              <p className="text-sm text-muted-foreground">+36 1 234 5678</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Calendar className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Event Planning</p>
-              <p className="text-sm text-muted-foreground">events@boujeevents.com</p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="my-8" />
-
-        {/* Bottom Footer */}
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <p className="text-muted-foreground text-sm">
-            © 2024 Boujee Events Hungary. All rights reserved.
-          </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">
-              Terms
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">
-              Privacy
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">
-              Cookies
-            </a>
           </div>
         </div>
       </div>
