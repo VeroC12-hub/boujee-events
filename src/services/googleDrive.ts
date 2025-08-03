@@ -37,9 +37,9 @@ class GoogleDriveService {
   constructor() {
     // In production, these would come from environment variables
     this.config = {
-      apiKey: process.env.REACT_APP_GOOGLE_DRIVE_API_KEY || 'mock_api_key',
-      clientId: process.env.REACT_APP_GOOGLE_DRIVE_CLIENT_ID || 'mock_client_id',
-      appId: process.env.REACT_APP_GOOGLE_DRIVE_APP_ID || 'mock_app_id',
+      apiKey: import.meta.env.VITE_GOOGLE_DRIVE_API_KEY || 'mock_api_key',
+      clientId: import.meta.env.VITE_GOOGLE_DRIVE_CLIENT_ID || 'mock_client_id',
+      appId: import.meta.env.VITE_GOOGLE_DRIVE_APP_ID || 'mock_app_id',
       scope: 'https://www.googleapis.com/auth/drive.file'
     };
   }

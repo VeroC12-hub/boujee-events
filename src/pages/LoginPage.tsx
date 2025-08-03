@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 // Secure credentials (in production, these would be in environment variables)
 const SECURE_CREDENTIALS = {
   admin: {
-    username: process.env.REACT_APP_ADMIN_USERNAME || 'admin@boujee.events',
+    username: import.meta.env.VITE_ADMIN_USERNAME || 'admin@boujee.events',
     // This is a hashed version of 'BouJee$Admin2025!'
     passwordHash: '$2a$10$YourHashedPasswordHere',
     plainPassword: 'BouJee$Admin2025!' // Remove in production
