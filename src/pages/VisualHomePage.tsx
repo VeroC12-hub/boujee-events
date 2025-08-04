@@ -10,7 +10,7 @@ import VisualEventCard from '../components/visual/VisualEventCard';
 import VisualFilters from '../components/visual/VisualFilters';
 import ImageGallery from '../components/visual/ImageGallery';
 
-const HomePage: React.FC = () => {
+const VisualHomePage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('events');
   const [events, setEvents] = useState<Event[]>([]);
@@ -43,98 +43,6 @@ const HomePage: React.FC = () => {
       setFeaturedEvents(allEvents.filter(event => event.featured && event.status === 'active'));
     } catch (error) {
       console.error('Failed to load events:', error);
-      // Add sample events if none exist
-      const sampleEvents = [
-        {
-          id: 1,
-          title: "Midnight in Paradise",
-          date: "2025-12-31",
-          location: "Private Island, Maldives",
-          type: "Festival",
-          image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop",
-          images: [
-            "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop",
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop"
-          ],
-          price: "€2,500",
-          description: "An exclusive New Year celebration in paradise with world-class entertainment and luxury accommodations.",
-          status: "active" as const,
-          ticketsSold: 75,
-          maxCapacity: 100,
-          featured: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["VIP", "Luxury", "Exclusive"],
-          basePrice: 2500,
-          organizerId: "admin",
-          metadata: {
-            views: 1234,
-            bookings: 75,
-            revenue: 187500,
-            lastModified: new Date().toISOString()
-          }
-        },
-        {
-          id: 2,
-          title: "Golden Hour Festival",
-          date: "2025-03-15",
-          location: "Château de Versailles, France",
-          type: "Luxury Experience",
-          image: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=600&fit=crop",
-          images: [
-            "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=600&fit=crop",
-            "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=800&h=600&fit=crop"
-          ],
-          price: "€1,800",
-          description: "A sophisticated evening of classical music and fine dining in the historic palace of Versailles.",
-          status: "active" as const,
-          ticketsSold: 45,
-          maxCapacity: 80,
-          featured: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Classical", "Fine Dining", "Historical"],
-          basePrice: 1800,
-          organizerId: "admin",
-          metadata: {
-            views: 890,
-            bookings: 45,
-            revenue: 81000,
-            lastModified: new Date().toISOString()
-          }
-        },
-        {
-          id: 3,
-          title: "Electric Nights Miami",
-          date: "2025-02-20",
-          location: "South Beach, Miami",
-          type: "Party",
-          image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop",
-          images: [
-            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop",
-            "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop"
-          ],
-          price: "€350",
-          description: "Dance the night away with world-renowned DJs and stunning ocean views.",
-          status: "active" as const,
-          ticketsSold: 180,
-          maxCapacity: 200,
-          featured: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Electronic", "Beach", "Nightlife"],
-          basePrice: 350,
-          organizerId: "admin",
-          metadata: {
-            views: 2156,
-            bookings: 180,
-            revenue: 63000,
-            lastModified: new Date().toISOString()
-          }
-        }
-      ];
-      setEvents(sampleEvents);
-      setFeaturedEvents(sampleEvents.filter(event => event.featured));
     } finally {
       setLoading(false);
     }
@@ -511,4 +419,4 @@ const HomePage: React.FC = () => {
   );
 };
 
-export default HomePage;
+export default VisualHomePage;
