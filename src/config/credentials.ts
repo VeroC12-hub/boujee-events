@@ -17,8 +17,8 @@ export interface UserCredentials {
 export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   admin: {
     id: 'admin-001',
-    email: 'admin@boujee.events',
-    password: 'BouJee$Admin2025!', // Plain text for test version
+    email: ''admin@test.com',
+    password: 'admin123!', // Plain text for test version
     role: 'admin',
     displayName: 'Administrator',
     permissions: ['all', 'user_management', 'event_management', 'analytics', 'system_settings'],
@@ -98,7 +98,7 @@ export const getUserByCredentials = (email: string, password: string): UserCrede
 
 // Default passwords for reference/testing
 export const DEFAULT_PASSWORDS = {
-  admin: 'BouJee$Admin2025!',
+  admin: 'admin@test.com',
   organizer: 'OrganizerDemo2025!',
   member: 'MemberDemo2025!'
 } as const;
