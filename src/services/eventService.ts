@@ -306,13 +306,7 @@ class EventService {
     }
   }
 
-  /**
-   * Get featured events (backward compatibility)
-   */
-  getFeaturedEvents(): Event[] {
-    const events = this.getAllEventsFromStorage();
-    return events.filter(event => event.status === 'active' && event.featured);
-  }
+
 
   /**
    * Set event as featured
@@ -379,21 +373,7 @@ class EventService {
     }
   }
 
-  /**
-   * Get event stats (backward compatibility)
-   */
-  getEventStats() {
-    const activeEvents = this.getAllEvents();
-    const totalTicketsSold = activeEvents.reduce((sum, event) => sum + event.ticketsSold, 0);
-    const totalCapacity = activeEvents.reduce((sum, event) => sum + event.maxCapacity, 0);
-    
-    return {
-      totalEvents: activeEvents.length,
-      totalTicketsSold,
-      totalCapacity,
-      averageOccupancy: totalCapacity > 0 ? (totalTicketsSold / totalCapacity) * 100 : 0
-    };
-  }
+
 
   /**
    * Search events

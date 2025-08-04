@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAnalytics } from '../hooks/useAnalytics';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import AdminOverview from '../components/admin/AdminOverview';
+import AdminEvents from '../components/admin/AdminEvents';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
@@ -11,6 +13,7 @@ const AdminDashboard: React.FC = () => {
   const analytics = useAnalytics();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('overview');
   const [notifications, setNotifications] = useState([
     { id: 1, message: 'New user registration', time: '2 minutes ago', type: 'info' },
     { id: 2, message: 'Event published successfully', time: '5 minutes ago', type: 'success' },
@@ -21,25 +24,25 @@ const AdminDashboard: React.FC = () => {
   const navigationItems = [
     {
       name: 'Analytics',
-      path: '/admin/analytics',
+      section: 'analytics',
       icon: '📊',
       badge: analytics.metrics.data?.length || 0
     },
     {
       name: 'Events',
-      path: '/admin/events',
+      section: 'events',
       icon: '📅',
       badge: null
     },
     {
       name: 'Users',
-      path: '/admin/users',
+      section: 'users',
       icon: '👥',
       badge: null
     },
     {
       name: 'Settings',
-      path: '/admin/settings',
+      section: 'settings',
       icon: '⚙️',
       badge: null
     }
@@ -69,12 +72,43 @@ const AdminDashboard: React.FC = () => {
   };
 
   const getPageTitle = () => {
-    const path = location.pathname;
-    if (path.includes('analytics')) return 'Analytics Dashboard';
-    if (path.includes('events')) return 'Event Management';
-    if (path.includes('users')) return 'User Management';
-    if (path.includes('settings')) return 'Platform Settings';
-    return 'Admin Dashboard';
+    switch (activeSection) {
+      case 'analytics': return 'Analytics Dashboard';
+      case 'events': return 'Event Management';
+      case 'users': return 'User Management';
+      case 'settings': return 'Settings';
+      default: return 'Admin Dashboard';
+    }
+  };
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'events':
+        return <AdminEvents />;
+      case 'analytics':
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">Analytics Dashboard</h2>
+            <p className="text-gray-400">Analytics content coming soon...</p>
+          </div>
+        );
+      case 'users':
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">User Management</h2>
+            <p className="text-gray-400">User management content coming soon...</p>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
+            <p className="text-gray-400">Settings content coming soon...</p>
+          </div>
+        );
+      default:
+        return <AdminOverview />;
+    }
   };
 
   if (!authState.user) {
@@ -132,12 +166,12 @@ const AdminDashboard: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2">
           {navigationItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = activeSection === item.section;
             return (
               <button
                 key={item.name}
                 onClick={() => {
-                  navigate(item.path);
+                  setActiveSection(item.section);
                   setSidebarOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-colors ${
@@ -237,7 +271,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          {renderContent()}
         </main>
 
         {/* Footer */}
