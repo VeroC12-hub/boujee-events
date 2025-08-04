@@ -13,12 +13,12 @@ export interface UserCredentials {
   lastLogin?: Date;
 }
 
-// TEST CREDENTIALS: Use plain passwords for immediate testing
+// TEST CREDENTIALS: Use simple passwords for immediate testing
 export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   admin: {
     id: 'admin-001',
-    email: ''admin@test.com',
-    password: 'admin123!', // Plain text for test version
+    email: 'admin@test.com',
+    password: 'admin123', // Simple password for test version
     role: 'admin',
     displayName: 'Administrator',
     permissions: ['all', 'user_management', 'event_management', 'analytics', 'system_settings'],
@@ -27,8 +27,8 @@ export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   },
   organizer: {
     id: 'organizer-001',
-    email: 'organizer@boujee.events',
-    password: 'OrganizerDemo2025!', // Plain text for test version
+    email: 'organizer@test.com',
+    password: 'organizer123', // Simple password for test version
     role: 'organizer',
     displayName: 'Event Organizer',
     permissions: ['event_management', 'attendee_management', 'analytics_view'],
@@ -37,8 +37,8 @@ export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   },
   member: {
     id: 'member-001',
-    email: 'member@boujee.events',
-    password: 'MemberDemo2025!', // Plain text for test version
+    email: 'member@test.com',
+    password: 'member123', // Simple password for test version
     role: 'member',
     displayName: 'Member',
     permissions: ['event_access', 'profile_management'],
@@ -98,9 +98,9 @@ export const getUserByCredentials = (email: string, password: string): UserCrede
 
 // Default passwords for reference/testing
 export const DEFAULT_PASSWORDS = {
-  admin: 'admin@test.com',
-  organizer: 'OrganizerDemo2025!',
-  member: 'MemberDemo2025!'
+  admin: 'admin123',
+  organizer: 'organizer123',
+  member: 'member123'
 } as const;
 
 // Get default password for a role
