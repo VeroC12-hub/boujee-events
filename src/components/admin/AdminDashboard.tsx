@@ -3,7 +3,11 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useVIPManagement } from '../../hooks/useVIP';
+import { eventService } from '../../services/eventService';
+import { googleDriveService } from '../../services/googleDrive';
 import LoadingSpinner from '../common/LoadingSpinner';
+
+import { Event } from '../../services/eventService';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
@@ -13,11 +17,30 @@ const AdminDashboard: React.FC = () => {
   const vipData = useVIPManagement();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
   const [notifications, setNotifications] = useState([
     { id: 1, message: 'New VIP reservation received', time: '2 minutes ago', type: 'info' },
     { id: 2, message: 'Event published successfully', time: '5 minutes ago', type: 'success' },
     { id: 3, message: 'Payment processed', time: '10 minutes ago', type: 'success' }
   ]);
+
+  // Load events from event service on component mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const eventsData = await eventService.getEvents();
+        setEvents(eventsData);
+      } catch (error) {
+        console.error('Failed to load events:', error);
+      }
+    };
+
+    loadEvents();
+  }, []);
 
   // Navigation items with real-time data and VIP section
   const navigationItems = [
@@ -32,7 +55,7 @@ const AdminDashboard: React.FC = () => {
       name: 'Events',
       path: '/admin/events',
       icon: '📅',
-      badge: null,
+      badge: events.filter(e => e.status === 'active').length,
       description: 'Manage Events'
     },
     {
@@ -102,6 +125,89 @@ const AdminDashboard: React.FC = () => {
     return '🏠';
   };
 
+  // Enhanced event management functions with Google Drive integration
+  const handleImageUpload = async (file: File, eventId?: number) => {
+    setUploadingImage(true);
+    try {
+      // Initialize Google Drive if not already done
+      const isAuth = await googleDriveService.isAuthenticated();
+      if (!isAuth) {
+        await googleDriveService.authenticate();
+      }
+
+      let imageUrl = '';
+      if (eventId) {
+        // Upload to existing event folder
+        imageUrl = await eventService.uploadEventImage(
+          eventId, 
+          file, 
+          (progress) => console.log(`Upload progress: ${progress}%`)
+        );
+      } else {
+        // Upload to Google Drive without specific event (will be assigned later)
+        const result = await googleDriveService.uploadImage(
+          file,
+          0, // Temporary ID
+          'New Event',
+          (progress) => console.log(`Upload progress: ${progress}%`)
+        );
+        imageUrl = result.webContentLink;
+      }
+      
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.success('Image uploaded to Google Drive successfully!');
+      }
+      
+      return imageUrl;
+    } catch (error) {
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.error('Image upload failed');
+      }
+      throw error;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const saveEvent = async (eventData: Partial<Event>) => {
+    try {
+      if (editingEvent) {
+        // Update existing event
+        const updatedEvent = await eventService.updateEvent(editingEvent.id, eventData);
+        if (updatedEvent) {
+          const updatedEvents = events.map(e => e.id === editingEvent.id ? updatedEvent : e);
+          setEvents(updatedEvents);
+        }
+      } else {
+        // Create new event
+        const newEventData = {
+          ...eventData,
+          status: 'active' as const,
+          ticketsSold: 0,
+          featured: false,
+          images: eventData.image ? [eventData.image] : [],
+          tags: [],
+          basePrice: parseFloat(eventData.price?.replace(/[^\d.]/g, '') || '0'),
+          organizerId: 'VeroC12-hub'
+        };
+        
+        const newEvent = await eventService.createEvent(newEventData);
+        setEvents(prev => [...prev, newEvent]);
+      }
+      
+      setShowEventModal(false);
+      setEditingEvent(null);
+      
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.success(editingEvent ? 'Event updated successfully!' : 'Event created successfully!');
+      }
+    } catch (error) {
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.error('Failed to save event');
+      }
+    }
+  };
+
   if (!authState.user) {
     return <LoadingSpinner fullScreen message="Loading dashboard..." />;
   }
@@ -124,7 +230,16 @@ const AdminDashboard: React.FC = () => {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <div className="flex items-center">
-            <span className="text-2xl">🎫</span>
+            <img 
+              src="/src/be-logo.png" 
+              alt="Boujee Events Logo" 
+              className="h-8 w-auto"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling!.style.display = 'block';
+              }}
+            />
+            <span className="text-2xl" style={{ display: 'none' }}>🎫</span>
             <span className="ml-2 text-xl font-bold text-gray-900">EventHub</span>
           </div>
           <button
@@ -174,19 +289,21 @@ const AdminDashboard: React.FC = () => {
                 <div className="flex items-center">
                   <span className="text-lg mr-3">{item.icon}</span>
                   <div>
-                    <span className="font-medium">{item.name}</span>
-                    <p className="text-xs text-gray-500">{item.description}</p>
+                    <span className="font-medium block">{item.name}</span>
+                    <span className="text-xs text-gray-500">{item.description}</span>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  {item.isNew && (
-                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full mr-2">
-                      NEW
+                <div className="flex items-center space-x-2">
+                  {item.badge && (
+                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                      isActive ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {item.badge}
                     </span>
                   )}
-                  {item.badge && (
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      {item.badge}
+                  {item.isNew && (
+                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded text-xs font-bold">
+                      NEW
                     </span>
                   )}
                 </div>
@@ -194,26 +311,6 @@ const AdminDashboard: React.FC = () => {
             );
           })}
         </nav>
-
-        {/* VIP Quick Stats */}
-        {vipData.analytics && (
-          <div className="p-4 border-t border-gray-200">
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-purple-900">VIP Revenue</div>
-                  <div className="text-lg font-bold text-purple-700">
-                    ${vipData.analytics.totalRevenue?.toLocaleString()}
-                  </div>
-                </div>
-                <span className="text-2xl">🌟</span>
-              </div>
-              <div className="mt-2 text-xs text-purple-600">
-                {vipData.analytics.totalReservations} total reservations
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* System Status */}
         <div className="p-4 border-t border-gray-200">
@@ -261,7 +358,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               {/* Real-time clock */}
               <div className="text-sm text-gray-500">
-                2025-08-03 04:59:40 UTC
+                2025-08-03 21:52:16 UTC
               </div>
 
               {/* VIP Notifications */}
@@ -273,14 +370,24 @@ const AdminDashboard: React.FC = () => {
                     title="Pending VIP Reservations"
                   >
                     <span className="text-xl">🌟</span>
-                    <span className="absolute -top-1 -right-1 block h-5 w-5 rounded-full bg-red-400 text-white text-xs flex items-center justify-center">
-                      {vipData.reservations.filter(r => r.status === 'pending').length}
+                    <span className="absolute -top-1 -right-1 block h-4 w-4 rounded-full bg-red-400 text-xs text-white text-center leading-4">
+                      {vipData.reservations?.filter(r => r.status === 'pending').length}
                     </span>
                   </button>
                 </div>
               )}
 
-              {/* Regular Notifications */}
+              {/* Quick Actions for Events Page */}
+              {location.pathname.includes('events') && (
+                <button
+                  onClick={() => setShowEventModal(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  + New Event
+                </button>
+              )}
+
+              {/* Notifications */}
               <div className="relative">
                 <button className="relative p-2 text-gray-400 hover:text-gray-500">
                   <span className="text-xl">🔔</span>
@@ -339,7 +446,92 @@ const AdminDashboard: React.FC = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          {/* Event Management Content */}
+          {location.pathname.includes('events') && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Event Management</h2>
+                <p className="text-gray-600">Manage your events and sync with homepage</p>
+              </div>
+
+              {/* Events Grid */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event) => (
+                  <div key={event.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                      <img 
+                        src={event.image} 
+                        alt={event.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling!.style.display = 'flex';
+                        }}
+                      />
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center" style={{ display: 'none' }}>
+                        <span className="text-4xl text-gray-400">🎭</span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          event.status === 'active' ? 'bg-green-100 text-green-800' :
+                          event.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {event.status.toUpperCase()}
+                        </span>
+                        <span className="text-xs text-gray-500">{event.type}</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 mb-1">{event.title}</h3>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                      <div className="text-xs text-gray-500 mb-3">
+                        <div>📅 {event.date}</div>
+                        <div>📍 {event.location}</div>
+                        <div>🎫 {event.ticketsSold}/{event.maxCapacity} sold</div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => {
+                            setEditingEvent(event);
+                            setShowEventModal(true);
+                          }}
+                          className="flex-1 bg-blue-50 text-blue-700 px-3 py-2 rounded text-sm font-medium hover:bg-blue-100 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm('Are you sure you want to delete this event?')) {
+                              try {
+                                const success = await eventService.deleteEvent(event.id);
+                                if (success) {
+                                  setEvents(prev => prev.filter(e => e.id !== event.id));
+                                  if ((window as Record<string, unknown>).toast) {
+                                    (window as Record<string, unknown>).toast.success('Event deleted successfully!');
+                                  }
+                                }
+                              } catch (error) {
+                                if ((window as Record<string, unknown>).toast) {
+                                  (window as Record<string, unknown>).toast.error('Failed to delete event');
+                                }
+                              }
+                            }
+                          }}
+                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded text-sm font-medium transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Default Outlet for other pages */}
+          {!location.pathname.includes('events') && <Outlet />}
         </main>
 
         {/* Footer */}
@@ -351,19 +543,221 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               <span>User: {authState.user.name}</span>
               <span>•</span>
-              <span>2025-08-03 04:59:40 UTC</span>
-              {vipData.analytics && (
-                <>
-                  <span>•</span>
-                  <span className="text-purple-600 font-medium">
-                    🌟 ${vipData.analytics.totalRevenue?.toLocaleString()} VIP Revenue
-                  </span>
-                </>
-              )}
+              <span>2025-08-03 21:52:16 UTC</span>
             </div>
           </div>
         </footer>
       </div>
+
+      {/* Event Modal */}
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingEvent ? 'Edit Event' : 'Create New Event'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowEventModal(false);
+                    setEditingEvent(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const eventData = {
+                  title: formData.get('title') as string,
+                  date: formData.get('date') as string,
+                  location: formData.get('location') as string,
+                  type: formData.get('type') as string,
+                  price: formData.get('price') as string,
+                  description: formData.get('description') as string,
+                  maxCapacity: parseInt(formData.get('maxCapacity') as string),
+                  image: editingEvent?.image || '/api/placeholder/800/400'
+                };
+                saveEvent(eventData);
+              }}>
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Event Title *
+                      </label>
+                      <input
+                        type="text"
+                        name="title"
+                        defaultValue={editingEvent?.title || ''}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Event Type *
+                      </label>
+                      <select
+                        name="type"
+                        defaultValue={editingEvent?.type || ''}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Gala">Gala</option>
+                        <option value="Festival">Festival</option>
+                        <option value="Conference">Conference</option>
+                        <option value="Concert">Concert</option>
+                        <option value="Wedding">Wedding</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Experience">Experience</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date *
+                      </label>
+                      <input
+                        type="date"
+                        name="date"
+                        defaultValue={editingEvent?.date || ''}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Price Display *
+                      </label>
+                      <input
+                        type="text"
+                        name="price"
+                        placeholder="e.g., From €150"
+                        defaultValue={editingEvent?.price || ''}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location *
+                      </label>
+                      <input
+                        type="text"
+                        name="location"
+                        defaultValue={editingEvent?.location || ''}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Max Capacity *
+                      </label>
+                      <input
+                        type="number"
+                        name="maxCapacity"
+                        defaultValue={editingEvent?.maxCapacity || 100}
+                        required
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description *
+                    </label>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      defaultValue={editingEvent?.description || ''}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Event Image
+                    </label>
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                      <div className="space-y-1 text-center">
+                        <div className="text-4xl text-gray-400">📷</div>
+                        <div className="flex text-sm text-gray-600">
+                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                            <span>Upload a file</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const imageUrl = await handleImageUpload(file, editingEvent?.id);
+                                    // Update the event with the new image URL
+                                    if (editingEvent) {
+                                      setEditingEvent({ ...editingEvent, image: imageUrl });
+                                    }
+                                  } catch (error) {
+                                    console.error('Upload failed:', error);
+                                  }
+                                }
+                              }}
+                              disabled={uploadingImage}
+                            />
+                          </label>
+                          <p className="pl-1">or drag and drop</p>
+                        </div>
+                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                        {uploadingImage && (
+                          <div className="text-blue-600">
+                            <div className="animate-spin inline-block mr-2">⏳</div>
+                            Uploading to Google Drive...
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEventModal(false);
+                      setEditingEvent(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingImage}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {editingEvent ? 'Update Event' : 'Create Event'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

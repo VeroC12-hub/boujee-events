@@ -5,7 +5,7 @@ import { useEventManagement } from '../../hooks/useEvents';
 import { exportToCSV, exportHTMLReport, printReport } from '../../utils/exportUtils';
 import { getDateRangePresets } from '../../utils/dateUtils';
 import LoadingSpinner from '../common/LoadingSpinner';
-import GoalTracking from './GoalTracking';
+import GoalTracking from '../analytics/GoalTracking'; // ✅ Fixed import path
 
 // Simple Chart Components (embedded in same file)
 const SimpleBarChart: React.FC<{
@@ -445,7 +445,7 @@ const Analytics: React.FC = () => {
       case 'print':
         const printContent = `
           <h1>📊 EventHub Analytics Report</h1>
-          <p><strong>Generated:</strong> 2025-08-03 11:10:24 UTC</p>
+          <p><strong>Generated:</strong> 2025-08-03 19:30:05 UTC</p>
           <p><strong>User:</strong> VeroC12-hub</p>
           
           <h2>📈 Key Metrics</h2>
@@ -477,7 +477,7 @@ const Analytics: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">📊 Analytics Dashboard</h1>
           <p className="text-gray-600 mt-2">Real-time insights with advanced visualizations</p>
           <p className="text-sm text-gray-500 mt-1">
-            Last updated: 2025-08-03 11:10:24 UTC | User: VeroC12-hub
+            Last updated: 2025-08-03 19:30:05 UTC | User: VeroC12-hub
           </p>
         </div>
         

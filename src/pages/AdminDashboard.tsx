@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useAnalytics } from '../../hooks/useAnalytics';
-import LoadingSpinner from '../common/LoadingSpinner';
+import { useAuth } from '../contexts/AuthContext';
+import { useAnalytics } from '../hooks/useAnalytics';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();

@@ -84,6 +84,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check for existing token on app load
   useEffect(() => {
     const checkAuth = async () => {
+      // First check for emergency auth state
+      const emergencyAuthState = localStorage.getItem('authState');
+      if (emergencyAuthState) {
+        try {
+          const authData = JSON.parse(emergencyAuthState);
+          if (authData.isAuthenticated && authData.user) {
+            dispatch({ type: 'SET_USER', payload: authData.user });
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to parse emergency auth state:', error);
+        }
+      }
+
+      // Then check for regular auth token
       const token = localStorage.getItem('authToken');
       if (token) {
         try {
