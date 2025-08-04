@@ -585,6 +585,177 @@ const OrganizerDashboard = () => {
               </div>
             </div>
           )}
+
+          {activeView === 'settings' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold">Organizer Settings</h2>
+              
+              {/* Profile Settings */}
+              <div className="card-luxury">
+                <h3 className="text-lg font-semibold mb-4">Profile Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Company Name</label>
+                    <input 
+                      type="text" 
+                      defaultValue="Elite Events Co."
+                      className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Contact Email</label>
+                    <input 
+                      type="email" 
+                      defaultValue="contact@eliteevents.com"
+                      className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Phone Number</label>
+                    <input 
+                      type="tel" 
+                      defaultValue="+1 (555) 123-4567"
+                      className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Website</label>
+                    <input 
+                      type="url" 
+                      defaultValue="https://eliteevents.com"
+                      className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-6">
+                  <label className="block text-sm font-medium mb-2">Company Description</label>
+                  <textarea 
+                    rows={4}
+                    defaultValue="Premium event organizer specializing in luxury experiences and exclusive gatherings for discerning clientele."
+                    className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Settings */}
+              <div className="card-luxury">
+                <h3 className="text-lg font-semibold mb-4">Payment Settings</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Stripe Account</h4>
+                      <p className="text-sm text-gray-400">Connected: acct_1234567890</p>
+                    </div>
+                    <span className="text-green-500 text-sm">✓ Connected</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Payout Schedule</label>
+                      <select className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none">
+                        <option>Weekly</option>
+                        <option>Bi-weekly</option>
+                        <option>Monthly</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Currency</label>
+                      <select className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none">
+                        <option>USD</option>
+                        <option>EUR</option>
+                        <option>GBP</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notification Settings */}
+              <div className="card-luxury">
+                <h3 className="text-lg font-semibold mb-4">Notification Preferences</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Event Bookings</h4>
+                      <p className="text-sm text-gray-400">Get notified when someone books your event</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-primary" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Payment Updates</h4>
+                      <p className="text-sm text-gray-400">Receive payment and payout notifications</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-primary" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Weekly Reports</h4>
+                      <p className="text-sm text-gray-400">Get weekly performance summaries</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-primary" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Marketing Tips</h4>
+                      <p className="text-sm text-gray-400">Receive tips to improve your events</p>
+                    </div>
+                    <input type="checkbox" className="w-5 h-5 text-primary" />
+                  </div>
+                </div>
+              </div>
+
+              {/* API & Integration Settings */}
+              <div className="card-luxury">
+                <h3 className="text-lg font-semibold mb-4">API & Integrations</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium">API Key</h4>
+                      <p className="text-sm text-gray-400 font-mono">pk_live_51H...***</p>
+                    </div>
+                    <button className="text-primary hover:text-accent transition-colors">
+                      Regenerate
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 border border-gray-700 rounded-lg text-center hover:border-primary transition-colors">
+                      <div className="text-2xl mb-2">📧</div>
+                      <h4 className="font-medium">Mailchimp</h4>
+                      <p className="text-xs text-gray-400 mb-2">Email Marketing</p>
+                      <button className="text-xs text-primary">Connect</button>
+                    </div>
+                    
+                    <div className="p-4 border border-gray-700 rounded-lg text-center hover:border-primary transition-colors">
+                      <div className="text-2xl mb-2">📱</div>
+                      <h4 className="font-medium">Zapier</h4>
+                      <p className="text-xs text-gray-400 mb-2">Automation</p>
+                      <button className="text-xs text-primary">Connect</button>
+                    </div>
+                    
+                    <div className="p-4 border border-gray-700 rounded-lg text-center hover:border-primary transition-colors">
+                      <div className="text-2xl mb-2">📊</div>
+                      <h4 className="font-medium">Google Analytics</h4>
+                      <p className="text-xs text-gray-400 mb-2">Tracking</p>
+                      <button className="text-xs text-primary">Connect</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Settings */}
+              <div className="flex justify-end">
+                <button className="btn-luxury">
+                  Save All Settings
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
