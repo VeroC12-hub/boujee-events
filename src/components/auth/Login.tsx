@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types/api';
 
 const Login: React.FC = () => {
   const { login, state } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: ''
@@ -21,7 +23,10 @@ const Login: React.FC = () => {
     }
 
     const success = await login(formData);
-    if (!success) {
+    if (success) {
+      // Navigate to admin dashboard on successful login
+      navigate('/admin');
+    } else {
       setError('Invalid email or password');
     }
   };
