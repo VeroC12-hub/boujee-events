@@ -14,6 +14,7 @@ interface User {
   eventsAttended: number;
   totalSpent: number;
   verified: boolean;
+  password: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -36,7 +37,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 8,
       eventsAttended: 12,
       totalSpent: 1250,
-      verified: true
+      verified: true,
+      password: 'AdminPass2025!'
     },
     {
       id: '2',
@@ -51,7 +53,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 5,
       eventsAttended: 8,
       totalSpent: 650,
-      verified: true
+      verified: true,
+      password: 'OrganizerPass2025!'
     },
     {
       id: '3',
@@ -66,7 +69,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 0,
       eventsAttended: 15,
       totalSpent: 890,
-      verified: true
+      verified: true,
+      password: 'UserPass2025!'
     },
     {
       id: '4',
@@ -81,7 +85,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 3,
       eventsAttended: 4,
       totalSpent: 320,
-      verified: false
+      verified: false,
+      password: 'OrganizerPass2025!'
     },
     {
       id: '5',
@@ -96,7 +101,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 0,
       eventsAttended: 2,
       totalSpent: 0,
-      verified: false
+      verified: false,
+      password: 'UserPass2025!'
     },
     {
       id: '6',
@@ -111,7 +117,8 @@ const UserManagement: React.FC = () => {
       eventsCreated: 1,
       eventsAttended: 6,
       totalSpent: 450,
-      verified: true
+      verified: true,
+      password: 'UserPass2025!'
     }
   ]);
 
@@ -154,9 +161,25 @@ const UserManagement: React.FC = () => {
   };
 
   const handleRoleChange = (userId: string, newRole: string) => {
+    // Generate new password when role changes
+    const generatePassword = (role: string): string => {
+      const basePasswords = {
+        admin: 'AdminPass2025!',
+        organizer: 'OrganizerPass2025!',
+        user: 'UserPass2025!'
+      };
+      return basePasswords[role as keyof typeof basePasswords] || 'DefaultPass2025!';
+    };
+
+    const newPassword = generatePassword(newRole);
     setUsers(users.map(user => 
-      user.id === userId ? { ...user, role: newRole as User['role'] } : user
+      user.id === userId 
+        ? { ...user, role: newRole as User['role'], password: newPassword } 
+        : user
     ));
+    
+    // Show notification about password change
+    alert(`Role changed to ${newRole}. New password: ${newPassword}`);
   };
 
   const stats = {
@@ -308,6 +331,9 @@ const UserManagement: React.FC = () => {
                   Last Login
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Password
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -366,6 +392,11 @@ const UserManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {user.lastLogin}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                      {user.password}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -471,6 +502,12 @@ const UserManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Last Login</label>
                   <p className="text-gray-900">{selectedUser.lastLogin}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <p className="text-gray-900 font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                    {selectedUser.password}
+                  </p>
                 </div>
               </div>
               

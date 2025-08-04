@@ -6,8 +6,10 @@ import { ToastContainer } from './components/common/Toast';
 // Pages
 import HomePage from './pages/HomePage';
 import IndexPage from './pages/Index';
-import Login from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
+
+// Auth Components
+import Login from './components/auth/Login';
 
 // Admin Components - Fixed: Removed duplicate import and merge conflict
 import AdminDashboard from './components/admin/AdminDashboard';

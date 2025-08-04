@@ -32,11 +32,27 @@ const Login: React.FC = () => {
     if (error) setError(''); // Clear error when user starts typing
   };
 
-  // Demo credentials helper
-  const fillDemoCredentials = () => {
+  // Demo credentials helper functions
+  const fillAdminCredentials = () => {
     setFormData({
       email: 'veroc12@example.com',
-      password: 'password123'
+      password: 'AdminPass2025!'
+    });
+    setError('');
+  };
+
+  const fillOrganizerCredentials = () => {
+    setFormData({
+      email: 'john.smith@example.com', 
+      password: 'OrganizerPass2025!'
+    });
+    setError('');
+  };
+
+  const fillUserCredentials = () => {
+    setFormData({
+      email: 'sarah.j@example.com',
+      password: 'UserPass2025!'
     });
     setError('');
   };
@@ -58,17 +74,28 @@ const Login: React.FC = () => {
         <div className="bg-blue-800 bg-opacity-50 border border-blue-600 rounded-lg p-4">
           <div className="flex items-center">
             <span className="text-blue-300 mr-2">ℹ️</span>
-            <div>
+            <div className="flex-1">
               <h3 className="text-sm font-medium text-blue-200">Demo Credentials</h3>
-              <p className="text-xs text-blue-300 mt-1">
-                Email: veroc12@example.com | Password: password123
-              </p>
-              <button
-                onClick={fillDemoCredentials}
-                className="text-xs text-blue-200 hover:text-white underline mt-1"
-              >
-                Click to fill demo credentials
-              </button>
+              <div className="grid grid-cols-1 gap-2 mt-2">
+                <button
+                  onClick={fillAdminCredentials}
+                  className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition-colors"
+                >
+                  Admin: veroc12@example.com / AdminPass2025!
+                </button>
+                <button
+                  onClick={fillOrganizerCredentials}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                >
+                  Organizer: john.smith@example.com / OrganizerPass2025!
+                </button>
+                <button
+                  onClick={fillUserCredentials}
+                  className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+                >
+                  User: sarah.j@example.com / UserPass2025!
+                </button>
+              </div>
             </div>
           </div>
         </div>

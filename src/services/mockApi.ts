@@ -21,8 +21,18 @@ import {
 // Simulate network delay
 const delay = (ms: number = 500) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Mock data storage
-let mockUsers: User[] = [
+// Password generation utility
+const generatePassword = (role: string): string => {
+  const basePasswords = {
+    admin: 'AdminPass2025!',
+    organizer: 'OrganizerPass2025!', 
+    user: 'UserPass2025!'
+  };
+  return basePasswords[role as keyof typeof basePasswords] || 'DefaultPass2025!';
+};
+
+// Mock data storage with passwords
+const mockUsers: User[] = [
   {
     id: '1',
     name: 'VeroC12-hub',
@@ -36,7 +46,8 @@ let mockUsers: User[] = [
     eventsCreated: 8,
     eventsAttended: 12,
     totalSpent: 1250,
-    verified: true
+    verified: true,
+    password: 'AdminPass2025!'
   },
   {
     id: '2',
@@ -51,7 +62,8 @@ let mockUsers: User[] = [
     eventsCreated: 5,
     eventsAttended: 8,
     totalSpent: 650,
-    verified: true
+    verified: true,
+    password: 'OrganizerPass2025!'
   },
   {
     id: '3',
@@ -66,7 +78,8 @@ let mockUsers: User[] = [
     eventsCreated: 0,
     eventsAttended: 15,
     totalSpent: 890,
-    verified: true
+    verified: true,
+    password: 'UserPass2025!'
   },
   {
     id: '4',
@@ -81,7 +94,8 @@ let mockUsers: User[] = [
     eventsCreated: 3,
     eventsAttended: 4,
     totalSpent: 320,
-    verified: false
+    verified: false,
+    password: 'OrganizerPass2025!'
   },
   {
     id: '5',
@@ -96,7 +110,8 @@ let mockUsers: User[] = [
     eventsCreated: 0,
     eventsAttended: 2,
     totalSpent: 0,
-    verified: false
+    verified: false,
+    password: 'UserPass2025!'
   }
 ];
 
@@ -180,8 +195,17 @@ class MockApiService {
   async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     const user = mockUsers.find(u => u.email === credentials.email);
     
-    if (!user || credentials.password !== 'password123') {
+    if (!user || user.password !== credentials.password) {
       return this.apiResponse(null as any, false, 'Invalid email or password');
+    }
+
+    // Check if user is banned or inactive
+    if (user.status === 'banned') {
+      return this.apiResponse(null as any, false, 'Account is banned. Please contact support.');
+    }
+
+    if (user.status === 'inactive') {
+      return this.apiResponse(null as any, false, 'Account is inactive. Please contact admin.');
     }
 
     const token = `mock_token_${Date.now()}`;
@@ -273,7 +297,8 @@ class MockApiService {
       eventsCreated: 0,
       eventsAttended: 0,
       totalSpent: 0,
-      verified: false
+      verified: false,
+      password: generatePassword(userData.role)
     };
 
     mockUsers.push(newUser);
@@ -284,6 +309,11 @@ class MockApiService {
     const userIndex = mockUsers.findIndex(u => u.id === id);
     if (userIndex === -1) {
       return this.apiResponse(null as any, false, 'User not found');
+    }
+
+    // If role is being updated, generate new password
+    if (updates.role && updates.role !== mockUsers[userIndex].role) {
+      updates.password = generatePassword(updates.role);
     }
 
     mockUsers[userIndex] = { ...mockUsers[userIndex], ...updates };
