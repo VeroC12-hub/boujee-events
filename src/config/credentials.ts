@@ -1,9 +1,9 @@
-// Centralized credential management for Boujee Events
-// FIXED VERSION with better security practices
+// TEST VERSION - For development/demo purposes only
+// TODO: Implement proper security before production deployment
 
 export interface UserCredentials {
   email: string;
-  passwordHash: string; // Changed from 'password' to 'passwordHash'
+  password: string; // Plain text for test version only
   role: 'admin' | 'organizer' | 'member';
   displayName: string;
   permissions: string[];
@@ -13,17 +13,12 @@ export interface UserCredentials {
   lastLogin?: Date;
 }
 
-// Simple hash function (in production, use bcrypt or similar)
-const simpleHash = (password: string): string => {
-  return btoa(password + 'salt123'); // Basic encoding - use proper hashing in production
-};
-
-// In production, these should come from environment variables or secure database
+// TEST CREDENTIALS: Use plain passwords for immediate testing
 export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   admin: {
     id: 'admin-001',
     email: 'admin@boujee.events',
-    passwordHash: simpleHash('BouJee$Admin2025!'), // Hashed password
+    password: 'BouJee$Admin2025!', // Plain text for test version
     role: 'admin',
     displayName: 'Administrator',
     permissions: ['all', 'user_management', 'event_management', 'analytics', 'system_settings'],
@@ -33,7 +28,7 @@ export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   organizer: {
     id: 'organizer-001',
     email: 'organizer@boujee.events',
-    passwordHash: simpleHash('OrganizerDemo2025!'), // Hashed password
+    password: 'OrganizerDemo2025!', // Plain text for test version
     role: 'organizer',
     displayName: 'Event Organizer',
     permissions: ['event_management', 'attendee_management', 'analytics_view'],
@@ -43,7 +38,7 @@ export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   member: {
     id: 'member-001',
     email: 'member@boujee.events',
-    passwordHash: simpleHash('MemberDemo2025!'), // Hashed password
+    password: 'MemberDemo2025!', // Plain text for test version
     role: 'member',
     displayName: 'Member',
     permissions: ['event_access', 'profile_management'],
@@ -52,143 +47,144 @@ export const SECURE_CREDENTIALS: Record<string, UserCredentials> = {
   }
 };
 
-// Default passwords for automatic assignment (these would be hashed when stored)
-export const DEFAULT_PASSWORDS = {
-  admin: 'BouJee$Admin2025!',
-  organizer: 'OrganizerDemo2025!',
-  member: 'MemberDemo2025!'
-};
-
-// Input validation helper
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-const isValidPassword = (password: string): boolean => {
-  return password && password.length >= 8;
-};
-
-// Enhanced function to validate credentials with proper role checking
+// FIXED: Simple validation without hashing
 export const validateCredentials = (email: string, password: string, role?: string): boolean => {
-  // Input validation
-  if (!isValidEmail(email) || !isValidPassword(password)) {
-    console.log('Invalid email or password format');
-    return false;
-  }
-
-  console.log(`Validating credentials for email: ${email}, role: ${role}`);
-  
-  const hashedPassword = simpleHash(password);
+  console.log(`[TEST AUTH] Validating credentials for email: ${email}${role ? `, role: ${role}` : ''}`);
   
   // If role is specified, check against that specific role's credentials
   if (role) {
     const credential = SECURE_CREDENTIALS[role];
     if (!credential) {
-      console.log(`Role ${role} not found in SECURE_CREDENTIALS`);
+      console.log(`[TEST AUTH] Role ${role} not found in SECURE_CREDENTIALS`);
       return false;
     }
     
     const isValid = credential.email === email && 
-                   credential.passwordHash === hashedPassword && 
+                   credential.password === password && // Direct comparison for test version
                    credential.isActive;
-    console.log(`Validation result for ${role}: ${isValid}`);
+    console.log(`[TEST AUTH] Validation result for ${role}: ${isValid}`);
     return isValid;
   }
   
   // If no role specified, check against all credentials
-  return getUserByCredentials(email, password) !== null;
+  const user = getUserByCredentials(email, password);
+  return user !== null;
 };
 
-// Function to assign default password when role is assigned
-export const assignDefaultPassword = (role: 'admin' | 'organizer' | 'member'): string => {
-  if (!DEFAULT_PASSWORDS[role]) {
-    throw new Error(`Invalid role: ${role}`);
-  }
-  
-  const password = DEFAULT_PASSWORDS[role];
-  console.log(`Assigning default password for role ${role}`);
-  return password;
-};
-
-// Enhanced function to get user by email and password
+// FIXED: Simple lookup without hashing and proper object handling
 export const getUserByCredentials = (email: string, password: string): UserCredentials | null => {
-  if (!isValidEmail(email) || !isValidPassword(password)) {
-    console.log('Invalid email or password format');
-    return null;
-  }
-
-  console.log(`Looking up user with email: ${email}`);
-  
-  const hashedPassword = simpleHash(password);
+  console.log(`[TEST AUTH] Looking up user with email: ${email}`);
   
   for (const [key, user] of Object.entries(SECURE_CREDENTIALS)) {
-    if (user.email === email && user.passwordHash === hashedPassword && user.isActive) {
-      console.log(`User found: ${user.displayName} (${user.role})`);
+    if (user.email === email && user.password === password && user.isActive) {
+      console.log(`[TEST AUTH] User found: ${user.displayName} (${user.role})`);
       
-      // Update last login time
-      user.lastLogin = new Date();
+      // FIXED: Create copy first, then update lastLogin on the copy
+      const userCopy = { 
+        ...user, 
+        lastLogin: new Date() 
+      };
       
-      return { ...user }; // Return a copy to avoid direct modification
+      // Update the original record's lastLogin for persistence in this session
+      SECURE_CREDENTIALS[key].lastLogin = new Date();
+      
+      return userCopy;
     }
   }
   
-  console.log('No matching user found');
+  console.log('[TEST AUTH] No matching user found');
   return null;
 };
 
-// Function to get user by role
-export const getUserByRole = (role: 'admin' | 'organizer' | 'member'): UserCredentials | null => {
-  if (!SECURE_CREDENTIALS[role]) {
-    console.log(`Role ${role} not found`);
-    return null;
-  }
-  return { ...SECURE_CREDENTIALS[role] }; // Return a copy
+// Default passwords for reference/testing
+export const DEFAULT_PASSWORDS = {
+  admin: 'BouJee$Admin2025!',
+  organizer: 'OrganizerDemo2025!',
+  member: 'MemberDemo2025!'
+} as const;
+
+// Get default password for a role
+export const assignDefaultPassword = (role: 'admin' | 'organizer' | 'member'): string => {
+  return DEFAULT_PASSWORDS[role];
 };
 
-// Function to check if user has permission
+// Get user by role
+export const getUserByRole = (role: 'admin' | 'organizer' | 'member'): UserCredentials | null => {
+  const user = SECURE_CREDENTIALS[role];
+  if (!user) {
+    console.log(`[TEST AUTH] Role ${role} not found`);
+    return null;
+  }
+  
+  return { ...user }; // Return a copy
+};
+
+// Check if user has specific permission
 export const hasPermission = (user: UserCredentials, permission: string): boolean => {
-  if (!user || !permission) {
+  if (!user || !user.permissions) {
     return false;
   }
+  
+  // Admin with 'all' permission has access to everything
   return user.permissions.includes('all') || user.permissions.includes(permission);
 };
 
-// Function to get all available roles
+// Get all available roles
 export const getAvailableRoles = (): string[] => {
   return Object.keys(SECURE_CREDENTIALS);
 };
 
-// Function to create new user (bonus feature)
-export const createUser = (
-  email: string, 
-  password: string, 
-  role: 'admin' | 'organizer' | 'member',
-  displayName: string
-): UserCredentials | null => {
-  if (!isValidEmail(email) || !isValidPassword(password)) {
-    console.log('Invalid email or password format');
-    return null;
-  }
+// Additional helper functions for testing
 
-  // Check if user already exists
+// Check if user is active
+export const isUserActive = (email: string): boolean => {
   for (const user of Object.values(SECURE_CREDENTIALS)) {
     if (user.email === email) {
-      console.log('User with this email already exists');
-      return null;
+      return user.isActive;
     }
   }
+  return false;
+};
 
-  const newUser: UserCredentials = {
-    id: `${role}-${Date.now()}`,
-    email,
-    passwordHash: simpleHash(password),
-    role,
-    displayName,
-    permissions: SECURE_CREDENTIALS[role].permissions,
-    isActive: true,
-    createdAt: new Date()
-  };
+// Get user by email (without password check)
+export const getUserByEmail = (email: string): UserCredentials | null => {
+  for (const user of Object.values(SECURE_CREDENTIALS)) {
+    if (user.email === email && user.isActive) {
+      return { ...user }; // Return a copy
+    }
+  }
+  return null;
+};
 
-  return newUser;
+// Update user's last login (for testing session management)
+export const updateLastLogin = (userId: string): boolean => {
+  for (const [key, user] of Object.entries(SECURE_CREDENTIALS)) {
+    if (user.id === userId) {
+      SECURE_CREDENTIALS[key].lastLogin = new Date();
+      return true;
+    }
+  }
+  return false;
+};
+
+// Get all users (for admin testing)
+export const getAllUsers = (): UserCredentials[] => {
+  return Object.values(SECURE_CREDENTIALS).map(user => ({ ...user }));
+};
+
+// Reset test data (useful for testing)
+export const resetTestCredentials = (): void => {
+  console.log('[TEST AUTH] Resetting test credentials to default state');
+  for (const [key, user] of Object.entries(SECURE_CREDENTIALS)) {
+    SECURE_CREDENTIALS[key].lastLogin = undefined;
+    SECURE_CREDENTIALS[key].isActive = true;
+  }
+};
+
+// Test helper to log current state
+export const logCurrentState = (): void => {
+  console.log('[TEST AUTH] Current credentials state:');
+  Object.entries(SECURE_CREDENTIALS).forEach(([key, user]) => {
+    console.log(`  ${key}: ${user.email} (${user.role}) - Active: ${user.isActive}, Last Login: ${user.lastLogin || 'Never'}`);
+  });
 };
