@@ -39,44 +39,59 @@ const LoginPage = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!credentials.email || !credentials.password) {
+      setError('Please enter both email and password');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     try {
-      // Use the centralized validation function
+      console.log(`[TEST AUTH] Validating credentials for email: ${credentials.email}, role: ${selectedRole}`);
+      
+      // Validate credentials using your existing validation
       const isValid = validateCredentials(credentials.email, credentials.password, selectedRole);
       
       if (isValid) {
-        // Get full user details
+        console.log(`[TEST AUTH] Validation result for ${selectedRole}: true`);
+        
+        // Get user data
         const user = getUserByCredentials(credentials.email, credentials.password);
+        console.log(`[TEST AUTH] User found:`, user ? `${user.displayName} (${selectedRole})` : 'null');
         
         if (user) {
-          // Pass the user data to the login function
-          login(selectedRole, credentials.email, user);
+          // Call the updated login function with correct parameters
+          const loginSuccess = await login(selectedRole, credentials.email, user);
           
-          // Navigate to appropriate dashboard
-          switch (selectedRole) {
-            case 'admin':
-              navigate('/admin');
-              break;
-            case 'organizer':
-              navigate('/organizer');
-              break;
-            case 'member':
-              navigate('/member');
-              break;
+          if (loginSuccess) {
+            // Navigate to appropriate dashboard
+            switch (selectedRole) {
+              case 'admin':
+                navigate('/admin');
+                break;
+              case 'organizer':
+                navigate('/organizer');
+                break;
+              case 'member':
+                navigate('/member');
+                break;
+            }
+          } else {
+            setError('Authentication failed. Please try again.');
           }
         } else {
-          setError('Authentication failed. Please try again.');
+          console.log(`[TEST AUTH] No matching user found`);
+          setError('Invalid credentials');
         }
       } else {
+        console.log(`[TEST AUTH] Invalid credentials`);
         setError('Invalid credentials. Please check your email and password.');
       }
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('[TEST AUTH] Login error:', err);
       setError('An error occurred during login. Please try again.');
     } finally {
       setLoading(false);
@@ -98,126 +113,124 @@ const LoginPage = () => {
       {/* Background effects */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse animation-delay-2000" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="relative z-10 w-full max-w-6xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column - Role Selection */}
-          <div className="space-y-8">
-            <div className="text-center lg:text-left">
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
-                <Crown className="w-10 h-10 text-primary" />
-                <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  Boujee Events
-                </h1>
-              </div>
-              <p className="text-xl text-gray-400 mb-8">
-                Select your role to access the platform
-              </p>
+        <div className="grid lg:grid-cols-2 gap-8 items-center">
+          {/* Left side - Branding */}
+          <div className="text-center lg:text-left space-y-6">
+            <div className="flex items-center justify-center lg:justify-start space-x-3">
+              <Crown className="w-12 h-12 text-primary" />
+              <h1 className="text-4xl font-bold text-foreground">Boujee Events</h1>
             </div>
+            <p className="text-xl text-muted-foreground">
+              Select your role to access the platform
+            </p>
+          </div>
 
+          {/* Right side - Login Form */}
+          <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
             {/* Role Selection */}
-            <div className="space-y-4">
+            <div className="space-y-4 mb-8">
+              <h2 className="text-2xl font-bold text-center text-card-foreground mb-6">Choose Your Role</h2>
+              
               {roles.map((role) => (
                 <button
                   key={role.id}
+                  type="button"
                   onClick={() => setSelectedRole(role.id as any)}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-300 ${
-                    selectedRole === role.id 
-                      ? 'border-primary bg-primary/10' 
-                      : 'border-gray-700 hover:border-gray-500'
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${
+                    selectedRole === role.id
+                      ? 'border-primary bg-primary/10 shadow-lg scale-105'
+                      : 'border-border hover:border-primary/50 hover:bg-accent/50'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg bg-gradient-to-r ${role.color}`}>
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-lg bg-gradient-to-r ${role.color}`}>
                       {role.icon}
                     </div>
-                    <div className="flex-1 text-left">
-                      <h3 className="font-semibold text-white">{role.name}</h3>
-                      <p className="text-sm text-gray-400 mt-1">{role.description}</p>
+                    <div className="text-left">
+                      <h3 className="font-semibold text-card-foreground">{role.name}</h3>
+                      <p className="text-sm text-muted-foreground">{role.description}</p>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
 
-            {/* Demo Credentials Info */}
-            <div className="mt-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
-              <p className="text-xs text-gray-400 mb-2">Demo Credentials:</p>
-              <p className="text-xs text-yellow-500">Email: {SECURE_CREDENTIALS[selectedRole].email}</p>
-              <p className="text-xs text-yellow-500">Password: {SECURE_CREDENTIALS[selectedRole].password}</p>
-              <button
-                onClick={fillDemoCredentials}
-                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
-              >
-                Click to auto-fill credentials
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column - Login Form */}
-          <div className="card-luxury">
-            <h2 className="text-xl font-semibold mb-6">
-              Sign in as {roles.find(r => r.id === selectedRole)?.name}
-            </h2>
-            
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                  className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors"
-                  placeholder="Enter your email"
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                    className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:border-primary focus:outline-none transition-colors pr-12"
-                    placeholder="Enter your password"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                    disabled={loading}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="space-y-6">
               {error && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  <p className="text-sm text-red-400">{error}</p>
+                <div className="flex items-center space-x-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <span className="text-sm text-destructive">{error}</span>
                 </div>
               )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-card-foreground mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={credentials.email}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background text-foreground"
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-card-foreground mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={credentials.password}
+                      onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background text-foreground pr-12"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold rounded-lg transition-colors"
+                className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing In...' : 'Sign In'}
               </button>
             </form>
+
+            {/* Demo Credentials */}
+            <div className="mt-8 p-4 bg-accent/50 rounded-lg border border-border">
+              <h3 className="font-semibold text-card-foreground mb-2">Demo Credentials:</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                <strong>Email:</strong> {SECURE_CREDENTIALS[selectedRole]?.email}<br />
+                <strong>Password:</strong> {SECURE_CREDENTIALS[selectedRole]?.password}
+              </p>
+              <button
+                type="button"
+                onClick={fillDemoCredentials}
+                className="text-sm text-primary hover:text-primary/80 underline"
+              >
+                Click to auto-fill credentials
+              </button>
+            </div>
           </div>
         </div>
       </div>
