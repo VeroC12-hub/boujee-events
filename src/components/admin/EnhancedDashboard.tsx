@@ -121,7 +121,7 @@ const EnhancedDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Analytics</h1>
+          <h1 className="text-2xl font-bold text-white">Dashboard Analytics</h1>
           <p className="text-gray-600">Overview of your event performance</p>
         </div>
         
@@ -129,7 +129,7 @@ const EnhancedDashboard: React.FC = () => {
           <select 
             value={timeRange} 
             onChange={(e) => setTimeRange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="border border-border rounded-lg px-3 py-2 text-sm"
           >
             <option value="24h">Last 24 hours</option>
             <option value="7d">Last 7 days</option>
@@ -151,7 +151,7 @@ const EnhancedDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 capitalize">{key}</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-white">
                   {data.currency}{data.current.toLocaleString()}
                 </p>
               </div>
@@ -173,7 +173,7 @@ const EnhancedDashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Revenue Trend</h3>
-            <select className="text-sm border border-gray-300 rounded px-2 py-1">
+            <select className="text-sm border border-border rounded px-2 py-1">
               <option>Revenue</option>
               <option>Tickets Sold</option>
               <option>Event Views</option>
@@ -249,7 +249,7 @@ const EnhancedDashboard: React.FC = () => {
         
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-background">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Event
@@ -276,18 +276,18 @@ const EnhancedDashboard: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {recentEvents.map((event) => (
-                <tr key={event.id} className="hover:bg-gray-50">
+                <tr key={event.id} className="hover:bg-background">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{event.title}</div>
+                      <div className="text-sm font-medium text-white">{event.title}</div>
                       <div className="text-sm text-gray-500">{event.status}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                     {event.date}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{event.ticketsSold}/{event.totalTickets}</div>
+                    <div className="text-sm text-white">{event.ticketsSold}/{event.totalTickets}</div>
                     <div className="w-20 bg-gray-200 rounded-full h-1.5 mt-1">
                       <div 
                         className="bg-green-500 h-1.5 rounded-full" 
@@ -295,7 +295,7 @@ const EnhancedDashboard: React.FC = () => {
                       ></div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                     €{event.revenue.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -317,7 +317,7 @@ const EnhancedDashboard: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                      <span className="text-sm text-gray-900">{event.rating}</span>
+                      <span className="text-sm text-white">{event.rating}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -338,9 +338,9 @@ const EnhancedDashboard: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {topPerformers.map((category, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
+            <div key={index} className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">{category.name}</h4>
+                <h4 className="font-medium text-white">{category.name}</h4>
                 <span className={`text-sm ${getChangeColor(category.growth)}`}>
                   +{category.growth}%
                 </span>

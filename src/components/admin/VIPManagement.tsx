@@ -278,7 +278,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select an event...</option>
               {events.map(event => (
@@ -333,7 +333,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
               <h4 className="font-medium text-gray-900 mb-4">Your VIP Tiers ({customTiers.length})</h4>
               
               {customTiers.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-border rounded-lg">
                   <span className="text-4xl block mb-2">🎫</span>
                   <p>No VIP tiers created yet</p>
                   <p className="text-sm">Create your first VIP tier →</p>
@@ -397,7 +397,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                             <div className="text-xs text-gray-600">${template.basePrice} • {template.baseMaxGuests} guests</div>
                           </div>
                         </div>
-                        <span className="text-blue-600 text-sm">Use →</span>
+                        <span className="text-primary text-sm">Use →</span>
                       </div>
                     </button>
                   ))}
@@ -414,7 +414,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                     type="text"
                     value={currentTier.name}
                     onChange={(e) => setCurrentTier(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., Premium VIP, Executive Access"
                   />
                 </div>
@@ -430,7 +430,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                       step="0.01"
                       value={currentTier.price}
                       onChange={(e) => setCurrentTier(prev => ({ ...prev, price: Number(e.target.value) }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -442,7 +442,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                       min="1"
                       value={currentTier.maxGuests}
                       onChange={(e) => setCurrentTier(prev => ({ ...prev, maxGuests: Number(e.target.value) }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -455,7 +455,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                     <select
                       value={currentTier.color}
                       onChange={(e) => setCurrentTier(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {colorOptions.map(color => (
                         <option key={color.value} value={color.value}>{color.label}</option>
@@ -469,7 +469,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                     <select
                       value={currentTier.icon}
                       onChange={(e) => setCurrentTier(prev => ({ ...prev, icon: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {iconOptions.map(icon => (
                         <option key={icon} value={icon}>{icon}</option>
@@ -490,7 +490,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                           type="text"
                           value={perk}
                           onChange={(e) => updatePerk(index, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="flex-1 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="e.g., Premium seating"
                         />
                         <button
@@ -506,7 +506,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
                     <button
                       type="button"
                       onClick={addPerk}
-                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                      className="text-primary hover:text-blue-800 text-sm flex items-center"
                     >
                       <span className="mr-1">➕</span>
                       Add Perk
@@ -516,7 +516,7 @@ const VIPPackageManager: React.FC<VIPPackageManagerProps> = ({ events, onPackage
 
                 <button
                   onClick={addTier}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-accent transition-colors"
                 >
                   ➕ Add Tier
                 </button>
@@ -612,8 +612,8 @@ const VIPManagement: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-border'
                 }`}
               >
                 <span className="mr-2 text-lg">{tab.icon}</span>

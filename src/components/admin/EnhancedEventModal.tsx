@@ -178,13 +178,13 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                     ? 'border-blue-500 bg-blue-500 text-white'
                     : currentStep > step.number
                     ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-gray-300 bg-white text-gray-400'
+                    : 'border-border bg-white text-gray-400'
                 }`}>
                   {currentStep > step.number ? '✓' : step.icon}
                 </div>
                 <div className="ml-2 hidden md:block">
                   <div className={`text-sm font-medium ${
-                    currentStep === step.number ? 'text-blue-600' : 'text-gray-500'
+                    currentStep === step.number ? 'text-primary' : 'text-gray-500'
                   }`}>
                     {step.title}
                   </div>
@@ -220,7 +220,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                     value={formData.title}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.title ? 'border-red-300' : 'border-gray-300'
+                      errors.title ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Enter a compelling event title"
                   />
@@ -237,7 +237,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                     onChange={handleInputChange}
                     rows={6}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.description ? 'border-red-300' : 'border-gray-300'
+                      errors.description ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Describe your event in detail. What can attendees expect?"
                   />
@@ -252,7 +252,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     {categories.map(category => (
                       <option key={category} value={category}>{category}</option>
@@ -281,7 +281,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                       value={formData.date}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.date ? 'border-red-300' : 'border-gray-300'
+                        errors.date ? 'border-red-300' : 'border-border'
                       }`}
                       min={new Date().toISOString().split('T')[0]}
                     />
@@ -298,7 +298,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                       value={formData.time}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.time ? 'border-red-300' : 'border-gray-300'
+                        errors.time ? 'border-red-300' : 'border-border'
                       }`}
                     />
                     {errors.time && <p className="text-red-600 text-sm mt-1">{errors.time}</p>}
@@ -315,7 +315,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                     value={formData.location}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.location ? 'border-red-300' : 'border-gray-300'
+                      errors.location ? 'border-red-300' : 'border-border'
                     }`}
                     placeholder="Venue name, address, or virtual meeting link"
                   />
@@ -334,7 +334,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                       onChange={handleInputChange}
                       min="1"
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.maxAttendees ? 'border-red-300' : 'border-gray-300'
+                        errors.maxAttendees ? 'border-red-300' : 'border-border'
                       }`}
                     />
                     {errors.maxAttendees && <p className="text-red-600 text-sm mt-1">{errors.maxAttendees}</p>}
@@ -352,7 +352,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                       min="0"
                       step="0.01"
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.price ? 'border-red-300' : 'border-gray-300'
+                        errors.price ? 'border-red-300' : 'border-border'
                       }`}
                       placeholder="0.00"
                     />
@@ -452,7 +452,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
                   <h4 className="font-medium text-gray-900 mb-3">Event Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                     <div className="bg-white rounded-lg p-3">
-                      <div className="text-lg font-bold text-blue-600">{formData.maxAttendees}</div>
+                      <div className="text-lg font-bold text-primary">{formData.maxAttendees}</div>
                       <div className="text-xs text-gray-600">Max Capacity</div>
                     </div>
                     <div className="bg-white rounded-lg p-3">
@@ -487,7 +487,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
               <button
                 type="button"
                 onClick={handlePrevious}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={loading}
               >
                 ← Previous
@@ -498,7 +498,7 @@ const EnhancedEventModal: React.FC<EnhancedEventModalProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-accent transition-colors"
               >
                 Next →
               </button>

@@ -82,7 +82,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background text-white flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -93,25 +93,25 @@ const AdminDashboard: React.FC = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-border">
           <div className="flex items-center">
             <span className="text-2xl">🎫</span>
-            <span className="ml-2 text-xl font-bold text-gray-900">EventHub</span>
+            <span className="ml-2 text-xl font-bold text-primary">Boujee Events</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
+            className="lg:hidden text-gray-400 hover:text-white"
           >
             ✕
           </button>
         </div>
 
         {/* User Info */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-border">
           <div className="flex items-center">
             <img
               src={authState.user.avatar}
@@ -119,11 +119,11 @@ const AdminDashboard: React.FC = () => {
               className="w-10 h-10 rounded-full"
             />
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-900">{authState.user.name}</p>
-              <p className="text-xs text-gray-500 capitalize">{authState.user.role}</p>
+              <p className="text-sm font-medium text-white">{authState.user.name}</p>
+              <p className="text-xs text-gray-400 capitalize">{authState.user.role}</p>
             </div>
           </div>
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-3 text-xs text-gray-400">
             <p>Last login: {authState.user.lastLogin}</p>
             <p>Status: ✅ {authState.user.status}</p>
           </div>
@@ -142,8 +142,8 @@ const AdminDashboard: React.FC = () => {
                 }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 border-r-4 border-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-primary text-black font-semibold'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
                 }`}
               >
                 <div className="flex items-center">
@@ -151,7 +151,7 @@ const AdminDashboard: React.FC = () => {
                   <span className="font-medium">{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  <span className="bg-primary/20 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full">
                     {item.badge}
                   </span>
                 )}
@@ -161,13 +161,13 @@ const AdminDashboard: React.FC = () => {
         </nav>
 
         {/* System Status */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className="p-4 border-t border-border">
+          <div className="bg-primary/10 border border-primary/30 rounded-lg p-3">
             <div className="flex items-center">
-              <span className="text-green-500 mr-2">✅</span>
-              <span className="text-sm text-green-800">All Systems Operational</span>
+              <span className="text-primary mr-2">✅</span>
+              <span className="text-sm text-primary">All Systems Operational</span>
             </div>
-            <p className="text-xs text-green-600 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               API: Online | DB: Connected
             </p>
           </div>
@@ -177,7 +177,7 @@ const AdminDashboard: React.FC = () => {
         <div className="p-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-colors"
           >
             <span className="mr-2">🚪</span>
             Sign Out
@@ -188,30 +188,30 @@ const AdminDashboard: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-card border-b border-border">
           <div className="flex items-center justify-between h-16 px-6">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-500 hover:text-gray-700 mr-4"
+                className="lg:hidden text-gray-400 hover:text-white mr-4"
               >
                 ☰
               </button>
-              <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
+              <h1 className="text-xl font-semibold text-white">{getPageTitle()}</h1>
             </div>
 
             <div className="flex items-center space-x-4">
               {/* Real-time clock */}
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-400">
                 2025-08-03 03:52:31 UTC
               </div>
 
               {/* Notifications */}
               <div className="relative">
-                <button className="relative p-2 text-gray-400 hover:text-gray-500">
+                <button className="relative p-2 text-gray-400 hover:text-white">
                   <span className="text-xl">🔔</span>
                   {notifications.length > 0 && (
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-primary"></span>
                   )}
                 </button>
               </div>
@@ -225,7 +225,7 @@ const AdminDashboard: React.FC = () => {
                   }
                 }}
                 disabled={analytics.loading}
-                className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50"
+                className="p-2 text-gray-400 hover:text-white disabled:opacity-50"
               >
                 <span className={analytics.loading ? 'animate-spin' : ''}>
                   🔄
@@ -241,10 +241,10 @@ const AdminDashboard: React.FC = () => {
         </main>
 
         {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between text-sm text-gray-500">
+        <footer className="bg-card border-t border-border px-6 py-4">
+          <div className="flex items-center justify-between text-sm text-gray-400">
             <div>
-              EventHub Admin Dashboard v1.0 | Connected to Mock API
+              Boujee Events Admin Dashboard v1.0 | Connected to Mock API
             </div>
             <div>
               User: {authState.user.name} | 2025-08-03 03:52:31 UTC

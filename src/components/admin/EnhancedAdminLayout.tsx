@@ -50,7 +50,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-background'}`}>
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -63,11 +63,11 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
+        ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-border'}
         border-r shadow-lg
       `}>
         {/* Logo Section */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <img 
               src="/be-logo.png" 
@@ -91,10 +91,10 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </div>
 
         {/* Quick Stats */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-border dark:border-gray-700">
           <div className="grid grid-cols-2 gap-3">
             {quickStats.map((stat, index) => (
-              <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+              <div key={index} className="bg-background dark:bg-gray-700 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <stat.icon className="h-4 w-4" style={{ color: stat.color }} />
                   <span className="text-xs text-green-600 dark:text-green-400">{stat.change}</span>
@@ -121,7 +121,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 w-full flex items-center px-6 py-3 text-left transition-all duration-200
                 ${isActive(item.path) 
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-r-3 text-blue-700 dark:text-blue-300' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-background dark:hover:bg-gray-700'
                 }
               `}
               style={isActive(item.path) ? { borderRightColor: item.color } : {}}
@@ -141,7 +141,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </nav>
 
         {/* User Profile */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-t border-border dark:border-gray-700 p-4">
           <div className="flex items-center space-x-3">
             <img
               src="/api/placeholder/32/32"
@@ -149,7 +149,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               className="h-8 w-8 rounded-full"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <p className="text-sm font-medium text-white dark:text-white truncate">
                 VeroC12-hub
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Super Admin</p>
@@ -164,7 +164,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Header */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-border dark:border-gray-700">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center space-x-4">
               <button
@@ -175,7 +175,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               </button>
               
               <div>
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h1 className="text-xl font-semibold text-white dark:text-white">
                   {menuItems.find(item => isActive(item.path))?.label || 'Dashboard'}
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -196,7 +196,7 @@ const EnhancedAdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
