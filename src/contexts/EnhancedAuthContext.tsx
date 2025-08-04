@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { loginUser, registerUser, getUserById, verifyAuthentication, User, AuthTokens } from '../lib/auth';
+import { clientApi, User, AuthTokens, LoginResponse } from '../lib/clientApi';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -112,27 +112,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const tokens: AuthTokens = JSON.parse(storedTokens);
           const user: User = JSON.parse(storedUser);
           
-          // Verify token is still valid
-          try {
-            verifyAuthentication(tokens.accessToken);
+          // Check if token is still valid by making an API call
+          const currentUserResponse = await clientApi.getCurrentUser();
+          
+          if (currentUserResponse.success && currentUserResponse.data) {
+            dispatch({ 
+              type: 'LOGIN_SUCCESS', 
+              payload: { user: currentUserResponse.data, tokens } 
+            });
             
-            // Refresh user data from database
-            const currentUser = await getUserById(user.id);
-            if (currentUser && currentUser.status === 'active') {
-              dispatch({ 
-                type: 'LOGIN_SUCCESS', 
-                payload: { user: currentUser, tokens } 
-              });
-              return;
-            }
-          } catch (error) {
-            console.log('Stored token invalid, clearing auth');
+            // Update stored user data
+            localStorage.setItem('authUser', JSON.stringify(currentUserResponse.data));
+            return;
+          } else {
+            // Token invalid, clear stored auth
             localStorage.removeItem('authTokens');
             localStorage.removeItem('authUser');
           }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
+        localStorage.removeItem('authTokens');
+        localStorage.removeItem('authUser');
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
@@ -145,18 +146,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      const loginResponse = await loginUser(email, password);
+      const response = await clientApi.login(email, password);
       
-      // Store authentication data
-      localStorage.setItem('authTokens', JSON.stringify(loginResponse.tokens));
-      localStorage.setItem('authUser', JSON.stringify(loginResponse.user));
-      
-      dispatch({ 
-        type: 'LOGIN_SUCCESS', 
-        payload: loginResponse 
-      });
-      
-      return true;
+      if (response.success && response.data) {
+        // Store authentication data
+        localStorage.setItem('authTokens', JSON.stringify(response.data.tokens));
+        localStorage.setItem('authUser', JSON.stringify(response.data.user));
+        
+        dispatch({ 
+          type: 'LOGIN_SUCCESS', 
+          payload: response.data 
+        });
+        
+        return true;
+      } else {
+        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Login failed' });
+        return false;
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
@@ -174,18 +180,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      const registerResponse = await registerUser(userData);
+      const response = await clientApi.register(userData);
       
-      // Store authentication data
-      localStorage.setItem('authTokens', JSON.stringify(registerResponse.tokens));
-      localStorage.setItem('authUser', JSON.stringify(registerResponse.user));
-      
-      dispatch({ 
-        type: 'LOGIN_SUCCESS', 
-        payload: registerResponse 
-      });
-      
-      return true;
+      if (response.success && response.data) {
+        // Store authentication data
+        localStorage.setItem('authTokens', JSON.stringify(response.data.tokens));
+        localStorage.setItem('authUser', JSON.stringify(response.data.user));
+        
+        dispatch({ 
+          type: 'LOGIN_SUCCESS', 
+          payload: response.data 
+        });
+        
+        return true;
+      } else {
+        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Registration failed' });
+        return false;
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
@@ -194,11 +205,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async (): Promise<void> => {
-    // Clear stored authentication data
-    localStorage.removeItem('authTokens');
-    localStorage.removeItem('authUser');
-    
-    dispatch({ type: 'LOGOUT' });
+    try {
+      await clientApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      dispatch({ type: 'LOGOUT' });
+    }
   };
 
   const clearError = (): void => {
@@ -209,10 +222,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!state.user) return;
     
     try {
-      const currentUser = await getUserById(state.user.id);
-      if (currentUser) {
-        dispatch({ type: 'REFRESH_USER', payload: currentUser });
-        localStorage.setItem('authUser', JSON.stringify(currentUser));
+      const response = await clientApi.getCurrentUser();
+      if (response.success && response.data) {
+        dispatch({ type: 'REFRESH_USER', payload: response.data });
+        localStorage.setItem('authUser', JSON.stringify(response.data));
       }
     } catch (error) {
       console.error('Failed to refresh user data:', error);

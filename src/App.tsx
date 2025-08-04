@@ -13,7 +13,7 @@ import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
 
 // Contexts
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/EnhancedAuthContext';
 import { AppProvider } from './contexts/AppContext';
 
 // Protected Route Component
