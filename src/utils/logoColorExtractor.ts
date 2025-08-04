@@ -186,4 +186,9 @@ class LogoColorExtractor {
    * Generate secondary color (lighter version of primary)
    */
   private generateSecondaryColor(primary: ExtractedColors): string {
-    const {
+    const { h, s, l } = primary;
+    // Increase lightness for secondary color
+    const newL = Math.min(l + 0.2, 0.9);
+    return `hsl(${h}, ${s * 100}%, ${newL * 100}%)`;
+  }
+}
