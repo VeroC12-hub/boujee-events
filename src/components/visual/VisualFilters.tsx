@@ -53,7 +53,7 @@ const VisualFilters: React.FC<VisualFiltersProps> = ({
       </div>
 
       {/* Visual Category Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-11 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-11 gap-3 mb-8">
         {categories.map((category) => {
           const isSelected = selectedCategory === category;
           const count = eventCounts[category] || 0;
@@ -63,20 +63,20 @@ const VisualFilters: React.FC<VisualFiltersProps> = ({
               key={category}
               onClick={() => onCategoryChange(category)}
               className={`
-                relative p-6 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg
+                relative p-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg
                 ${isSelected 
-                  ? 'border-yellow-400 bg-yellow-50 shadow-lg scale-105' 
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-primary bg-primary/10 shadow-lg scale-105 text-primary-foreground' 
+                  : 'border-border bg-card hover:border-primary/50 hover:bg-primary/5'
                 }
               `}
             >
               {/* Icon */}
-              <div className="text-4xl mb-3 flex justify-center">
+              <div className="text-2xl mb-2 flex justify-center">
                 {categoryIcons[category as keyof typeof categoryIcons]}
               </div>
               
               {/* Category Name */}
-              <div className="text-sm font-semibold text-gray-800 mb-1 text-center">
+              <div className="text-xs font-semibold text-center">
                 {category}
               </div>
               
@@ -84,7 +84,7 @@ const VisualFilters: React.FC<VisualFiltersProps> = ({
               {count > 0 && (
                 <Badge 
                   variant="secondary" 
-                  className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs"
+                  className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs min-w-[18px] h-[18px] rounded-full flex items-center justify-center p-0"
                 >
                   {count}
                 </Badge>
@@ -92,7 +92,7 @@ const VisualFilters: React.FC<VisualFiltersProps> = ({
               
               {/* Selection Indicator */}
               {isSelected && (
-                <div className="absolute inset-0 rounded-2xl border-2 border-yellow-400 animate-pulse" />
+                <div className="absolute inset-0 rounded-xl border-2 border-primary animate-pulse" />
               )}
             </button>
           );
