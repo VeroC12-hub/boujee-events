@@ -109,6 +109,72 @@ const PaymentIntegration: React.FC = () => {
       description: 'Quick payments for Android users'
     },
     {
+      id: 'szep-card',
+      name: 'SZÉP Card',
+      type: 'card',
+      icon: '💎',
+      fees: { percentage: 0.0, currency: 'EUR' },
+      supported: true,
+      popular: true,
+      countries: ['Hungary'],
+      description: 'Hungarian cafeteria card system - perfect for events and entertainment'
+    },
+    {
+      id: 'payu',
+      name: 'PayU',
+      type: 'wallet',
+      icon: '🔷',
+      fees: { percentage: 2.9, fixed: 0.20, currency: 'EUR' },
+      supported: true,
+      popular: true,
+      countries: ['Hungary', 'Poland', 'Czech Republic', 'Romania'],
+      description: 'Leading payment processor in Central & Eastern Europe'
+    },
+    {
+      id: 'kh-simplepay',
+      name: 'K&H SimplePay',
+      type: 'bank',
+      icon: '🏧',
+      fees: { percentage: 1.9, currency: 'EUR' },
+      supported: true,
+      popular: true,
+      countries: ['Hungary'],
+      description: 'K&H Bank payment solution - trusted by Hungarians'
+    },
+    {
+      id: 'erste-bank',
+      name: 'Erste Bank',
+      type: 'bank',
+      icon: '🏦',
+      fees: { percentage: 2.1, fixed: 0.15, currency: 'EUR' },
+      supported: true,
+      popular: true,
+      countries: ['Hungary', 'Austria', 'Czech Republic', 'Slovakia'],
+      description: 'Major Central European bank with secure online payments'
+    },
+    {
+      id: 'unicredit',
+      name: 'UniCredit Bank',
+      type: 'bank',
+      icon: '🏛️',
+      fees: { percentage: 2.0, fixed: 0.20, currency: 'EUR' },
+      supported: true,
+      popular: true,
+      countries: ['Hungary', 'Italy', 'Germany', 'Austria'],
+      description: 'International bank with strong Hungarian presence'
+    },
+    {
+      id: 'masterpass',
+      name: 'Masterpass',
+      type: 'wallet',
+      icon: '💼',
+      fees: { percentage: 2.8, fixed: 0.25, currency: 'EUR' },
+      supported: true,
+      popular: false,
+      countries: ['Hungary', 'Global'],
+      description: 'Mastercard digital wallet for quick and secure payments'
+    },
+    {
       id: 'visa-mastercard',
       name: 'Direct Card Processing',
       type: 'card',
@@ -138,14 +204,14 @@ const PaymentIntegration: React.FC = () => {
     {
       id: 'txn_002',
       eventName: 'Luxury Wine Tasting',
-      customerName: 'Marcus Weber',
-      email: 'marcus@example.com',
+      customerName: 'Péter Nagy',
+      email: 'peter.nagy@example.com',
       amount: 150.00,
       currency: 'EUR',
-      paymentMethod: 'Barion',
+      paymentMethod: 'SZÉP Card',
       status: 'completed',
       timestamp: '2025-08-03T15:20:00Z',
-      fees: 3.75,
+      fees: 0.00,
       ticketCount: 1
     },
     {
@@ -155,11 +221,37 @@ const PaymentIntegration: React.FC = () => {
       email: 'elena@example.com',
       amount: 600.00,
       currency: 'EUR',
-      paymentMethod: 'PayPal',
+      paymentMethod: 'PayU',
       status: 'pending',
       timestamp: '2025-08-03T14:10:00Z',
-      fees: 20.75,
+      fees: 17.60,
       ticketCount: 3
+    },
+    {
+      id: 'txn_004',
+      eventName: 'Tech Conference Budapest',
+      customerName: 'Gábor Molnár',
+      email: 'gabor.molnar@example.com',
+      amount: 299.00,
+      currency: 'EUR',
+      paymentMethod: 'K&H SimplePay',
+      status: 'completed',
+      timestamp: '2025-08-03T13:35:00Z',
+      fees: 5.68,
+      ticketCount: 2
+    },
+    {
+      id: 'txn_005',
+      eventName: 'Art Gallery Opening',
+      customerName: 'Zsuzsanna Tóth',
+      email: 'zsuzsa.toth@example.com',
+      amount: 89.00,
+      currency: 'EUR',
+      paymentMethod: 'Erste Bank',
+      status: 'completed',
+      timestamp: '2025-08-03T12:15:00Z',
+      fees: 2.02,
+      ticketCount: 1
     }
   ]);
 

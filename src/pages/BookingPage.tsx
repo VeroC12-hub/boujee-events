@@ -377,42 +377,176 @@ const BookingPage: React.FC = () => {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <h2 className="text-2xl font-bold text-white mb-6">Payment Method</h2>
               <div className="space-y-3">
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="stripe"
-                    checked={paymentMethod === 'stripe'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <div className="flex items-center">
-                    <span className="text-white font-semibold mr-2">Credit/Debit Card</span>
-                    <span className="text-sm text-gray-400">(Stripe Secure Payment)</span>
+                {/* Popular Hungarian Methods */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-yellow-400 mb-3 uppercase tracking-wide">Popular in Hungary</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-yellow-400/5 rounded-lg border border-yellow-400/20 cursor-pointer hover:bg-yellow-400/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="szep-card"
+                        checked={paymentMethod === 'szep-card'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center">
+                          <span className="text-2xl mr-3">💎</span>
+                          <div>
+                            <span className="text-white font-semibold">SZÉP Card</span>
+                            <div className="text-xs text-gray-400">Hungarian cafeteria card system</div>
+                          </div>
+                        </div>
+                        <span className="bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded text-xs">Most Popular</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="otp-simplepay"
+                        checked={paymentMethod === 'otp-simplepay'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <div>
+                          <span className="text-white font-semibold">OTP SimplePay</span>
+                          <div className="text-xs text-gray-400">Major Hungarian bank payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="kh-simplepay"
+                        checked={paymentMethod === 'kh-simplepay'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <div>
+                          <span className="text-white font-semibold">K&H SimplePay</span>
+                          <div className="text-xs text-gray-400">K&H Bank trusted payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="payu"
+                        checked={paymentMethod === 'payu'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🔷</span>
+                        <div>
+                          <span className="text-white font-semibold">PayU</span>
+                          <div className="text-xs text-gray-400">Leading Central European processor</div>
+                        </div>
+                      </div>
+                    </label>
                   </div>
-                </label>
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="paypal"
-                    checked={paymentMethod === 'paypal'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <span className="text-white font-semibold">PayPal</span>
-                </label>
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="bank"
-                    checked={paymentMethod === 'bank'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <span className="text-white font-semibold">Bank Transfer</span>
-                </label>
+                </div>
+
+                {/* International Methods */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">International</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="stripe"
+                        checked={paymentMethod === 'stripe'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">💳</span>
+                        <div>
+                          <span className="text-white font-semibold">Credit/Debit Card</span>
+                          <div className="text-xs text-gray-400">Stripe secure payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="paypal"
+                        checked={paymentMethod === 'paypal'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <span className="text-white font-semibold">PayPal</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Banking Options */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Banking</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="erste-bank"
+                        checked={paymentMethod === 'erste-bank'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏦</span>
+                        <div>
+                          <span className="text-white font-semibold">Erste Bank</span>
+                          <div className="text-xs text-gray-400">Major Central European bank</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="unicredit"
+                        checked={paymentMethod === 'unicredit'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏛️</span>
+                        <div>
+                          <span className="text-white font-semibold">UniCredit Bank</span>
+                          <div className="text-xs text-gray-400">International bank</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="bank"
+                        checked={paymentMethod === 'bank'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏦</span>
+                        <span className="text-white font-semibold">Bank Transfer</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
