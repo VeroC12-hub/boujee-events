@@ -2,25 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, User, Briefcase, Crown, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import bcrypt from 'bcryptjs';
-
-// Secure credentials (in production, these would be in environment variables)
-const SECURE_CREDENTIALS = {
-  admin: {
-    username: import.meta.env.VITE_ADMIN_USERNAME || 'admin@boujee.events',
-    // This is a hashed version of 'BouJee$Admin2025!'
-    passwordHash: '$2a$10$YourHashedPasswordHere',
-    plainPassword: 'BouJee$Admin2025!' // Remove in production
-  },
-  organizer: {
-    email: 'organizer@demo.com',
-    password: 'OrganizerDemo2025'
-  },
-  member: {
-    email: 'member@demo.com',
-    password: 'MemberDemo2025'
-  }
-};
+import { validateCredentials, SECURE_CREDENTIALS, getUserByCredentials } from '../config/credentials';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -64,50 +46,51 @@ const LoginPage = () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
-      let isValid = false;
+      // Use the centralized validation function
+      const isValid = validateCredentials(credentials.email, credentials.password, selectedRole);
       
-      switch (selectedRole) {
-        case 'admin':
-          // For admin, check more secure credentials
-          isValid = 
-            credentials.email === SECURE_CREDENTIALS.admin.username &&
-            credentials.password === SECURE_CREDENTIALS.admin.plainPassword;
-          break;
-        case 'organizer':
-          isValid = 
-            credentials.email === SECURE_CREDENTIALS.organizer.email &&
-            credentials.password === SECURE_CREDENTIALS.organizer.password;
-          break;
-        case 'member':
-          isValid = 
-            credentials.email === SECURE_CREDENTIALS.member.email &&
-            credentials.password === SECURE_CREDENTIALS.member.password;
-          break;
-      }
-
       if (isValid) {
-        login(selectedRole, credentials.email);
+        // Get full user details
+        const user = getUserByCredentials(credentials.email, credentials.password);
         
-        // Navigate to appropriate dashboard
-        switch (selectedRole) {
-          case 'admin':
-            navigate('/admin');
-            break;
-          case 'organizer':
-            navigate('/organizer');
-            break;
-          case 'member':
-            navigate('/member');
-            break;
+        if (user) {
+          // Pass the user data to the login function
+          login(selectedRole, credentials.email, user);
+          
+          // Navigate to appropriate dashboard
+          switch (selectedRole) {
+            case 'admin':
+              navigate('/admin');
+              break;
+            case 'organizer':
+              navigate('/organizer');
+              break;
+            case 'member':
+              navigate('/member');
+              break;
+          }
+        } else {
+          setError('Authentication failed. Please try again.');
         }
       } else {
         setError('Invalid credentials. Please check your email and password.');
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      console.error('Login error:', err);
+      setError('An error occurred during login. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Auto-fill demo credentials
+  const fillDemoCredentials = () => {
+    const demoCredentials = SECURE_CREDENTIALS[selectedRole];
+    setCredentials({
+      email: demoCredentials.email,
+      password: demoCredentials.password
+    });
+    setError('');
   };
 
   return (
@@ -118,26 +101,29 @@ const LoginPage = () => {
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse animation-delay-2000" />
       </div>
 
-      <div className="relative z-10 w-full max-w-5xl">
-        <div className="text-center mb-8">
-          <div className="text-6xl font-bold text-luxury mb-4 logo-glow">be</div>
-          <h1 className="text-3xl font-bold text-white">Welcome to Boujee Events</h1>
-          <p className="text-gray-400 mt-2">Select your account type to continue</p>
-        </div>
+      <div className="relative z-10 w-full max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Column - Role Selection */}
+          <div className="space-y-8">
+            <div className="text-center lg:text-left">
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
+                <Crown className="w-10 h-10 text-primary" />
+                <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Boujee Events
+                </h1>
+              </div>
+              <p className="text-xl text-gray-400 mb-8">
+                Select your role to access the platform
+              </p>
+            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Role Selection */}
-          <div className="card-luxury">
-            <h2 className="text-xl font-semibold mb-6">Select Account Type</h2>
-            <div className="space-y-3">
+            {/* Role Selection */}
+            <div className="space-y-4">
               {roles.map((role) => (
                 <button
                   key={role.id}
-                  onClick={() => {
-                    setSelectedRole(role.id as any);
-                    setError('');
-                  }}
-                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${
+                  onClick={() => setSelectedRole(role.id as any)}
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-300 ${
                     selectedRole === role.id 
                       ? 'border-primary bg-primary/10' 
                       : 'border-gray-700 hover:border-gray-500'
@@ -159,28 +145,18 @@ const LoginPage = () => {
             {/* Demo Credentials Info */}
             <div className="mt-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
               <p className="text-xs text-gray-400 mb-2">Demo Credentials:</p>
-              {selectedRole === 'admin' && (
-                <>
-                  <p className="text-xs text-yellow-500">Email: admin@boujee.events</p>
-                  <p className="text-xs text-yellow-500">Password: BouJee$Admin2025!</p>
-                </>
-              )}
-              {selectedRole === 'organizer' && (
-                <>
-                  <p className="text-xs text-yellow-500">Email: organizer@demo.com</p>
-                  <p className="text-xs text-yellow-500">Password: OrganizerDemo2025</p>
-                </>
-              )}
-              {selectedRole === 'member' && (
-                <>
-                  <p className="text-xs text-yellow-500">Email: member@demo.com</p>
-                  <p className="text-xs text-yellow-500">Password: MemberDemo2025</p>
-                </>
-              )}
+              <p className="text-xs text-yellow-500">Email: {SECURE_CREDENTIALS[selectedRole].email}</p>
+              <p className="text-xs text-yellow-500">Password: {SECURE_CREDENTIALS[selectedRole].password}</p>
+              <button
+                onClick={fillDemoCredentials}
+                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Click to auto-fill credentials
+              </button>
             </div>
           </div>
 
-          {/* Login Form */}
+          {/* Right Column - Login Form */}
           <div className="card-luxury">
             <h2 className="text-xl font-semibold mb-6">
               Sign in as {roles.find(r => r.id === selectedRole)?.name}
@@ -219,7 +195,8 @@ const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                    disabled={loading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -228,48 +205,19 @@ const LoginPage = () => {
 
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <p className="text-sm text-red-500">{error}</p>
+                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <p className="text-sm text-red-400">{error}</p>
                 </div>
               )}
-
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-400">
-                  <input type="checkbox" className="rounded border-gray-700" />
-                  Remember me
-                </label>
-                <a href="#" className="text-sm text-primary hover:text-accent transition-colors">
-                  Forgot password?
-                </a>
-              </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full btn-luxury flex items-center justify-center"
+                className="w-full py-3 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold rounded-lg transition-colors"
               >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-black border-t-transparent mr-2" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    {roles.find(r => r.id === selectedRole)?.icon}
-                    <span className="ml-2">Sign In</span>
-                  </>
-                )}
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-400">
-                Don't have an account?{' '}
-                <a href="#" className="text-primary hover:text-accent transition-colors">
-                  Contact us to join
-                </a>
-              </p>
-            </div>
           </div>
         </div>
       </div>
