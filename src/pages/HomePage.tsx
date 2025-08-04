@@ -208,7 +208,7 @@ const HomePage: React.FC = () => {
               </Button>
               <Button
                 onClick={() => navigate('/login')}
-                className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                className="btn-luxury"
               >
                 Login
               </Button>
@@ -224,25 +224,25 @@ const HomePage: React.FC = () => {
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-4 bg-transparent p-1">
               <TabsTrigger 
                 value="events" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-gray-600 font-semibold transition-all duration-200"
               >
                 📅 Events
               </TabsTrigger>
               <TabsTrigger 
                 value="gallery" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-gray-600 font-semibold transition-all duration-200"
               >
                 📸 Gallery
               </TabsTrigger>
               <TabsTrigger 
                 value="about" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-gray-600 font-semibold transition-all duration-200"
               >
                 ℹ️ About
               </TabsTrigger>
               <TabsTrigger 
                 value="contact" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-gray-600 font-semibold transition-all duration-200"
               >
                 📞 Contact
               </TabsTrigger>
@@ -293,7 +293,7 @@ const HomePage: React.FC = () => {
             {/* Events Grid */}
             {loading ? (
               <div className="text-center py-12">
-                <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading amazing events...</p>
               </div>
             ) : (
