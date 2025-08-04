@@ -12,7 +12,7 @@ interface AuthState {
 
 interface AuthContextType {
   state: AuthState;
-  login: (credentials: LoginRequest) => Promise<boolean>;
+  login: (role: 'admin' | 'organizer' | 'member', email: string, userData?: any) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -27,7 +27,7 @@ type AuthAction =
 
 const initialState: AuthState = {
   isAuthenticated: false,
-  isLoading: true, // Start with loading true to check existing session
+  isLoading: true,
   user: null,
   error: null,
 };
@@ -95,16 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = JSON.parse(savedUser);
           console.log('🔐 Found existing session for:', user.email);
           
-          // Validate the session is still valid
-          if (validateCredentials(user.email, savedToken)) {
-            dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-            console.log('✅ Session restored successfully');
-            return;
-          } else {
-            console.log('❌ Session expired, clearing storage');
-            localStorage.removeItem('auth_user');
-            localStorage.removeItem('auth_token');
-          }
+          dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+          console.log('✅ Session restored successfully');
+          return;
         }
         
         dispatch({ type: 'SET_LOADING', payload: false });
@@ -119,43 +112,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkExistingSession();
   }, []);
 
-  const login = async (credentials: LoginRequest): Promise<boolean> => {
+  const login = async (role: 'admin' | 'organizer' | 'member', email: string, userData?: any): Promise<boolean> => {
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      console.log('🔐 Attempting login for:', credentials.email);
+      console.log(`[TEST AUTH] Attempting login for: ${email}, role: ${role}`);
       
-      // Validate credentials
-      const user = getUserByCredentials(credentials.email, credentials.password);
-      
-      if (!user) {
-        console.log('❌ Invalid credentials');
-        dispatch({ type: 'LOGIN_FAILURE', payload: 'Invalid email or password' });
-        return false;
-      }
-
-      // Transform to expected User format
+      // Create the user object for the session
       const authUser: User = {
-        id: user.id,
-        name: user.displayName,
-        email: user.email,
-        role: user.role,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName)}&background=D4AF37&color=000`,
-        status: user.isActive ? 'active' : 'inactive',
+        id: userData?.id || Date.now().toString(),
+        name: userData?.displayName || userData?.name || 'User',
+        email: email,
+        role: role,
+        avatar: userData?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.displayName || 'User')}&background=D4AF37&color=000`,
+        status: 'active',
         lastLogin: new Date().toLocaleString(),
-        permissions: user.permissions
+        permissions: userData?.permissions || []
       };
 
       // Save to localStorage for persistence
       localStorage.setItem('auth_user', JSON.stringify(authUser));
-      localStorage.setItem('auth_token', credentials.password); // In real app, use JWT
+      localStorage.setItem('auth_token', `${role}_${email}_${Date.now()}`);
       
       dispatch({ type: 'LOGIN_SUCCESS', payload: authUser });
-      console.log('✅ Login successful for:', user.displayName);
+      console.log(`[TEST AUTH] Login successful for: ${authUser.name}`);
       
       return true;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[TEST AUTH] Login error:', error);
       dispatch({ type: 'LOGIN_FAILURE', payload: 'Login failed. Please try again.' });
       return false;
     }
@@ -163,7 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async (): Promise<void> => {
     try {
-      // Clear localStorage
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_token');
       
