@@ -51,9 +51,11 @@ interface EnvironmentConfig {
 
 // Helper function to get environment variable with fallback
 const getEnvVar = (key: string, fallback?: string): string => {
-  const value = import.meta.env[`VITE_${key}`] || process.env[key] || fallback;
+  // In browser environment, only VITE_ prefixed variables are available
+  const value = import.meta.env[`VITE_${key}`] || import.meta.env[key] || fallback;
   if (!value && !fallback) {
-    throw new Error(`Environment variable ${key} is required but not set`);
+    console.warn(`Environment variable ${key} is not set, using fallback`);
+    return fallback || '';
   }
   return value || fallback!;
 };

@@ -208,6 +208,15 @@ class DatabaseService {
     return this.tickets.get(id) || null;
   }
 
+  async updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket | null> {
+    const ticket = this.tickets.get(id);
+    if (!ticket) return null;
+    
+    const updatedTicket = { ...ticket, ...updates };
+    this.tickets.set(id, updatedTicket);
+    return updatedTicket;
+  }
+
   async getUserTickets(userId: string): Promise<Ticket[]> {
     return Array.from(this.tickets.values()).filter(ticket => ticket.userId === userId);
   }
