@@ -1,294 +1,377 @@
-/**
- * Google Drive Integration Service
- * Provides functionality for uploading event images to Google Drive
- * and organizing them in event-specific folders
- */
+// Enhanced Google Drive Integration Service
+import { env } from '../config/environment';
+import { db } from './database';
 
-interface GoogleDriveConfig {
-  apiKey: string;
-  clientId: string;
-  appId: string;
-  scope: string;
-}
-
-interface UploadResult {
+export interface GoogleDriveFile {
   id: string;
   name: string;
+  mimeType: string;
+  size: number;
   webViewLink: string;
   webContentLink: string;
   thumbnailLink?: string;
-  mimeType: string;
-  size: string;
-  createdTime: string;
+  createdTime: Date;
+  modifiedTime: Date;
 }
 
-interface EventFolder {
-  id: string;
-  name: string;
-  webViewLink: string;
-  eventId: number;
-  createdTime: string;
+export interface FileUploadRequest {
+  file: File;
+  parentFolderId?: string;
+  description?: string;
+}
+
+export interface FileUploadResult {
+  success: boolean;
+  message: string;
+  file?: GoogleDriveFile;
+}
+
+export interface GoogleDriveConfig {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  folderId: string;
+  enabled: boolean;
 }
 
 class GoogleDriveService {
   private config: GoogleDriveConfig;
-  private isInitialized: boolean = false;
+  private accessToken: string | null = null;
+  private tokenExpiry: Date | null = null;
 
   constructor() {
-    // In production, these would come from environment variables
     this.config = {
-      apiKey: import.meta.env.VITE_GOOGLE_DRIVE_API_KEY || 'mock_api_key',
-      clientId: import.meta.env.VITE_GOOGLE_DRIVE_CLIENT_ID || 'mock_client_id',
-      appId: import.meta.env.VITE_GOOGLE_DRIVE_APP_ID || 'mock_app_id',
-      scope: 'https://www.googleapis.com/auth/drive.file'
+      clientId: env.GOOGLE_DRIVE_CLIENT_ID,
+      clientSecret: env.GOOGLE_DRIVE_CLIENT_SECRET,
+      refreshToken: env.GOOGLE_DRIVE_REFRESH_TOKEN,
+      folderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      enabled: false
     };
+    
+    this.loadConfigFromDatabase();
   }
 
-  /**
-   * Initialize Google Drive API
-   */
-  async initialize(): Promise<boolean> {
+  // Load configuration from database
+  private async loadConfigFromDatabase(): Promise<void> {
     try {
-      // In a real implementation, this would load the Google API
-      // For now, we'll simulate the initialization
-      console.log('Initializing Google Drive API...');
+      const settings = await db.getSettingsByCategory('google_drive');
       
-      // Simulate API loading delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      this.isInitialized = true;
-      console.log('Google Drive API initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to initialize Google Drive API:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Create a folder for an event
-   */
-  async createEventFolder(eventId: number, eventTitle: string): Promise<EventFolder> {
-    if (!this.isInitialized) {
-      throw new Error('Google Drive API not initialized');
-    }
-
-    try {
-      // Simulate folder creation
-      console.log(`Creating folder for event: ${eventTitle}`);
-      
-      // In real implementation, this would make an API call to create a folder
-      const mockFolder: EventFolder = {
-        id: `folder_${eventId}_${Date.now()}`,
-        name: `Event_${eventTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${eventId}`,
-        webViewLink: `https://drive.google.com/drive/folders/mock_folder_${eventId}`,
-        eventId,
-        createdTime: new Date().toISOString()
-      };
-
-      // Store folder info in localStorage for persistence
-      const existingFolders = JSON.parse(localStorage.getItem('googleDriveFolders') || '[]');
-      existingFolders.push(mockFolder);
-      localStorage.setItem('googleDriveFolders', JSON.stringify(existingFolders));
-
-      console.log('Event folder created:', mockFolder);
-      return mockFolder;
-    } catch (error) {
-      console.error('Failed to create event folder:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Upload an image to a specific event folder
-   */
-  async uploadImage(
-    file: File, 
-    eventId: number, 
-    eventTitle: string,
-    progressCallback?: (progress: number) => void
-  ): Promise<UploadResult> {
-    if (!this.isInitialized) {
-      throw new Error('Google Drive API not initialized');
-    }
-
-    try {
-      console.log(`Uploading image ${file.name} for event ${eventTitle}`);
-
-      // Get or create event folder
-      let eventFolder = await this.getEventFolder(eventId);
-      if (!eventFolder) {
-        eventFolder = await this.createEventFolder(eventId, eventTitle);
+      for (const setting of settings) {
+        switch (setting.key) {
+          case 'google_drive_client_id':
+            this.config.clientId = setting.value;
+            break;
+          case 'google_drive_client_secret':
+            this.config.clientSecret = setting.value;
+            break;
+          case 'google_drive_refresh_token':
+            this.config.refreshToken = setting.value;
+            break;
+          case 'google_drive_folder_id':
+            this.config.folderId = setting.value;
+            break;
+          case 'google_drive_enabled':
+            this.config.enabled = setting.value === 'true';
+            break;
+        }
       }
+    } catch (error) {
+      console.error('Failed to load Google Drive config from database:', error);
+    }
+  }
 
-      // Simulate upload progress
-      if (progressCallback) {
-        for (let i = 0; i <= 100; i += 10) {
-          progressCallback(i);
-          await new Promise(resolve => setTimeout(resolve, 100));
+  // Save configuration to database
+  async saveConfig(config: Partial<GoogleDriveConfig>, updatedBy: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const settingsToUpdate = [
+        { key: 'google_drive_client_id', value: config.clientId },
+        { key: 'google_drive_client_secret', value: config.clientSecret },
+        { key: 'google_drive_refresh_token', value: config.refreshToken },
+        { key: 'google_drive_folder_id', value: config.folderId },
+        { key: 'google_drive_enabled', value: config.enabled?.toString() }
+      ];
+
+      for (const setting of settingsToUpdate) {
+        if (setting.value !== undefined) {
+          await db.setSetting(setting.key, setting.value, updatedBy, {
+            category: 'google_drive',
+            description: `Google Drive ${setting.key.replace('google_drive_', '').replace('_', ' ')}`
+          });
         }
       }
 
-      // Create mock upload result
-      const uploadResult: UploadResult = {
-        id: `file_${eventId}_${Date.now()}`,
-        name: file.name,
-        webViewLink: `https://drive.google.com/file/d/mock_file_${eventId}_${Date.now()}/view`,
-        webContentLink: `https://drive.google.com/uc?id=mock_file_${eventId}_${Date.now()}`,
-        thumbnailLink: `https://drive.google.com/thumbnail?id=mock_file_${eventId}_${Date.now()}`,
-        mimeType: file.type,
-        size: file.size.toString(),
-        createdTime: new Date().toISOString()
-      };
-
-      // Store upload info in localStorage
-      const existingUploads = JSON.parse(localStorage.getItem('googleDriveUploads') || '[]');
-      existingUploads.push({ ...uploadResult, eventId, folderId: eventFolder.id });
-      localStorage.setItem('googleDriveUploads', JSON.stringify(existingUploads));
-
-      console.log('Image uploaded successfully:', uploadResult);
-      return uploadResult;
+      // Update local config
+      this.config = { ...this.config, ...config };
+      
+      return { success: true, message: 'Google Drive configuration saved successfully' };
     } catch (error) {
-      console.error('Failed to upload image:', error);
-      throw error;
+      console.error('Failed to save Google Drive config:', error);
+      return { success: false, message: 'Failed to save configuration' };
     }
   }
 
-  /**
-   * Get event folder by event ID
-   */
-  async getEventFolder(eventId: number): Promise<EventFolder | null> {
+  // Get current configuration (without sensitive data)
+  getConfig(): Omit<GoogleDriveConfig, 'clientSecret' | 'refreshToken'> {
+    return {
+      clientId: this.config.clientId,
+      folderId: this.config.folderId,
+      enabled: this.config.enabled
+    };
+  }
+
+  // Check if Google Drive is properly configured
+  isConfigured(): boolean {
+    return !!(
+      this.config.clientId &&
+      this.config.clientSecret &&
+      this.config.refreshToken &&
+      this.config.folderId &&
+      this.config.enabled
+    );
+  }
+
+  // Get access token using refresh token
+  private async getAccessToken(): Promise<string | null> {
     try {
-      const folders = JSON.parse(localStorage.getItem('googleDriveFolders') || '[]');
-      return folders.find((folder: EventFolder) => folder.eventId === eventId) || null;
+      // Check if current token is still valid
+      if (this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
+        return this.accessToken;
+      }
+
+      // Refresh the token
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+          refresh_token: this.config.refreshToken,
+          grant_type: 'refresh_token'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Token refresh failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      this.accessToken = data.access_token;
+      this.tokenExpiry = new Date(Date.now() + (data.expires_in * 1000));
+
+      return this.accessToken;
     } catch (error) {
-      console.error('Failed to get event folder:', error);
+      console.error('Failed to get access token:', error);
       return null;
     }
   }
 
-  /**
-   * Get all images for an event
-   */
-  async getEventImages(eventId: number): Promise<UploadResult[]> {
+  // Upload file to Google Drive
+  async uploadFile(request: FileUploadRequest): Promise<FileUploadResult> {
     try {
-      const uploads = JSON.parse(localStorage.getItem('googleDriveUploads') || '[]');
-      return uploads.filter((upload: UploadResult & { eventId: number }) => upload.eventId === eventId);
+      if (!this.isConfigured()) {
+        return { success: false, message: 'Google Drive is not configured' };
+      }
+
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return { success: false, message: 'Failed to authenticate with Google Drive' };
+      }
+
+      // Validate file
+      const maxSize = env.MAX_FILE_SIZE;
+      if (request.file.size > maxSize) {
+        return { 
+          success: false, 
+          message: `File size exceeds maximum limit of ${Math.round(maxSize / 1024 / 1024)}MB` 
+        };
+      }
+
+      const allowedTypes = env.ALLOWED_FILE_TYPES;
+      if (!allowedTypes.includes(request.file.type)) {
+        return { 
+          success: false, 
+          message: 'File type not allowed' 
+        };
+      }
+
+      // Prepare metadata
+      const metadata = {
+        name: request.file.name,
+        parents: [request.parentFolderId || this.config.folderId],
+        description: request.description || 'Uploaded via Boujee Events'
+      };
+
+      // Create multipart form data
+      const formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', request.file);
+
+      // Upload to Google Drive
+      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const fileData = await response.json();
+
+      // Get additional file information
+      const fileInfo = await this.getFileInfo(fileData.id);
+      if (!fileInfo) {
+        throw new Error('Failed to get uploaded file information');
+      }
+
+      return {
+        success: true,
+        message: 'File uploaded successfully',
+        file: fileInfo
+      };
     } catch (error) {
-      console.error('Failed to get event images:', error);
-      return [];
+      console.error('File upload error:', error);
+      return { success: false, message: 'File upload failed' };
     }
   }
 
-  /**
-   * Delete an image from Google Drive
-   */
-  async deleteImage(fileId: string): Promise<boolean> {
+  // Get file information
+  async getFileInfo(fileId: string): Promise<GoogleDriveFile | null> {
     try {
-      console.log(`Deleting image ${fileId}`);
-      
-      // Remove from localStorage
-      const uploads = JSON.parse(localStorage.getItem('googleDriveUploads') || '[]');
-      const updatedUploads = uploads.filter((upload: UploadResult) => upload.id !== fileId);
-      localStorage.setItem('googleDriveUploads', JSON.stringify(updatedUploads));
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) return null;
 
-      console.log('Image deleted successfully');
-      return true;
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink,createdTime,modifiedTime`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get file info: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        id: data.id,
+        name: data.name,
+        mimeType: data.mimeType,
+        size: parseInt(data.size || '0'),
+        webViewLink: data.webViewLink,
+        webContentLink: data.webContentLink,
+        thumbnailLink: data.thumbnailLink,
+        createdTime: new Date(data.createdTime),
+        modifiedTime: new Date(data.modifiedTime)
+      };
     } catch (error) {
-      console.error('Failed to delete image:', error);
-      return false;
+      console.error('Failed to get file info:', error);
+      return null;
     }
   }
 
-  /**
-   * Get all folders
-   */
-  async getAllFolders(): Promise<EventFolder[]> {
-    try {
-      return JSON.parse(localStorage.getItem('googleDriveFolders') || '[]');
-    } catch (error) {
-      console.error('Failed to get folders:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Check if user is authenticated
-   */
-  async isAuthenticated(): Promise<boolean> {
-    // In real implementation, this would check Google Auth status
-    return this.isInitialized;
-  }
-
-  /**
-   * Authenticate user with Google Drive
-   */
-  async authenticate(): Promise<boolean> {
-    try {
-      console.log('Authenticating with Google Drive...');
-      
-      // Simulate authentication
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Auto-initialize after authentication
-      await this.initialize();
-      
-      console.log('Authentication successful');
-      return true;
-    } catch (error) {
-      console.error('Authentication failed:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Sign out from Google Drive
-   */
-  async signOut(): Promise<void> {
-    try {
-      console.log('Signing out from Google Drive...');
-      this.isInitialized = false;
-      console.log('Signed out successfully');
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
-  }
-
-  /**
-   * Get usage statistics
-   */
-  async getUsageStats(): Promise<{
-    totalFiles: number;
-    totalFolders: number;
-    totalSize: number;
-    lastUpload: string | null;
+  // List files in a folder
+  async listFiles(folderId?: string, pageSize: number = 20): Promise<{
+    success: boolean;
+    files: GoogleDriveFile[];
+    nextPageToken?: string;
+    message?: string;
   }> {
     try {
-      const uploads = JSON.parse(localStorage.getItem('googleDriveUploads') || '[]');
-      const folders = JSON.parse(localStorage.getItem('googleDriveFolders') || '[]');
+      if (!this.isConfigured()) {
+        return { success: false, files: [], message: 'Google Drive is not configured' };
+      }
 
-      const totalSize = uploads.reduce((sum: number, upload: UploadResult) => {
-        return sum + parseInt(upload.size || '0');
-      }, 0);
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return { success: false, files: [], message: 'Failed to authenticate with Google Drive' };
+      }
 
-      const lastUpload = uploads.length > 0 
-        ? uploads[uploads.length - 1].createdTime 
-        : null;
+      const targetFolderId = folderId || this.config.folderId;
+      const query = `parents in '${targetFolderId}' and trashed=false`;
+      
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=${pageSize}&fields=files(id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink,createdTime,modifiedTime),nextPageToken`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to list files: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      const files: GoogleDriveFile[] = data.files.map((file: unknown) => ({
+        id: (file as GoogleDriveFile).id,
+        name: (file as GoogleDriveFile).name,
+        mimeType: (file as GoogleDriveFile).mimeType,
+        size: parseInt(((file as { size?: string }).size || '0')),
+        webViewLink: (file as GoogleDriveFile).webViewLink,
+        webContentLink: (file as GoogleDriveFile).webContentLink,
+        thumbnailLink: (file as GoogleDriveFile).thumbnailLink,
+        createdTime: new Date((file as { createdTime: string }).createdTime),
+        modifiedTime: new Date((file as { modifiedTime: string }).modifiedTime)
+      }));
 
       return {
-        totalFiles: uploads.length,
-        totalFolders: folders.length,
-        totalSize,
-        lastUpload
+        success: true,
+        files,
+        nextPageToken: data.nextPageToken
       };
     } catch (error) {
-      console.error('Failed to get usage stats:', error);
+      console.error('Failed to list files:', error);
+      return { success: false, files: [], message: 'Failed to list files' };
+    }
+  }
+
+  // Test connection
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!this.isConfigured()) {
+        return { success: false, message: 'Google Drive is not configured' };
+      }
+
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return { success: false, message: 'Failed to authenticate with Google Drive' };
+      }
+
+      // Try to get folder info
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${this.config.folderId}?fields=id,name`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Connection test failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
       return {
-        totalFiles: 0,
-        totalFolders: 0,
-        totalSize: 0,
-        lastUpload: null
+        success: true,
+        message: `Successfully connected to Google Drive. Target folder: ${data.name}`
       };
+    } catch (error) {
+      console.error('Google Drive connection test failed:', error);
+      return { success: false, message: 'Connection test failed' };
     }
   }
 }
@@ -297,10 +380,4 @@ class GoogleDriveService {
 export const googleDriveService = new GoogleDriveService();
 
 // Export types
-export type {
-  GoogleDriveConfig,
-  UploadResult,
-  EventFolder
-};
-
-export default googleDriveService;
+export type { GoogleDriveFile, FileUploadRequest, FileUploadResult, GoogleDriveConfig };

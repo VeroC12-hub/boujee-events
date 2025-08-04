@@ -13,7 +13,7 @@ import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
 
 // Contexts
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useLegacyAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
 
 // Protected Route Component
@@ -21,7 +21,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
   children, 
   requiredRole 
 }) => {
-  const { state } = useAuth();
+  const { state } = useLegacyAuth();
   
   if (state.isLoading) {
     return (
