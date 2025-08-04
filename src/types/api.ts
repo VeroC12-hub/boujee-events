@@ -38,6 +38,7 @@ export interface User {
   eventsAttended: number;
   totalSpent: number;
   verified: boolean;
+  password: string;
 }
 
 export interface CreateUserRequest {
@@ -54,6 +55,7 @@ export interface UpdateUserRequest {
   phone?: string;
   role?: 'admin' | 'organizer' | 'user';
   status?: 'active' | 'inactive' | 'banned';
+  password?: string;
 }
 
 // Event Types  
