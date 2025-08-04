@@ -9,8 +9,8 @@ import IndexPage from './pages/Index';
 import Login from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
 
-// Admin Components
-import AdminDashboard from './pages/AdminDashboard';
+// Admin Components - Fixed: Removed duplicate import and merge conflict
+import AdminDashboard from './components/admin/AdminDashboard';
 import Analytics from './components/admin/Analytics';
 import EventManagement from './components/admin/EventManagement';
 import VIPManagement from './components/admin/VIPManagement';

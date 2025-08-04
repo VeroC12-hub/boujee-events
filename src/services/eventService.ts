@@ -1,9 +1,16 @@
 /**
  * Event Management Service
- * Provides comprehensive event management functionality with Google Drive integration
+ * Provides comprehensive event management functionality with optional Google Drive integration
+ * Service to bridge admin-managed events with homepage display
  */
 
-import { googleDriveService } from './googleDrive';
+// Optional Google Drive integration - will be imported if available
+let googleDriveService: any = null;
+try {
+  googleDriveService = require('./googleDrive').googleDriveService;
+} catch (error) {
+  console.warn('Google Drive service not available, continuing without it');
+}
 
 export interface Event {
   id: number;
@@ -49,12 +56,27 @@ export interface EventStats {
   totalTicketsSold: number;
   totalRevenue: number;
   averageCapacity: number;
+  totalCapacity: number;
+  averageOccupancy: number;
   popularEventTypes: { type: string; count: number }[];
 }
 
 class EventService {
+  private static instance: EventService;
   private readonly STORAGE_KEY = 'boujee_events';
+  private readonly ADMIN_EVENTS_KEY = 'adminEvents'; // Backward compatibility
   private readonly FEATURED_EVENTS_KEY = 'featured_events';
+
+  private constructor() {
+    // Private constructor for singleton pattern
+  }
+
+  public static getInstance(): EventService {
+    if (!EventService.instance) {
+      EventService.instance = new EventService();
+    }
+    return EventService.instance;
+  }
 
   /**
    * Get all events with optional filtering
@@ -75,6 +97,13 @@ class EventService {
   }
 
   /**
+   * Get all active events (backward compatibility)
+   */
+  getAllEvents(): Event[] {
+    return this.getAllEventsFromStorage().filter(event => event.status === 'active');
+  }
+
+  /**
    * Get a single event by ID
    */
   async getEvent(id: number): Promise<Event | null> {
@@ -88,6 +117,14 @@ class EventService {
   }
 
   /**
+   * Get event by ID (backward compatibility)
+   */
+  getEventById(id: number): Event | undefined {
+    const events = this.getAllEventsFromStorage();
+    return events.find(event => event.id === id);
+  }
+
+  /**
    * Create a new event
    */
   async createEvent(eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt' | 'metadata'>): Promise<Event> {
@@ -95,7 +132,7 @@ class EventService {
       const events = this.getAllEventsFromStorage();
       const newEvent: Event = {
         ...eventData,
-        id: Date.now(),
+        id: Math.max(0, ...events.map(e => e.id)) + 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         metadata: {
@@ -106,12 +143,14 @@ class EventService {
         }
       };
 
-      // Create Google Drive folder for the event
-      try {
-        const folder = await googleDriveService.createEventFolder(newEvent.id, newEvent.title);
-        newEvent.googleDriveFolderId = folder.id;
-      } catch (error) {
-        console.warn('Failed to create Google Drive folder:', error);
+      // Create Google Drive folder for the event if service is available
+      if (googleDriveService) {
+        try {
+          const folder = await googleDriveService.createEventFolder(newEvent.id, newEvent.title);
+          newEvent.googleDriveFolderId = folder.id;
+        } catch (error) {
+          console.warn('Failed to create Google Drive folder:', error);
+        }
       }
 
       events.push(newEvent);
@@ -127,6 +166,30 @@ class EventService {
   }
 
   /**
+   * Add event (backward compatibility)
+   */
+  addEvent(event: Omit<Event, 'id' | 'createdAt' | 'updatedAt' | 'metadata'>): Event {
+    const events = this.getAllEventsFromStorage();
+    const newEvent: Event = {
+      ...event,
+      id: Math.max(0, ...events.map(e => e.id)) + 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      metadata: {
+        views: 0,
+        bookings: 0,
+        revenue: 0,
+        lastModified: new Date().toISOString()
+      }
+    };
+    
+    events.push(newEvent);
+    this.saveEventsToStorage(events);
+    this.updateFeaturedEvents();
+    return newEvent;
+  }
+
+  /**
    * Update an existing event
    */
   async updateEvent(id: number, updates: Partial<Event>): Promise<Event | null> {
@@ -135,7 +198,7 @@ class EventService {
       const eventIndex = events.findIndex(event => event.id === id);
 
       if (eventIndex === -1) {
-        throw new Error('Event not found');
+        return null;
       }
 
       const updatedEvent: Event = {
@@ -144,6 +207,7 @@ class EventService {
         updatedAt: new Date().toISOString(),
         metadata: {
           ...events[eventIndex].metadata,
+          ...(updates.metadata || {}),
           lastModified: new Date().toISOString()
         }
       };
@@ -166,13 +230,14 @@ class EventService {
   async deleteEvent(id: number): Promise<boolean> {
     try {
       const events = this.getAllEventsFromStorage();
-      const filteredEvents = events.filter(event => event.id !== id);
+      const eventIndex = events.findIndex(event => event.id === id);
 
-      if (filteredEvents.length === events.length) {
-        throw new Error('Event not found');
+      if (eventIndex === -1) {
+        return false;
       }
 
-      this.saveEventsToStorage(filteredEvents);
+      events.splice(eventIndex, 1);
+      this.saveEventsToStorage(events);
       this.updateFeaturedEvents();
 
       console.log('Event deleted successfully:', id);
@@ -193,22 +258,33 @@ class EventService {
         throw new Error('Event not found');
       }
 
-      // Upload to Google Drive
-      const uploadResult = await googleDriveService.uploadImage(
-        file,
-        eventId,
-        event.title,
-        progressCallback
-      );
+      // Upload to Google Drive if service is available
+      if (googleDriveService) {
+        const uploadResult = await googleDriveService.uploadImage(
+          file,
+          eventId,
+          event.title,
+          progressCallback
+        );
 
-      // Update event with new image
-      const updatedImages = [...(event.images || []), uploadResult.webContentLink];
-      await this.updateEvent(eventId, {
-        images: updatedImages,
-        image: event.image || uploadResult.webContentLink // Set as main image if none exists
-      });
+        // Update event with new image
+        const updatedImages = [...(event.images || []), uploadResult.webContentLink];
+        await this.updateEvent(eventId, {
+          images: updatedImages,
+          image: event.image || uploadResult.webContentLink // Set as main image if none exists
+        });
 
-      return uploadResult.webContentLink;
+        return uploadResult.webContentLink;
+      } else {
+        // Fallback: create object URL for local preview
+        const imageUrl = URL.createObjectURL(file);
+        const updatedImages = [...(event.images || []), imageUrl];
+        await this.updateEvent(eventId, {
+          images: updatedImages,
+          image: event.image || imageUrl
+        });
+        return imageUrl;
+      }
     } catch (error) {
       console.error('Failed to upload event image:', error);
       throw error;
@@ -228,6 +304,14 @@ class EventService {
       console.error('Failed to get featured events:', error);
       return [];
     }
+  }
+
+  /**
+   * Get featured events (backward compatibility)
+   */
+  getFeaturedEvents(): Event[] {
+    const events = this.getAllEventsFromStorage();
+    return events.filter(event => event.status === 'active' && event.featured);
   }
 
   /**
@@ -254,8 +338,9 @@ class EventService {
       const activeEvents = events.filter(e => e.status === 'active').length;
       const totalTicketsSold = events.reduce((sum, e) => sum + e.ticketsSold, 0);
       const totalRevenue = events.reduce((sum, e) => sum + e.metadata.revenue, 0);
+      const totalCapacity = events.reduce((sum, e) => sum + e.maxCapacity, 0);
       const averageCapacity = events.length > 0 
-        ? events.reduce((sum, e) => sum + e.maxCapacity, 0) / events.length 
+        ? totalCapacity / events.length 
         : 0;
 
       // Get popular event types
@@ -275,6 +360,8 @@ class EventService {
         totalTicketsSold,
         totalRevenue,
         averageCapacity,
+        totalCapacity,
+        averageOccupancy: totalCapacity > 0 ? (totalTicketsSold / totalCapacity) * 100 : 0,
         popularEventTypes
       };
     } catch (error) {
@@ -285,9 +372,27 @@ class EventService {
         totalTicketsSold: 0,
         totalRevenue: 0,
         averageCapacity: 0,
+        totalCapacity: 0,
+        averageOccupancy: 0,
         popularEventTypes: []
       };
     }
+  }
+
+  /**
+   * Get event stats (backward compatibility)
+   */
+  getEventStats() {
+    const activeEvents = this.getAllEvents();
+    const totalTicketsSold = activeEvents.reduce((sum, event) => sum + event.ticketsSold, 0);
+    const totalCapacity = activeEvents.reduce((sum, event) => sum + event.maxCapacity, 0);
+    
+    return {
+      totalEvents: activeEvents.length,
+      totalTicketsSold,
+      totalCapacity,
+      averageOccupancy: totalCapacity > 0 ? (totalTicketsSold / totalCapacity) * 100 : 0
+    };
   }
 
   /**
@@ -355,7 +460,21 @@ class EventService {
 
   private getAllEventsFromStorage(): Event[] {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
+      // Try new storage key first
+      let stored = localStorage.getItem(this.STORAGE_KEY);
+      
+      // Fallback to old key for backward compatibility
+      if (!stored) {
+        stored = localStorage.getItem(this.ADMIN_EVENTS_KEY);
+        if (stored) {
+          // Migrate to new key
+          const events = JSON.parse(stored);
+          this.saveEventsToStorage(events);
+          localStorage.removeItem(this.ADMIN_EVENTS_KEY);
+          return events;
+        }
+      }
+
       if (stored) {
         return JSON.parse(stored);
       }
@@ -373,6 +492,8 @@ class EventService {
   private saveEventsToStorage(events: Event[]): void {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(events));
+      // Also save to old key for backward compatibility
+      localStorage.setItem(this.ADMIN_EVENTS_KEY, JSON.stringify(events));
     } catch (error) {
       console.error('Failed to save events to storage:', error);
     }
@@ -414,7 +535,7 @@ class EventService {
       {
         id: 1,
         title: "Midnight in Paradise",
-        date: "2025-12-31",
+        date: "Dec 31, 2025",
         location: "Private Island, Maldives",
         type: "New Year's Gala",
         image: "/api/placeholder/800/400",
@@ -441,14 +562,14 @@ class EventService {
       {
         id: 2,
         title: "Golden Hour Festival",
-        date: "2025-03-15",
+        date: "Mar 15, 2025",
         location: "Château de Versailles",
         type: "Music Festival",
         image: "/api/placeholder/800/400",
         price: "From €150",
         description: "World-class musicians performing in the historic gardens of Versailles at sunset.",
         status: 'active',
-        ticketsSold: 78,
+        ticketsSold: 234,
         maxCapacity: 500,
         createdAt: '2025-01-10T14:30:00Z',
         updatedAt: now,
@@ -460,15 +581,15 @@ class EventService {
         organizerId: "VeroC12-hub",
         metadata: {
           views: 456,
-          bookings: 78,
-          revenue: 11700,
+          bookings: 234,
+          revenue: 35100,
           lastModified: now
         }
       },
       {
         id: 3,
         title: "The Yacht Week Elite",
-        date: "2025-07-20",
+        date: "Jul 20-27, 2025",
         location: "French Riviera",
         type: "Sailing Experience",
         image: "/api/placeholder/800/400",
@@ -476,7 +597,7 @@ class EventService {
         description: "Luxury sailing adventure along the Mediterranean with premium accommodations and exclusive shore excursions.",
         status: 'active',
         ticketsSold: 12,
-        maxCapacity: 50,
+        maxCapacity: 24,
         createdAt: '2025-01-05T09:15:00Z',
         updatedAt: now,
         featured: true,
@@ -497,6 +618,6 @@ class EventService {
 }
 
 // Export singleton instance
-export const eventService = new EventService();
+export const eventService = EventService.getInstance();
 
 export default eventService;

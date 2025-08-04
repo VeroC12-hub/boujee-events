@@ -2,8 +2,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface AppState {
   theme: 'light' | 'dark';
-  isLoading: boolean;
+  loading: boolean;
   currentUser: string | null;
+  events: any[];
+  featuredEvents: any[];
   notifications: Array<{
     id: string;
     message: string;
@@ -13,33 +15,58 @@ interface AppState {
 }
 
 interface AppContextType {
-  state: AppState;
+  appState: AppState;
   setTheme: (theme: 'light' | 'dark') => void;
   setLoading: (loading: boolean) => void;
+  setCurrentUser: (user: string | null) => void;
+  setEvents: (events: any[]) => void;
+  setFeaturedEvents: (events: any[]) => void;
   addNotification: (notification: Omit<AppState['notifications'][0], 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
+
 interface AppProviderProps {
   children: ReactNode;
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const [state, setState] = useState<AppState>({
+  const [appState, setAppState] = useState<AppState>({
     theme: 'dark',
-    isLoading: false,
+    loading: false,
     currentUser: null,
+    events: [],
+    featuredEvents: [],
     notifications: []
   });
 
   const setTheme = (theme: 'light' | 'dark') => {
-    setState(prev => ({ ...prev, theme }));
+    setAppState(prev => ({ ...prev, theme }));
   };
 
-  const setLoading = (isLoading: boolean) => {
-    setState(prev => ({ ...prev, isLoading }));
+  const setLoading = (loading: boolean) => {
+    setAppState(prev => ({ ...prev, loading }));
+  };
+
+  const setCurrentUser = (currentUser: string | null) => {
+    setAppState(prev => ({ ...prev, currentUser }));
+  };
+
+  const setEvents = (events: any[]) => {
+    setAppState(prev => ({ ...prev, events }));
+  };
+
+  const setFeaturedEvents = (featuredEvents: any[]) => {
+    setAppState(prev => ({ ...prev, featuredEvents }));
   };
 
   const addNotification = (notification: Omit<AppState['notifications'][0], 'id' | 'timestamp'>) => {
@@ -48,11 +75,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       id: Date.now().toString(),
       timestamp: new Date().toISOString()
     };
-    setState(prev => ({
+    setAppState(prev => ({
       ...prev,
       notifications: [...prev.notifications, newNotification]
     }));
-
+    
     // Auto remove after 5 seconds
     setTimeout(() => {
       removeNotification(newNotification.id);
@@ -60,7 +87,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const removeNotification = (id: string) => {
-    setState(prev => ({
+    setAppState(prev => ({
       ...prev,
       notifications: prev.notifications.filter(n => n.id !== id)
     }));
@@ -68,13 +95,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Apply theme to document
-    document.documentElement.setAttribute('data-theme', state.theme);
-  }, [state.theme]);
+    document.documentElement.setAttribute('data-theme', appState.theme);
+  }, [appState.theme]);
 
   const contextValue: AppContextType = {
-    state,
+    appState,
     setTheme,
     setLoading,
+    setCurrentUser,
+    setEvents,
+    setFeaturedEvents,
     addNotification,
     removeNotification
   };
@@ -84,14 +114,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       {children}
     </AppContext.Provider>
   );
-};
-
-export const useApp = (): AppContextType => {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
 };
 
 export default AppContext;

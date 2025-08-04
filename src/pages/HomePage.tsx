@@ -1,69 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { eventService } from '../services/eventService';
+import { eventService, Event } from '../services/eventService';
+import { newsletterService } from '../services/newsletterService';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [currentEvent, setCurrentEvent] = useState(0);
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [featuredEvents, setFeaturedEvents] = useState<Array<any>>([]);
+  
+  // Dynamic events from admin panel
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  // Load featured events from event service
-  useEffect(() => {
-    const loadFeaturedEvents = async () => {
-      setLoading(true);
-      try {
-        const events = await eventService.getFeaturedEvents(3);
-        if (events.length > 0) {
-          setFeaturedEvents(events);
-        } else {
-          // Fallback to sample events if no featured events exist
-          setFeaturedEvents([
-            {
-              id: 1,
-              title: "Midnight in Paradise",
-              date: "Dec 31, 2025",
-              location: "Private Island, Maldives",
-              type: "New Year's Gala",
-              image: "/api/placeholder/800/400",
-              price: "From €2,500",
-              description: "An exclusive New Year celebration in paradise"
-            },
-            {
-              id: 2,
-              title: "Golden Hour Festival", 
-              date: "Mar 15, 2025",
-              location: "Château de Versailles",
-              type: "Music Festival",
-              image: "/api/placeholder/800/400",
-              price: "From €150",
-              description: "World-class musicians in a historic setting"
-            },
-            {
-              id: 3,
-              title: "The Yacht Week Elite",
-              date: "Jul 20-27, 2025", 
-              location: "French Riviera",
-              type: "Sailing Experience",
-              image: "/api/placeholder/800/400",
-              price: "From €5,000",
-              description: "Luxury sailing adventure along the Mediterranean"
-            }
-          ]);
-        }
-      } catch (error) {
-        console.error('Failed to load featured events:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadFeaturedEvents();
-
-    // Refresh featured events periodically to sync with admin changes
-    const interval = setInterval(loadFeaturedEvents, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  
+  // Newsletter state
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState('');
+  const [subscriberCount, setSubscriberCount] = useState(0);
 
   const services = [
     {
@@ -109,12 +64,100 @@ const HomePage: React.FC = () => {
     }
   ];
 
+  // Load featured events from event service
+  useEffect(() => {
+    const loadFeaturedEvents = async () => {
+      setLoading(true);
+      try {
+        const events = await eventService.getFeaturedEvents(3);
+        if (events.length > 0) {
+          setFeaturedEvents(events);
+          setAllEvents(eventService.getAllEvents());
+        } else {
+          // Fallback to sample events if no featured events exist
+          const fallbackEvents = [
+            {
+              id: 1,
+              title: "Midnight in Paradise",
+              date: "Dec 31, 2025",
+              location: "Private Island, Maldives",
+              type: "New Year's Gala",
+              image: "/api/placeholder/800/400",
+              price: "From €2,500",
+              description: "An exclusive New Year celebration in paradise"
+            },
+            {
+              id: 2,
+              title: "Golden Hour Festival", 
+              date: "Mar 15, 2025",
+              location: "Château de Versailles",
+              type: "Music Festival",
+              image: "/api/placeholder/800/400",
+              price: "From €150",
+              description: "World-class musicians in a historic setting"
+            },
+            {
+              id: 3,
+              title: "The Yacht Week Elite",
+              date: "Jul 20-27, 2025", 
+              location: "French Riviera",
+              type: "Sailing Experience",
+              image: "/api/placeholder/800/400",
+              price: "From €5,000",
+              description: "Luxury sailing adventure along the Mediterranean"
+            }
+          ];
+          setFeaturedEvents(fallbackEvents);
+          setAllEvents(fallbackEvents);
+        }
+      } catch (error) {
+        console.error('Failed to load featured events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Load newsletter subscriber count
+    const loadNewsletterData = () => {
+      const count = newsletterService.getActiveSubscriberCount();
+      setSubscriberCount(count);
+    };
+
+    loadFeaturedEvents();
+    loadNewsletterData();
+
+    // Listen for storage changes to update events in real-time
+    const handleStorageChange = () => {
+      loadFeaturedEvents();
+      loadNewsletterData();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Refresh featured events periodically to sync with admin changes
+    const interval = setInterval(loadFeaturedEvents, 30000); // Every 30 seconds
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (featuredEvents.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentEvent((prev) => (prev + 1) % featuredEvents.length);
+      }, 6000);
+      return () => clearInterval(interval);
+    }
+  }, [featuredEvents.length]);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentEvent((prev) => (prev + 1) % featuredEvents.length);
-    }, 6000);
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 4000);
     return () => clearInterval(interval);
-  }, [featuredEvents.length]);
+  }, [testimonials.length]);
 
   const handleBookTicket = async (eventId: number) => {
     try {
@@ -131,6 +174,39 @@ const HomePage: React.FC = () => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewsletterLoading(true);
+    setNewsletterMessage('');
+
+    try {
+      const result = await newsletterService.subscribe(newsletterEmail);
+      setNewsletterMessage(result.message);
+      
+      if (result.success) {
+        setNewsletterEmail('');
+        setSubscriberCount(newsletterService.getActiveSubscriberCount());
+        
+        // Show success toast if available
+        if ((window as any).toast) {
+          (window as any).toast.success('Successfully subscribed to newsletter!');
+        }
+      } else {
+        // Show error toast if available
+        if ((window as any).toast) {
+          (window as any).toast.error(result.message);
+        }
+      }
+    } catch (error) {
+      setNewsletterMessage('An error occurred. Please try again.');
+      if ((window as any).toast) {
+        (window as any).toast.error('Newsletter subscription failed');
+      }
+    } finally {
+      setNewsletterLoading(false);
     }
   };
 
@@ -277,102 +353,117 @@ const HomePage: React.FC = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center text-center px-4">
-        {/* Background Effects */}
+      {/* Hero Section - Enhanced */}
+      <section className="relative h-screen flex items-center justify-center text-center px-4 overflow-hidden">
+        {/* Enhanced Background Effects */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+          {/* Animated gradient orbs */}
+          <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-yellow-400/30 to-amber-600/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-tr from-purple-500/20 to-pink-500/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-blue-400/10 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+          
+          {/* Floating particles */}
+          <div className="absolute inset-0">
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-yellow-400/60 rounded-full animate-bounce" style={{animationDelay: '1s', animationDuration: '3s'}}></div>
+            <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-purple-400/60 rounded-full animate-bounce" style={{animationDelay: '2s', animationDuration: '4s'}}></div>
+            <div className="absolute bottom-1/3 left-1/3 w-1.5 h-1.5 bg-blue-400/60 rounded-full animate-bounce" style={{animationDelay: '3s', animationDuration: '5s'}}></div>
+          </div>
         </div>
 
         {/* Content */}
         <div className="relative z-10 max-w-4xl mx-auto">
-          {/* Logo */}
+          {/* Logo with enhanced styling */}
           <div className="mb-8">
             <img 
               src="/src/be-logo.png" 
               alt="Boujee Events Logo" 
-              className="h-24 w-auto mx-auto mb-4"
+              className="h-24 w-auto mx-auto mb-4 drop-shadow-2xl"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                 if (fallback) fallback.style.display = 'block';
               }}
             />
-            <div className="text-8xl font-bold text-yellow-400 mb-4" style={{ display: 'none' }}>be</div>
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+            <div className="text-8xl font-bold bg-gradient-to-r from-yellow-400 to-amber-600 bg-clip-text text-transparent mb-4 drop-shadow-lg" style={{ display: 'none' }}>be</div>
+            <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-white via-yellow-100 to-white bg-clip-text text-transparent mb-6 leading-tight">
               Boujee Events
             </h1>
-            <p className="text-xl md:text-2xl text-gray-200 mb-12 max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-gray-200 mb-12 max-w-2xl mx-auto leading-relaxed">
               Where Luxury Meets Unforgettable Experiences. Premium events, exclusive venues, and memories that last a lifetime.
             </p>
           </div>
 
-          {/* Featured Event Carousel */}
-          <div className="mb-12">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto border border-white/20">
-              <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide">
-                {featuredEvents[currentEvent].type}
-              </div>
-              <h3 className="text-3xl font-bold text-white mb-4">
-                {featuredEvents[currentEvent].title}
-              </h3>
-              <p className="text-gray-300 mb-4">
-                {featuredEvents[currentEvent].description}
-              </p>
-              <div className="flex flex-wrap justify-center gap-6 text-gray-300 mb-6">
-                <div className="flex items-center">
-                  <span className="mr-2">📅</span>
-                  {featuredEvents[currentEvent].date}
+          {/* Enhanced Featured Event Carousel */}
+          {featuredEvents.length > 0 && (
+            <div className="mb-12">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto border border-white/20 shadow-2xl">
+                <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide font-semibold">
+                  {featuredEvents[currentEvent]?.type || 'Featured Event'}
                 </div>
-                <div className="flex items-center">
-                  <span className="mr-2">📍</span>
-                  {featuredEvents[currentEvent].location}
+                <h3 className="text-3xl font-bold text-white mb-4">
+                  {featuredEvents[currentEvent]?.title || 'Loading...'}
+                </h3>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  {featuredEvents[currentEvent]?.description || 'Loading event details...'}
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 text-gray-300 mb-6">
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">📅</span>
+                    {featuredEvents[currentEvent]?.date || 'TBD'}
+                  </div>
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">📍</span>
+                    {featuredEvents[currentEvent]?.location || 'TBD'}
+                  </div>
+                  <div className="flex items-center bg-white/5 px-4 py-2 rounded-full backdrop-blur-sm">
+                    <span className="mr-2">💰</span>
+                    {featuredEvents[currentEvent]?.price || 'TBD'}
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <span className="mr-2">💰</span>
-                  {featuredEvents[currentEvent].price}
+                
+                {/* Enhanced Carousel Indicators */}
+                <div className="flex justify-center space-x-2 mb-6">
+                  {featuredEvents.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentEvent(index)}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                        index === currentEvent 
+                          ? 'bg-yellow-400 w-8 shadow-lg shadow-yellow-400/50' 
+                          : 'bg-white/30 hover:bg-white/50'
+                      }`}
+                    />
+                  ))}
                 </div>
-              </div>
-              
-              {/* Carousel Indicators */}
-              <div className="flex justify-center space-x-2 mb-6">
-                {featuredEvents.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentEvent(index)}
-                    className={`w-3 h-3 rounded-full transition-colors ${
-                      index === currentEvent ? 'bg-yellow-400' : 'bg-white/30'
-                    }`}
-                  />
-                ))}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button 
-              onClick={() => handleBookTicket(featuredEvents[currentEvent].id)}
-              className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-lg px-8 py-4 rounded-full hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105"
-            >
-              Book Tickets →
-            </button>
-            
-            <button 
-              onClick={() => scrollToSection('events')}
-              className="border-2 border-white/30 text-white font-bold text-lg px-8 py-4 rounded-full hover:bg-white/10 transition-all duration-300"
-            >
-              View All Events
-            </button>
-          </div>
+          {/* Enhanced CTA Buttons */}
+          {featuredEvents.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <button 
+                onClick={() => handleBookTicket(featuredEvents[currentEvent]?.id || 1)}
+                className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-lg px-8 py-4 rounded-full hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl shadow-yellow-400/25"
+              >
+                Book Tickets →
+              </button>
+              
+              <button 
+                onClick={() => scrollToSection('events')}
+                className="border-2 border-white/30 text-white font-bold text-lg px-8 py-4 rounded-full hover:bg-white/10 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
+              >
+                View All Events
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Scroll Indicator */}
+        {/* Enhanced Scroll Indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
           <button 
             onClick={() => scrollToSection('services')}
-            className="w-8 h-8 text-white/60 text-2xl hover:text-white transition-colors"
+            className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white/60 text-2xl hover:text-white hover:bg-white/20 transition-all duration-300 border border-white/20"
           >
             ↓
           </button>
@@ -412,28 +503,41 @@ const HomePage: React.FC = () => {
           </p>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredEvents.map((event, index) => (
-              <div key={event.id} className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:bg-white/10 transition-all duration-300 transform hover:-translate-y-2">
-                <div className="aspect-video bg-gradient-to-br from-yellow-400/20 to-purple-500/20 flex items-center justify-center">
+            {(allEvents.length > 0 ? allEvents : featuredEvents).map((event, index) => (
+              <div key={event.id} className="group bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:bg-white/10 transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-400/20">
+                <div className="relative aspect-video bg-gradient-to-br from-yellow-400/20 to-purple-500/20 overflow-hidden">
                   <img 
                     src={event.image} 
                     alt={event.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling!.style.display = 'flex';
+                      (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
                     }}
                   />
                   <div className="w-full h-full bg-gradient-to-br from-yellow-400/20 to-purple-500/20 flex items-center justify-center" style={{ display: 'none' }}>
                     <span className="text-6xl">🎭</span>
                   </div>
+                  
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                      <button
+                        onClick={() => handleBookTicket(event.id)}
+                        className="bg-yellow-400 text-black font-semibold px-6 py-3 rounded-lg hover:bg-yellow-500 transition-colors"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                
                 <div className="p-6">
-                  <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide">
+                  <div className="text-sm text-yellow-400 mb-2 uppercase tracking-wide font-semibold">
                     {event.type}
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">{event.title}</h3>
-                  <p className="text-gray-300 mb-4">{event.description}</p>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-yellow-400 transition-colors duration-300">{event.title}</h3>
+                  <p className="text-gray-300 mb-4 group-hover:text-gray-200 transition-colors duration-300">{event.description}</p>
                   <div className="flex justify-between items-center mb-4">
                     <div className="text-sm text-gray-400">
                       <div className="flex items-center mb-1">
@@ -446,12 +550,12 @@ const HomePage: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-yellow-400">{event.price}</div>
+                      <div className="text-lg font-bold text-yellow-400 group-hover:text-yellow-300 transition-colors duration-300">{event.price}</div>
                     </div>
                   </div>
                   <button
                     onClick={() => handleBookTicket(event.id)}
-                    className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-semibold py-3 px-6 rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-semibold py-3 px-6 rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform group-hover:scale-105"
                   >
                     Book Now
                   </button>
@@ -462,28 +566,128 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section - Enhanced Carousel */}
       <section className="py-20 px-4 bg-gray-900/50">
-        <div className="container mx-auto max-w-4xl">
-          <h2 className="text-4xl font-bold text-white text-center mb-16">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-4xl font-bold text-white text-center mb-4">
             What Our Guests Say
           </h2>
+          <p className="text-xl text-gray-300 text-center mb-16">
+            Hear from our satisfied clients about their luxury experiences
+          </p>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="flex mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i} className="text-yellow-400 text-xl">⭐</span>
-                  ))}
-                </div>
-                <p className="text-gray-300 mb-4 italic">"{testimonial.review}"</p>
-                <div>
-                  <div className="font-semibold text-white">{testimonial.name}</div>
-                  <div className="text-sm text-gray-400">{testimonial.event}</div>
-                </div>
+          {/* Testimonials Carousel */}
+          <div className="relative max-w-4xl mx-auto mb-8">
+            <div className="overflow-hidden rounded-2xl">
+              <div 
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}
+              >
+                {testimonials.map((testimonial, index) => (
+                  <div key={index} className="w-full flex-shrink-0">
+                    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 mx-4">
+                      <div className="text-center">
+                        <div className="flex justify-center mb-6">
+                          {[...Array(testimonial.rating)].map((_, i) => (
+                            <span key={i} className="text-yellow-400 text-2xl mx-1">⭐</span>
+                          ))}
+                        </div>
+                        <blockquote className="text-gray-300 text-lg mb-6 italic leading-relaxed">
+                          "{testimonial.review}"
+                        </blockquote>
+                        <div className="border-t border-white/10 pt-6">
+                          <div className="font-semibold text-white text-xl">{testimonial.name}</div>
+                          <div className="text-yellow-400 text-sm mt-1">{testimonial.event}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            
+            {/* Carousel Controls */}
+            <div className="flex justify-center space-x-2 mt-8">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentTestimonial(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === currentTestimonial 
+                      ? 'bg-yellow-400 w-8' 
+                      : 'bg-white/30 hover:bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Testimonial Navigation Arrows */}
+          <div className="flex justify-center space-x-8 mt-6">
+            <button
+              onClick={() => setCurrentTestimonial((prev) => 
+                prev === 0 ? testimonials.length - 1 : prev - 1
+              )}
+              className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/20"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => setCurrentTestimonial((prev) => 
+                (prev + 1) % testimonials.length
+              )}
+              className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/20"
+            >
+              →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter Signup Section */}
+      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400/10 to-purple-500/10">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">Stay in the Loop</h2>
+          <p className="text-xl text-gray-300 mb-8">
+            Be the first to know about exclusive events, VIP experiences, and special offers
+          </p>
+          
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 max-w-2xl mx-auto">
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                required
+                disabled={newsletterLoading}
+                className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={newsletterLoading || !newsletterEmail.trim()}
+                className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-semibold px-8 py-4 rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 whitespace-nowrap disabled:opacity-50 disabled:transform-none"
+              >
+                {newsletterLoading ? 'Subscribing...' : 'Subscribe Now'}
+              </button>
+            </form>
+            
+            {newsletterMessage && (
+              <p className={`text-sm mt-4 ${newsletterMessage.includes('Success') ? 'text-green-400' : 'text-red-400'}`}>
+                {newsletterMessage}
+              </p>
+            )}
+            
+            <p className="text-sm text-gray-400 mt-4">
+              🔒 We respect your privacy. Unsubscribe at any time.
+            </p>
+          </div>
+          
+          {/* Social Proof */}
+          <div className="mt-8 text-gray-300">
+            <p className="text-sm">
+              Join over {subscriberCount > 0 ? subscriberCount.toLocaleString() : '10,000'} luxury event enthusiasts
+            </p>
           </div>
         </div>
       </section>
@@ -591,7 +795,7 @@ const HomePage: React.FC = () => {
                 className="h-8 w-auto"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling!.style.display = 'block';
+                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
                 }}
               />
               <div className="text-2xl font-bold text-yellow-400" style={{ display: 'none' }}>be</div>
