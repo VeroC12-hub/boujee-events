@@ -15,17 +15,17 @@ const SimpleBarChart: React.FC<{
   const max = Math.max(...data.map(d => d.value));
   
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="card-luxury">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       <div className="space-y-3">
         {data.map((item, index) => (
           <div key={index} className="flex items-center">
-            <div className="w-20 text-sm text-gray-600 truncate">{item.label}</div>
+            <div className="w-20 text-sm text-gray-400 truncate">{item.label}</div>
             <div className="flex-1 mx-4">
-              <div className="bg-gray-200 rounded-full h-6 relative overflow-hidden">
+              <div className="bg-gray-800 rounded-full h-6 relative overflow-hidden">
                 <div
                   className={`h-6 rounded-full transition-all duration-1000 ease-out ${
-                    item.color || 'bg-gradient-to-r from-blue-500 to-blue-600'
+                    item.color || 'bg-gradient-to-r from-primary to-accent'
                   }`}
                   style={{ 
                     width: `${(item.value / max) * 100}%`,
@@ -37,7 +37,7 @@ const SimpleBarChart: React.FC<{
                 </div>
               </div>
             </div>
-            <div className="w-20 text-right text-sm font-medium text-gray-900">
+            <div className="w-20 text-right text-sm font-medium text-white">
               {item.value >= 1000 ? `$${item.value.toLocaleString()}` : item.value.toLocaleString()}
             </div>
           </div>
@@ -72,14 +72,14 @@ const SimpleLineChart: React.FC<{
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="card-luxury">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       <div className="relative">
-        <svg width="100%" height="180" viewBox="0 0 400 180" className="border rounded-lg bg-gray-50">
+        <svg width="100%" height="180" viewBox="0 0 400 180" className="border border-border rounded-lg bg-gray-800/50">
           {/* Grid lines */}
           <defs>
             <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 20" fill="none" stroke="#f3f4f6" strokeWidth="1"/>
+              <path d="M 40 0 L 0 0 0 20" fill="none" stroke="#374151" strokeWidth="1"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
@@ -87,8 +87,8 @@ const SimpleLineChart: React.FC<{
           {/* Gradient area under line */}
           <defs>
             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.3 }} />
-              <stop offset="100%" style={{ stopColor: color, stopOpacity: 0.05 }} />
+              <stop offset="0%" style={{ stopColor: 'hsl(43 74% 66%)', stopOpacity: 0.3 }} />
+              <stop offset="100%" style={{ stopColor: 'hsl(43 74% 66%)', stopOpacity: 0.05 }} />
             </linearGradient>
           </defs>
           
@@ -102,7 +102,7 @@ const SimpleLineChart: React.FC<{
           <path
             d={generatePath()}
             fill="none"
-            stroke={color}
+            stroke="hsl(43 74% 66%)"
             strokeWidth="3"
             className="drop-shadow-sm"
             style={{
@@ -182,8 +182,8 @@ const SimplePieChart: React.FC<{
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="card-luxury">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       <div className="flex items-center">
         <div className="w-48 h-48">
           <svg width="200" height="200" viewBox="0 0 200 200">
@@ -210,8 +210,8 @@ const SimplePieChart: React.FC<{
                 style={{ backgroundColor: slice.color }}
               />
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">{slice.label}</div>
-                <div className="text-xs text-gray-600">
+                <div className="text-sm font-medium text-white">{slice.label}</div>
+                <div className="text-xs text-gray-400">
                   ${slice.value.toLocaleString()} ({slice.percentage.toFixed(1)}%)
                 </div>
               </div>
@@ -233,14 +233,14 @@ const AdvancedFilters: React.FC<{
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
+    <div className="card-luxury mb-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h3 className="text-sm font-medium text-gray-700">🔍 Filters</h3>
+          <h3 className="text-sm font-medium text-white">🔍 Filters</h3>
           <select
             value={dateRange}
             onChange={(e) => onDateRangeChange(e.target.value)}
-            className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-1 bg-background border border-border rounded text-sm text-white focus:ring-2 focus:ring-primary focus:border-primary"
           >
             {Object.entries(getDateRangePresets()).map(([key, preset]) => (
               <option key={key} value={key}>{preset.label}</option>
@@ -265,23 +265,23 @@ const AdvancedFilters: React.FC<{
             </button>
             
             {showExportMenu && (
-              <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+              <div className="absolute right-0 mt-2 w-40 bg-card rounded-md shadow-lg z-10 border border-border">
                 <div className="py-1">
                   <button
                     onClick={() => { onExport('csv'); setShowExportMenu(false); }}
-                    className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800"
                   >
                     📄 CSV
                   </button>
                   <button
                     onClick={() => { onExport('html'); setShowExportMenu(false); }}
-                    className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800"
                   >
                     🌐 HTML
                   </button>
                   <button
                     onClick={() => { onExport('print'); setShowExportMenu(false); }}
-                    className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800"
                   >
                     🖨️ Print
                   </button>
@@ -474,8 +474,8 @@ const Analytics: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">📊 Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-2">Real-time insights with advanced visualizations</p>
+          <h1 className="text-3xl font-bold text-white">📊 Analytics Dashboard</h1>
+          <p className="text-gray-400 mt-2">Real-time insights with advanced visualizations</p>
           <p className="text-sm text-gray-500 mt-1">
             Last updated: 2025-08-03 19:30:05 UTC | User: VeroC12-hub
           </p>
@@ -487,7 +487,7 @@ const Analytics: React.FC = () => {
             vipData.refetchAll();
             eventData.refetch();
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          className="btn-luxury flex items-center"
         >
           <span className="mr-2">🔄</span>
           Refresh
@@ -532,54 +532,54 @@ const Analytics: React.FC = () => {
         <div className="space-y-8">
           {/* Key Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <div className="card-luxury hover:shadow-lg transition-shadow">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white text-xl mr-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center text-black text-xl mr-4">
                   📅
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{metrics.totalEvents}</div>
-                  <div className="text-sm text-gray-600">Total Events</div>
-                  <div className="text-xs text-green-600 font-medium">{metrics.eventGrowth} from last month</div>
+                  <div className="text-2xl font-bold text-white">{metrics.totalEvents}</div>
+                  <div className="text-sm text-gray-400">Total Events</div>
+                  <div className="text-xs text-primary font-medium">{metrics.eventGrowth} from last month</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <div className="card-luxury hover:shadow-lg transition-shadow">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center text-white text-xl mr-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center text-black text-xl mr-4">
                   💰
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">${metrics.totalRevenue.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">Total Revenue</div>
-                  <div className="text-xs text-green-600 font-medium">{metrics.revenueGrowth} from last month</div>
+                  <div className="text-2xl font-bold text-white">${metrics.totalRevenue.toLocaleString()}</div>
+                  <div className="text-sm text-gray-400">Total Revenue</div>
+                  <div className="text-xs text-primary font-medium">{metrics.revenueGrowth} from last month</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <div className="card-luxury hover:shadow-lg transition-shadow">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-xl mr-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center text-black text-xl mr-4">
                   👥
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{metrics.totalAttendees.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">Total Attendees</div>
-                  <div className="text-xs text-green-600 font-medium">{metrics.attendeeGrowth} from last month</div>
+                  <div className="text-2xl font-bold text-white">{metrics.totalAttendees.toLocaleString()}</div>
+                  <div className="text-sm text-gray-400">Total Attendees</div>
+                  <div className="text-xs text-primary font-medium">{metrics.attendeeGrowth} from last month</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <div className="card-luxury hover:shadow-lg transition-shadow">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center text-white text-xl mr-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center text-black text-xl mr-4">
                   🌟
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{metrics.vipReservations}</div>
-                  <div className="text-sm text-gray-600">VIP Reservations</div>
-                  <div className="text-xs text-green-600 font-medium">{metrics.vipGrowth} from last month</div>
+                  <div className="text-2xl font-bold text-white">{metrics.vipReservations}</div>
+                  <div className="text-sm text-gray-400">VIP Reservations</div>
+                  <div className="text-xs text-primary font-medium">{metrics.vipGrowth} from last month</div>
                 </div>
               </div>
             </div>
@@ -603,17 +603,17 @@ const Analytics: React.FC = () => {
               title="📅 Top Events by Attendance"
             />
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🌟 VIP Performance</h3>
+            <div className="card-luxury p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">🌟 VIP Performance</h3>
               <div className="space-y-4">
                 {vipData.analytics?.tierBreakdown?.slice(0, 3).map((tier, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white mr-4">
                         🌟
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{tier.tierName}</div>
+                        <div className="font-medium text-white">{tier.tierName}</div>
                         <div className="text-sm text-gray-600">{tier.eventTitle}</div>
                       </div>
                     </div>
@@ -644,8 +644,8 @@ const Analytics: React.FC = () => {
       {activeTab === 'events' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">📅 Event Status</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">📅 Event Status</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-green-600">Published</span>
@@ -658,8 +658,8 @@ const Analytics: React.FC = () => {
               </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">👥 Attendance</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">👥 Attendance</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Attendees</span>
@@ -674,8 +674,8 @@ const Analytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">💰 Event Revenue</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">💰 Event Revenue</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total</span>
@@ -696,26 +696,26 @@ const Analytics: React.FC = () => {
       {activeTab === 'vip' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">🌟 VIP Reservations</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">🌟 VIP Reservations</h4>
               <div className="text-2xl font-bold text-purple-600">{metrics.vipReservations}</div>
               <div className="text-sm text-gray-600">Total bookings</div>
             </div>
             
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">💰 VIP Revenue</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">💰 VIP Revenue</h4>
               <div className="text-2xl font-bold text-green-600">${metrics.vipRevenue.toLocaleString()}</div>
               <div className="text-sm text-gray-600">Total earnings</div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">⏳ Pending</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">⏳ Pending</h4>
               <div className="text-2xl font-bold text-yellow-600">{metrics.vipPendingReservations}</div>
               <div className="text-sm text-gray-600">Awaiting confirmation</div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h4 className="font-medium text-gray-900 mb-2">✅ Confirmed</h4>
+            <div className="card-luxury p-6">
+              <h4 className="font-medium text-white mb-2">✅ Confirmed</h4>
               <div className="text-2xl font-bold text-blue-600">{metrics.vipConfirmedReservations}</div>
               <div className="text-sm text-gray-600">Active reservations</div>
             </div>
@@ -726,8 +726,8 @@ const Analytics: React.FC = () => {
       {activeTab === 'revenue' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">💰 Revenue Sources</h3>
+            <div className="card-luxury p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">💰 Revenue Sources</h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Event Tickets</span>
@@ -750,8 +750,8 @@ const Analytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Revenue Insights</h3>
+            <div className="card-luxury p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">📊 Revenue Insights</h3>
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Revenue</span>
