@@ -8,31 +8,37 @@ import HomePage from './pages/HomePage';
 import IndexPage from './pages/Index';
 import Login from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
-
-// Admin Components - Fixed: Removed duplicate import and merge conflict
-import AdminDashboard from './components/admin/AdminDashboard';
-import Analytics from './components/admin/Analytics';
-import EventManagement from './components/admin/EventManagement';
-import VIPManagement from './components/admin/VIPManagement';
-import UserManagement from './components/admin/UserManagement';
-import Settings from './components/admin/Settings';
+import AdminDashboard from './pages/AdminDashboard';
+import OrganizerDashboard from './pages/OrganizerDashboard';
+import MemberDashboard from './pages/MemberDashboard';
 
 // Contexts
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: string }> = ({ 
   children, 
-  requiredRole = 'admin' 
+  requiredRole 
 }) => {
-  const authState = JSON.parse(localStorage.getItem('authState') || '{}');
+  const { state } = useAuth();
   
-  if (!authState.isAuthenticated || !authState.user) {
+  if (state.isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!state.isAuthenticated || !state.user) {
     return <Navigate to="/login" replace />;
   }
   
-  if (requiredRole && authState.user.role !== requiredRole) {
+  if (requiredRole && state.user.role !== requiredRole) {
     return <Navigate to="/login" replace />;
   }
   
@@ -189,20 +195,24 @@ const AppLayout: React.FC = () => {
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
       
-      {/* Protected Admin Routes - Hidden from public */}
+      {/* Protected Dashboard Routes */}
       <Route path="/admin" element={
         <ProtectedRoute requiredRole="admin">
           <AdminDashboard />
         </ProtectedRoute>
-      }>
-        {/* Nested Admin Routes */}
-        <Route index element={<Navigate to="/admin/analytics" replace />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="events" element={<EventManagement />} />
-        <Route path="vip" element={<VIPManagement />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
+      } />
+      
+      <Route path="/organizer" element={
+        <ProtectedRoute requiredRole="organizer">
+          <OrganizerDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/member" element={
+        <ProtectedRoute requiredRole="member">
+          <MemberDashboard />
+        </ProtectedRoute>
+      } />
 
       {/* Development/Emergency Admin Access - Remove in production */}
       <Route path="/admin-emergency-login" element={<EmergencyAdminLogin />} />
