@@ -3,22 +3,11 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useVIPManagement } from '../../hooks/useVIP';
+import { eventService } from '../../services/eventService';
+import { googleDriveService } from '../../services/googleDrive';
 import LoadingSpinner from '../common/LoadingSpinner';
 
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  type: string;
-  image: string;
-  price: string;
-  description: string;
-  status: 'active' | 'draft' | 'ended';
-  ticketsSold: number;
-  maxCapacity: number;
-  createdAt: string;
-}
+import { Event } from '../../services/eventService';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
@@ -39,60 +28,18 @@ const AdminDashboard: React.FC = () => {
     { id: 3, message: 'Payment processed', time: '10 minutes ago', type: 'success' }
   ]);
 
-  // Load events from localStorage on component mount
+  // Load events from event service on component mount
   useEffect(() => {
-    const savedEvents = localStorage.getItem('adminEvents');
-    if (savedEvents) {
-      setEvents(JSON.parse(savedEvents));
-    } else {
-      // Initialize with sample events
-      const sampleEvents: Event[] = [
-        {
-          id: 1,
-          title: "Midnight in Paradise",
-          date: "2025-12-31",
-          location: "Private Island, Maldives",
-          type: "New Year's Gala",
-          image: "/api/placeholder/800/400",
-          price: "From €2,500",
-          description: "An exclusive New Year celebration in paradise with world-class entertainment, gourmet dining, and luxury accommodations.",
-          status: 'active',
-          ticketsSold: 45,
-          maxCapacity: 200,
-          createdAt: '2025-01-15T10:00:00Z'
-        },
-        {
-          id: 2,
-          title: "Golden Hour Festival",
-          date: "2025-03-15",
-          location: "Château de Versailles",
-          type: "Music Festival",
-          image: "/api/placeholder/800/400",
-          price: "From €150",
-          description: "World-class musicians performing in the historic gardens of Versailles at sunset.",
-          status: 'active',
-          ticketsSold: 78,
-          maxCapacity: 500,
-          createdAt: '2025-01-10T14:30:00Z'
-        },
-        {
-          id: 3,
-          title: "The Yacht Week Elite",
-          date: "2025-07-20",
-          location: "French Riviera",
-          type: "Sailing Experience",
-          image: "/api/placeholder/800/400",
-          price: "From €5,000",
-          description: "Luxury sailing adventure along the Mediterranean with premium accommodations and exclusive shore excursions.",
-          status: 'active',
-          ticketsSold: 12,
-          maxCapacity: 50,
-          createdAt: '2025-01-05T09:15:00Z'
-        }
-      ];
-      setEvents(sampleEvents);
-      localStorage.setItem('adminEvents', JSON.stringify(sampleEvents));
-    }
+    const loadEvents = async () => {
+      try {
+        const eventsData = await eventService.getEvents();
+        setEvents(eventsData);
+      } catch (error) {
+        console.error('Failed to load events:', error);
+      }
+    };
+
+    loadEvents();
   }, []);
 
   // Navigation items with real-time data and VIP section
@@ -178,27 +125,43 @@ const AdminDashboard: React.FC = () => {
     return '🏠';
   };
 
-  // Event Management Functions
+  // Enhanced event management functions with Google Drive integration
   const handleImageUpload = async (file: File, eventId?: number) => {
     setUploadingImage(true);
     try {
-      // Simulate Google Drive upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create a mock URL for the uploaded image
-      const mockImageUrl = URL.createObjectURL(file);
-      
-      // In real implementation, this would upload to Google Drive and return the public URL
-      const googleDriveUrl = `https://drive.google.com/uc?id=mock_${Date.now()}`;
-      
-      if ((window as any).toast) {
-        (window as any).toast.success('Image uploaded to Google Drive successfully!');
+      // Initialize Google Drive if not already done
+      const isAuth = await googleDriveService.isAuthenticated();
+      if (!isAuth) {
+        await googleDriveService.authenticate();
+      }
+
+      let imageUrl = '';
+      if (eventId) {
+        // Upload to existing event folder
+        imageUrl = await eventService.uploadEventImage(
+          eventId, 
+          file, 
+          (progress) => console.log(`Upload progress: ${progress}%`)
+        );
+      } else {
+        // Upload to Google Drive without specific event (will be assigned later)
+        const result = await googleDriveService.uploadImage(
+          file,
+          0, // Temporary ID
+          'New Event',
+          (progress) => console.log(`Upload progress: ${progress}%`)
+        );
+        imageUrl = result.webContentLink;
       }
       
-      return googleDriveUrl;
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.success('Image uploaded to Google Drive successfully!');
+      }
+      
+      return imageUrl;
     } catch (error) {
-      if ((window as any).toast) {
-        (window as any).toast.error('Image upload failed');
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.error('Image upload failed');
       }
       throw error;
     } finally {
@@ -208,49 +171,39 @@ const AdminDashboard: React.FC = () => {
 
   const saveEvent = async (eventData: Partial<Event>) => {
     try {
-      const updatedEvents = [...events];
-      
       if (editingEvent) {
         // Update existing event
-        const index = updatedEvents.findIndex(e => e.id === editingEvent.id);
-        if (index !== -1) {
-          updatedEvents[index] = { ...updatedEvents[index], ...eventData };
+        const updatedEvent = await eventService.updateEvent(editingEvent.id, eventData);
+        if (updatedEvent) {
+          const updatedEvents = events.map(e => e.id === editingEvent.id ? updatedEvent : e);
+          setEvents(updatedEvents);
         }
       } else {
         // Create new event
-        const newEvent: Event = {
-          id: Date.now(),
-          title: eventData.title || '',
-          date: eventData.date || '',
-          location: eventData.location || '',
-          type: eventData.type || '',
-          image: eventData.image || '/api/placeholder/800/400',
-          price: eventData.price || '',
-          description: eventData.description || '',
-          status: 'active',
+        const newEventData = {
+          ...eventData,
+          status: 'active' as const,
           ticketsSold: 0,
-          maxCapacity: eventData.maxCapacity || 100,
-          createdAt: new Date().toISOString()
+          featured: false,
+          images: eventData.image ? [eventData.image] : [],
+          tags: [],
+          basePrice: parseFloat(eventData.price?.replace(/[^\d.]/g, '') || '0'),
+          organizerId: 'VeroC12-hub'
         };
-        updatedEvents.push(newEvent);
+        
+        const newEvent = await eventService.createEvent(newEventData);
+        setEvents(prev => [...prev, newEvent]);
       }
-      
-      setEvents(updatedEvents);
-      localStorage.setItem('adminEvents', JSON.stringify(updatedEvents));
-      
-      // Update homepage events as well
-      const homepageEvents = updatedEvents.filter(e => e.status === 'active').slice(0, 3);
-      localStorage.setItem('featuredEvents', JSON.stringify(homepageEvents));
       
       setShowEventModal(false);
       setEditingEvent(null);
       
-      if ((window as any).toast) {
-        (window as any).toast.success(editingEvent ? 'Event updated successfully!' : 'Event created successfully!');
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.success(editingEvent ? 'Event updated successfully!' : 'Event created successfully!');
       }
     } catch (error) {
-      if ((window as any).toast) {
-        (window as any).toast.error('Failed to save event');
+      if ((window as Record<string, unknown>).toast) {
+        (window as Record<string, unknown>).toast.error('Failed to save event');
       }
     }
   };
@@ -405,7 +358,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               {/* Real-time clock */}
               <div className="text-sm text-gray-500">
-                2025-08-03 21:45:43 UTC
+                2025-08-03 21:52:16 UTC
               </div>
 
               {/* VIP Notifications */}
@@ -548,13 +501,20 @@ const AdminDashboard: React.FC = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm('Are you sure you want to delete this event?')) {
-                              const updatedEvents = events.filter(e => e.id !== event.id);
-                              setEvents(updatedEvents);
-                              localStorage.setItem('adminEvents', JSON.stringify(updatedEvents));
-                              if ((window as any).toast) {
-                                (window as any).toast.success('Event deleted successfully!');
+                              try {
+                                const success = await eventService.deleteEvent(event.id);
+                                if (success) {
+                                  setEvents(prev => prev.filter(e => e.id !== event.id));
+                                  if ((window as Record<string, unknown>).toast) {
+                                    (window as Record<string, unknown>).toast.success('Event deleted successfully!');
+                                  }
+                                }
+                              } catch (error) {
+                                if ((window as Record<string, unknown>).toast) {
+                                  (window as Record<string, unknown>).toast.error('Failed to delete event');
+                                }
                               }
                             }
                           }}
@@ -583,7 +543,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               <span>User: {authState.user.name}</span>
               <span>•</span>
-              <span>2025-08-03 21:45:43 UTC</span>
+              <span>2025-08-03 21:52:16 UTC</span>
             </div>
           </div>
         </footer>

@@ -1,19 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { eventService } from '../services/eventService';
 
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  type: string;
-  image: string;
-  price: string;
-  description: string;
-  basePrice: number;
-  maxCapacity: number;
-  availableTickets: number;
-}
+import { Event } from '../services/eventService';
 
 interface TicketType {
   id: string;
@@ -68,55 +57,12 @@ const BookingPage: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Simulate API call to fetch event details
+    // Fetch event details from event service
     const fetchEvent = async () => {
       setLoading(true);
       try {
-        // Mock event data - replace with real API call
-        const mockEvents: Event[] = [
-          {
-            id: 1,
-            title: "Midnight in Paradise",
-            date: "Dec 31, 2025",
-            location: "Private Island, Maldives",
-            type: "New Year's Gala",
-            image: "/api/placeholder/800/400",
-            price: "From €2,500",
-            description: "An exclusive New Year celebration in paradise with world-class entertainment, gourmet dining, and luxury accommodations.",
-            basePrice: 2500,
-            maxCapacity: 200,
-            availableTickets: 45
-          },
-          {
-            id: 2,
-            title: "Golden Hour Festival", 
-            date: "Mar 15, 2025",
-            location: "Château de Versailles",
-            type: "Music Festival",
-            image: "/api/placeholder/800/400",
-            price: "From €150",
-            description: "World-class musicians performing in the historic gardens of Versailles at sunset.",
-            basePrice: 150,
-            maxCapacity: 500,
-            availableTickets: 120
-          },
-          {
-            id: 3,
-            title: "The Yacht Week Elite",
-            date: "Jul 20-27, 2025", 
-            location: "French Riviera",
-            type: "Sailing Experience",
-            image: "/api/placeholder/800/400",
-            price: "From €5,000",
-            description: "Luxury sailing adventure along the Mediterranean with premium accommodations and exclusive shore excursions.",
-            basePrice: 5000,
-            maxCapacity: 50,
-            availableTickets: 12
-          }
-        ];
-
-        const foundEvent = mockEvents.find(e => e.id === parseInt(eventId || '0'));
-        setEvent(foundEvent || null);
+        const eventData = await eventService.getEvent(parseInt(eventId || '0'));
+        setEvent(eventData);
       } catch (error) {
         console.error('Error fetching event:', error);
       } finally {
@@ -160,8 +106,32 @@ const BookingPage: React.FC = () => {
     setProcessing(true);
 
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Enhanced payment processing simulation
+      console.log(`Processing ${paymentMethod} payment for €${calculateTotal()}`);
+      
+      // Simulate different payment methods
+      let paymentDelay = 2000;
+      let paymentMessage = '';
+      
+      switch (paymentMethod) {
+        case 'stripe':
+          paymentMessage = 'Processing Stripe payment...';
+          paymentDelay = 3000;
+          break;
+        case 'paypal':
+          paymentMessage = 'Redirecting to PayPal...';
+          paymentDelay = 2500;
+          break;
+        case 'bank':
+          paymentMessage = 'Processing bank transfer...';
+          paymentDelay = 4000;
+          break;
+        default:
+          paymentMessage = 'Processing payment...';
+      }
+
+      console.log(paymentMessage);
+      await new Promise(resolve => setTimeout(resolve, paymentDelay));
 
       // Create booking data
       const bookingData = {
@@ -172,7 +142,9 @@ const BookingPage: React.FC = () => {
         totalAmount: calculateTotal(),
         paymentMethod,
         bookingDate: new Date().toISOString(),
-        status: 'confirmed'
+        status: 'confirmed',
+        paymentStatus: 'completed',
+        currency: 'EUR'
       };
 
       // Save to localStorage (replace with real API call)
@@ -185,19 +157,30 @@ const BookingPage: React.FC = () => {
       existingBookings.push(newBooking);
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-      // Show success message
-      alert(`Booking confirmed! Your confirmation number is: ${newBooking.confirmationNumber}`);
+      // Record booking in event service
+      if (event?.id) {
+        await eventService.recordEventBooking(event.id, calculateTotal(), totalTickets);
+      }
+
+      // Enhanced success message with payment method info
+      let successMessage = `Booking confirmed! Your confirmation number is: ${newBooking.confirmationNumber}`;
+      if (paymentMethod === 'bank') {
+        successMessage += '\n\nBank transfer details will be sent to your email. Please complete the transfer within 48 hours to secure your booking.';
+      }
+      
+      alert(successMessage);
       
       // Redirect to confirmation page or home
       navigate('/', { 
         state: { 
-          message: 'Booking successful! Check your email for confirmation details.' 
+          message: 'Booking successful! Check your email for confirmation details.',
+          confirmationNumber: newBooking.confirmationNumber
         }
       });
 
     } catch (error) {
       console.error('Booking error:', error);
-      alert('Booking failed. Please try again.');
+      alert('Booking failed. Please try again or contact support.');
     } finally {
       setProcessing(false);
     }
@@ -286,7 +269,7 @@ const BookingPage: React.FC = () => {
                 </div>
                 <div className="flex items-center text-gray-300">
                   <span className="mr-3 text-xl">🎫</span>
-                  <span>{event.availableTickets} tickets remaining</span>
+                  <span>{Math.max(0, event.maxCapacity - event.ticketsSold)} tickets remaining</span>
                 </div>
               </div>
             </div>
@@ -394,42 +377,176 @@ const BookingPage: React.FC = () => {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <h2 className="text-2xl font-bold text-white mb-6">Payment Method</h2>
               <div className="space-y-3">
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="stripe"
-                    checked={paymentMethod === 'stripe'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <div className="flex items-center">
-                    <span className="text-white font-semibold mr-2">Credit/Debit Card</span>
-                    <span className="text-sm text-gray-400">(Stripe Secure Payment)</span>
+                {/* Popular Hungarian Methods */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-yellow-400 mb-3 uppercase tracking-wide">Popular in Hungary</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-yellow-400/5 rounded-lg border border-yellow-400/20 cursor-pointer hover:bg-yellow-400/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="szep-card"
+                        checked={paymentMethod === 'szep-card'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center">
+                          <span className="text-2xl mr-3">💎</span>
+                          <div>
+                            <span className="text-white font-semibold">SZÉP Card</span>
+                            <div className="text-xs text-gray-400">Hungarian cafeteria card system</div>
+                          </div>
+                        </div>
+                        <span className="bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded text-xs">Most Popular</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="otp-simplepay"
+                        checked={paymentMethod === 'otp-simplepay'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <div>
+                          <span className="text-white font-semibold">OTP SimplePay</span>
+                          <div className="text-xs text-gray-400">Major Hungarian bank payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="kh-simplepay"
+                        checked={paymentMethod === 'kh-simplepay'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <div>
+                          <span className="text-white font-semibold">K&H SimplePay</span>
+                          <div className="text-xs text-gray-400">K&H Bank trusted payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="payu"
+                        checked={paymentMethod === 'payu'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🔷</span>
+                        <div>
+                          <span className="text-white font-semibold">PayU</span>
+                          <div className="text-xs text-gray-400">Leading Central European processor</div>
+                        </div>
+                      </div>
+                    </label>
                   </div>
-                </label>
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="paypal"
-                    checked={paymentMethod === 'paypal'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <span className="text-white font-semibold">PayPal</span>
-                </label>
-                <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="bank"
-                    checked={paymentMethod === 'bank'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <span className="text-white font-semibold">Bank Transfer</span>
-                </label>
+                </div>
+
+                {/* International Methods */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">International</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="stripe"
+                        checked={paymentMethod === 'stripe'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">💳</span>
+                        <div>
+                          <span className="text-white font-semibold">Credit/Debit Card</span>
+                          <div className="text-xs text-gray-400">Stripe secure payment</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="paypal"
+                        checked={paymentMethod === 'paypal'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏧</span>
+                        <span className="text-white font-semibold">PayPal</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Banking Options */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Banking</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="erste-bank"
+                        checked={paymentMethod === 'erste-bank'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏦</span>
+                        <div>
+                          <span className="text-white font-semibold">Erste Bank</span>
+                          <div className="text-xs text-gray-400">Major Central European bank</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="unicredit"
+                        checked={paymentMethod === 'unicredit'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏛️</span>
+                        <div>
+                          <span className="text-white font-semibold">UniCredit Bank</span>
+                          <div className="text-xs text-gray-400">International bank</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="bank"
+                        checked={paymentMethod === 'bank'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🏦</span>
+                        <span className="text-white font-semibold">Bank Transfer</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
