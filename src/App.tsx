@@ -20,6 +20,7 @@ import Settings from './components/admin/Settings';
 // Contexts
 import { AuthProvider } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
+import { PublicUserProvider } from './contexts/PublicUserContext';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: string }> = ({ 
@@ -182,11 +183,13 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <AuthProvider>
         <AppProvider>
-          <Router>
-            <ToastProvider>
-              <AppLayout />
-            </ToastProvider>
-          </Router>
+          <PublicUserProvider>
+            <Router>
+              <ToastProvider>
+                <AppLayout />
+              </ToastProvider>
+            </Router>
+          </PublicUserProvider>
         </AppProvider>
       </AuthProvider>
     </ErrorBoundary>
