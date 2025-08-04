@@ -6,6 +6,9 @@ export interface User {
   role: 'admin' | 'organizer' | 'member';
   displayName?: string;
   permissions?: string[];
+  avatar?: string;
+  status?: string;
+  lastLogin?: string;
 }
 
 // Define the auth state interface
@@ -66,7 +69,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       email,
       role: role as 'admin' | 'organizer' | 'member',
       displayName: userData?.displayName || role.charAt(0).toUpperCase() + role.slice(1),
-      permissions: userData?.permissions || []
+      permissions: userData?.permissions || [],
+      avatar: userData?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${email}`,
+      status: 'Active',
+      lastLogin: new Date().toISOString()
     };
 
     setAuthState({
