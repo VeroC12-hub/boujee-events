@@ -12,6 +12,73 @@ import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
 
+// Admin Components
+import AdminAnalytics from './components/admin/Analytics';
+import AdminEventManagement from './components/admin/EventManagement';
+import AdminUserManagement from './components/admin/UserManagement';
+import AdminSettings from './components/admin/Settings';
+
+// Admin Default View Component
+const AdminDefaultView: React.FC = () => {
+  const { state: authState } = useAuth();
+  
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to Admin Dashboard</h2>
+        <p className="text-gray-600 mb-4">
+          Hello {authState.user?.name}, welcome to the EventHub admin dashboard. 
+          Use the navigation on the left to manage analytics, events, users, and settings.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="text-blue-600 text-2xl mb-2">📊</div>
+            <h3 className="font-semibold text-gray-900">Analytics</h3>
+            <p className="text-sm text-gray-600">View platform metrics and performance</p>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="text-green-600 text-2xl mb-2">📅</div>
+            <h3 className="font-semibold text-gray-900">Events</h3>
+            <p className="text-sm text-gray-600">Manage events and bookings</p>
+          </div>
+          
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="text-purple-600 text-2xl mb-2">👥</div>
+            <h3 className="font-semibold text-gray-900">Users</h3>
+            <p className="text-sm text-gray-600">Manage user accounts and roles</p>
+          </div>
+          
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-600 text-2xl mb-2">⚙️</div>
+            <h3 className="font-semibold text-gray-900">Settings</h3>
+            <p className="text-sm text-gray-600">Configure platform settings</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600">1,234</div>
+            <div className="text-sm text-gray-600">Total Events</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600">5,678</div>
+            <div className="text-sm text-gray-600">Active Users</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600">$89,012</div>
+            <div className="text-sm text-gray-600">Total Revenue</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
@@ -200,7 +267,13 @@ const AppLayout: React.FC = () => {
         <ProtectedRoute requiredRole="admin">
           <AdminDashboard />
         </ProtectedRoute>
-      } />
+      }>
+        <Route index element={<div className="p-6"><AdminDefaultView /></div>} />
+        <Route path="analytics" element={<div className="p-6"><AdminAnalytics /></div>} />
+        <Route path="events" element={<div className="p-6"><AdminEventManagement /></div>} />
+        <Route path="users" element={<div className="p-6"><AdminUserManagement /></div>} />
+        <Route path="settings" element={<div className="p-6"><AdminSettings /></div>} />
+      </Route>
       
       <Route path="/organizer" element={
         <ProtectedRoute requiredRole="organizer">
