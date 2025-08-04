@@ -337,13 +337,13 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                     ? 'border-blue-500 bg-blue-500 text-white'
                     : currentStep > step.number
                     ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-gray-300 bg-white text-gray-400'
+                    : 'border-border bg-white text-gray-400'
                 }`}>
                   {currentStep > step.number ? '✓' : step.icon}
                 </div>
                 <div className="ml-2 hidden md:block">
                   <div className={`text-sm font-medium ${
-                    currentStep === step.number ? 'text-blue-600' : 'text-gray-500'
+                    currentStep === step.number ? 'text-primary' : 'text-gray-500'
                   }`}>
                     {step.title}
                   </div>
@@ -381,7 +381,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       value={formData.title}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.title ? 'border-red-300' : 'border-gray-300'
+                        errors.title ? 'border-red-300' : 'border-border'
                       }`}
                       placeholder="Enter event title"
                     />
@@ -398,7 +398,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       value={formData.date}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.date ? 'border-red-300' : 'border-gray-300'
+                        errors.date ? 'border-red-300' : 'border-border'
                       }`}
                       min={new Date().toISOString().split('T')[0]}
                     />
@@ -415,7 +415,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       value={formData.time}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.time ? 'border-red-300' : 'border-gray-300'
+                        errors.time ? 'border-red-300' : 'border-border'
                       }`}
                     />
                     {errors.time && <p className="text-red-600 text-sm mt-1">{errors.time}</p>}
@@ -431,7 +431,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       value={formData.location}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.location ? 'border-red-300' : 'border-gray-300'
+                        errors.location ? 'border-red-300' : 'border-border'
                       }`}
                       placeholder="Venue address or virtual meeting link"
                     />
@@ -446,7 +446,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {categories.map(category => (
                         <option key={category} value={category}>{category}</option>
@@ -465,7 +465,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       onChange={handleInputChange}
                       min="1"
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.maxAttendees ? 'border-red-300' : 'border-gray-300'
+                        errors.maxAttendees ? 'border-red-300' : 'border-border'
                       }`}
                     />
                     {errors.maxAttendees && <p className="text-red-600 text-sm mt-1">{errors.maxAttendees}</p>}
@@ -481,7 +481,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       onChange={handleInputChange}
                       rows={4}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.description ? 'border-red-300' : 'border-gray-300'
+                        errors.description ? 'border-red-300' : 'border-border'
                       }`}
                       placeholder="Describe your event in detail"
                     />
@@ -537,7 +537,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                         onChange={(e) => setEnableTicketing(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     updatedTickets[index] = { ...ticket, name: e.target.value };
                                     setTicketConfig(prev => ({ ...prev, regularTickets: updatedTickets }));
                                   }}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 />
                               </div>
                               <div>
@@ -576,7 +576,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     updatedTickets[index] = { ...ticket, price: Number(e.target.value) };
                                     setTicketConfig(prev => ({ ...prev, regularTickets: updatedTickets }));
                                   }}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 />
                               </div>
                               <div>
@@ -590,7 +590,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     updatedTickets[index] = { ...ticket, maxQuantity: Number(e.target.value) };
                                     setTicketConfig(prev => ({ ...prev, regularTickets: updatedTickets }));
                                   }}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 />
                               </div>
                               <div className="flex items-end">
@@ -673,7 +673,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     type="text"
                                     value={vipPackage.name}
                                     onChange={(e) => updateVIPPackage(index, 'name', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                   />
                                 </div>
                                 <div>
@@ -684,7 +684,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     step="0.01"
                                     value={vipPackage.price}
                                     onChange={(e) => updateVIPPackage(index, 'price', Number(e.target.value))}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                   />
                                 </div>
                                 <div>
@@ -694,7 +694,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                     min="1"
                                     value={vipPackage.maxQuantity}
                                     onChange={(e) => updateVIPPackage(index, 'maxQuantity', Number(e.target.value))}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                   />
                                 </div>
                               </div>
@@ -705,7 +705,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                                   rows={2}
                                   value={vipPackage.description}
                                   onChange={(e) => updateVIPPackage(index, 'description', e.target.value)}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                   placeholder="Describe what makes this VIP package special"
                                 />
                               </div>
@@ -732,7 +732,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowTicketConfig(true)}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-accent transition-colors"
                       >
                         🎫 Advanced Ticket Configuration
                       </button>
@@ -870,7 +870,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
               <button
                 type="button"
                 onClick={handlePrevious}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={loading}
               >
                 ← Previous
@@ -881,7 +881,7 @@ const EventCreationWithVIP: React.FC<EventCreationWithVIPProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-accent transition-colors"
               >
                 Next →
               </button>

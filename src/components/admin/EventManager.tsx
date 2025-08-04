@@ -465,7 +465,7 @@ const EventManager: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setSelectedEvent(event)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          className="text-primary hover:text-blue-900 transition-colors"
                         >
                           ✏️ Edit
                         </button>

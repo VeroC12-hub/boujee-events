@@ -3,7 +3,7 @@ import { brandColors } from '../../styles/brandColors';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Admin Header with Your Logo */}
       <header 
         className="shadow-lg border-b-4"

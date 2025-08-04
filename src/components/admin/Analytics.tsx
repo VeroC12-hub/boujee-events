@@ -296,7 +296,7 @@ const AdvancedFilters: React.FC<{
         <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Event Status</label>
-            <select className="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+            <select className="w-full px-2 py-1 border border-border rounded text-sm">
               <option>All Statuses</option>
               <option>Published</option>
               <option>Draft</option>
@@ -305,7 +305,7 @@ const AdvancedFilters: React.FC<{
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">VIP Tiers</label>
-            <select className="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+            <select className="w-full px-2 py-1 border border-border rounded text-sm">
               <option>All Tiers</option>
               <option>Platinum</option>
               <option>Gold</option>
@@ -314,11 +314,11 @@ const AdvancedFilters: React.FC<{
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Min Revenue ($)</label>
-            <input type="number" className="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="0" />
+            <input type="number" className="w-full px-2 py-1 border border-border rounded text-sm" placeholder="0" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Max Revenue ($)</label>
-            <input type="number" className="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="999999" />
+            <input type="number" className="w-full px-2 py-1 border border-border rounded text-sm" placeholder="999999" />
           </div>
         </div>
       )}
@@ -516,8 +516,8 @@ const Analytics: React.FC = () => {
               onClick={() => setActiveTab(tab.id as any)}
               className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-border'
               }`}
             >
               <span className="mr-2">{tab.icon}</span>
@@ -716,7 +716,7 @@ const Analytics: React.FC = () => {
 
             <div className="card-luxury p-6">
               <h4 className="font-medium text-white mb-2">✅ Confirmed</h4>
-              <div className="text-2xl font-bold text-blue-600">{metrics.vipConfirmedReservations}</div>
+              <div className="text-2xl font-bold text-primary">{metrics.vipConfirmedReservations}</div>
               <div className="text-sm text-gray-600">Active reservations</div>
             </div>
           </div>

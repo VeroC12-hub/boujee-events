@@ -87,7 +87,7 @@ const Settings: React.FC = () => {
   const renderGeneralSettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Platform Information</h3>
+        <h3 className="text-lg font-medium text-white mb-4">Platform Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Site Name</label>
@@ -95,7 +95,7 @@ const Settings: React.FC = () => {
               type="text"
               value={generalSettings.siteName}
               onChange={(e) => setGeneralSettings({...generalSettings, siteName: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
@@ -103,7 +103,7 @@ const Settings: React.FC = () => {
             <select
               value={generalSettings.timezone}
               onChange={(e) => setGeneralSettings({...generalSettings, timezone: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="UTC">UTC</option>
               <option value="EST">Eastern Time</option>
@@ -117,21 +117,21 @@ const Settings: React.FC = () => {
               value={generalSettings.siteDescription}
               onChange={(e) => setGeneralSettings({...generalSettings, siteDescription: e.target.value})}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Localization</h3>
+        <h3 className="text-lg font-medium text-white mb-4">Localization</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
             <select
               value={generalSettings.dateFormat}
               onChange={(e) => setGeneralSettings({...generalSettings, dateFormat: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="YYYY-MM-DD">YYYY-MM-DD</option>
               <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -143,7 +143,7 @@ const Settings: React.FC = () => {
             <select
               value={generalSettings.currency}
               onChange={(e) => setGeneralSettings({...generalSettings, currency: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="USD">USD ($)</option>
               <option value="EUR">EUR (€)</option>
@@ -156,7 +156,7 @@ const Settings: React.FC = () => {
             <select
               value={generalSettings.language}
               onChange={(e) => setGeneralSettings({...generalSettings, language: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="English">English</option>
               <option value="Spanish">Español</option>
@@ -170,7 +170,7 @@ const Settings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={() => handleSaveSettings('General')}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-accent transition-colors"
         >
           Save Changes
         </button>
@@ -181,12 +181,12 @@ const Settings: React.FC = () => {
   const renderNotificationSettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Preferences</h3>
+        <h3 className="text-lg font-medium text-white mb-4">Notification Preferences</h3>
         <div className="space-y-4">
           {Object.entries(notifications).map(([key, value]) => (
             <div key={key} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
               <div>
-                <label className="text-sm font-medium text-gray-900 capitalize">
+                <label className="text-sm font-medium text-white capitalize">
                   {key.replace(/([A-Z])/g, ' $1').trim()}
                 </label>
                 <p className="text-sm text-gray-500">
@@ -204,7 +204,7 @@ const Settings: React.FC = () => {
                   onChange={(e) => setNotifications({...notifications, [key]: e.target.checked})}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
               </label>
             </div>
           ))}
@@ -214,7 +214,7 @@ const Settings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={() => handleSaveSettings('Notification')}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-accent transition-colors"
         >
           Save Changes
         </button>
@@ -225,12 +225,12 @@ const Settings: React.FC = () => {
   const renderSecuritySettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Security Configuration</h3>
+        <h3 className="text-lg font-medium text-white mb-4">Security Configuration</h3>
         
         <div className="space-y-6">
           <div className="flex items-center justify-between py-3 border-b border-gray-200">
             <div>
-              <label className="text-sm font-medium text-gray-900">Two-Factor Authentication</label>
+              <label className="text-sm font-medium text-white">Two-Factor Authentication</label>
               <p className="text-sm text-gray-500">Add an extra layer of security to your account</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -240,7 +240,7 @@ const Settings: React.FC = () => {
                 onChange={(e) => setSecuritySettings({...securitySettings, twoFactorAuth: e.target.checked})}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -249,7 +249,7 @@ const Settings: React.FC = () => {
             <select
               value={securitySettings.sessionTimeout}
               onChange={(e) => setSecuritySettings({...securitySettings, sessionTimeout: e.target.value})}
-              className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full md:w-48 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="15">15 minutes</option>
               <option value="30">30 minutes</option>
@@ -264,7 +264,7 @@ const Settings: React.FC = () => {
             <select
               value={securitySettings.passwordPolicy}
               onChange={(e) => setSecuritySettings({...securitySettings, passwordPolicy: e.target.value})}
-              className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full md:w-48 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="basic">Basic (8+ characters)</option>
               <option value="medium">Medium (8+ chars, numbers)</option>
@@ -274,7 +274,7 @@ const Settings: React.FC = () => {
 
           <div className="flex items-center justify-between py-3 border-b border-gray-200">
             <div>
-              <label className="text-sm font-medium text-gray-900">Audit Logging</label>
+              <label className="text-sm font-medium text-white">Audit Logging</label>
               <p className="text-sm text-gray-500">Log all administrative actions</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -284,7 +284,7 @@ const Settings: React.FC = () => {
                 onChange={(e) => setSecuritySettings({...securitySettings, auditLogging: e.target.checked})}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         </div>
@@ -293,7 +293,7 @@ const Settings: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={() => handleSaveSettings('Security')}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-accent transition-colors"
         >
           Save Changes
         </button>
@@ -304,7 +304,7 @@ const Settings: React.FC = () => {
   const renderPlaceholderSection = (title: string) => (
     <div className="text-center py-12">
       <span className="text-6xl text-gray-400 block mb-4">⚙️</span>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">{title} Settings</h3>
+      <h3 className="text-lg font-medium text-white mb-2">{title} Settings</h3>
       <p className="text-gray-500">This section is coming soon. Configure {title.toLowerCase()} options here.</p>
     </div>
   );
@@ -333,7 +333,7 @@ const Settings: React.FC = () => {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Platform Settings</h1>
+        <h1 className="text-3xl font-bold text-white">Platform Settings</h1>
         <p className="text-gray-600 mt-2">Configure your platform settings and preferences</p>
         <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 03:23:17 UTC | User: VeroC12-hub</p>
       </div>
@@ -341,9 +341,9 @@ const Settings: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Settings Navigation */}
         <div className="lg:w-1/4">
-          <div className="bg-white rounded-lg shadow">
+          <div className="card-luxury">
             <div className="p-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
+              <h2 className="text-lg font-semibold text-white">Settings</h2>
             </div>
             <nav className="p-2">
               {settingsSections.map((section) => {
@@ -356,7 +356,7 @@ const Settings: React.FC = () => {
                     className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
                       isActive
                         ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        : 'text-gray-600 hover:text-white hover:bg-background'
                     }`}
                   >
                     <span className="mr-3 text-lg">{section.icon}</span>
@@ -371,8 +371,8 @@ const Settings: React.FC = () => {
           </div>
 
           {/* System Status */}
-          <div className="mt-6 bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
+          <div className="mt-6 card-luxury p-4">
+            <h3 className="text-lg font-semibold text-white mb-4">System Status</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Database</span>
@@ -408,16 +408,16 @@ const Settings: React.FC = () => {
 
         {/* Settings Content */}
         <div className="lg:w-3/4">
-          <div className="bg-white rounded-lg shadow">
+          <div className="card-luxury">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center">
                 {settingsSections.find(s => s.id === activeSection) && (
                   <>
-                    <span className="text-2xl text-blue-600 mr-3">
+                    <span className="text-2xl text-primary mr-3">
                       {settingsSections.find(s => s.id === activeSection)!.icon}
                     </span>
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900">
+                      <h2 className="text-xl font-semibold text-white">
                         {settingsSections.find(s => s.id === activeSection)?.title}
                       </h2>
                       <p className="text-gray-600 text-sm">

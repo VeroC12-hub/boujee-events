@@ -303,7 +303,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
             onClick={() => setActiveTab('regular')}
             className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
               activeTab === 'regular'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-blue-500 text-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -359,7 +359,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                         value={ticket.name}
                         onChange={(e) => updateTicket(activeTab, index, 'name', e.target.value)}
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors[`${activeTab}-${index}-name`] ? 'border-red-300' : 'border-gray-300'
+                          errors[`${activeTab}-${index}-name`] ? 'border-red-300' : 'border-border'
                         }`}
                         placeholder={`Enter ${activeTab} ticket name`}
                       />
@@ -380,7 +380,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                         value={ticket.price}
                         onChange={(e) => updateTicket(activeTab, index, 'price', Number(e.target.value))}
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors[`${activeTab}-${index}-price`] ? 'border-red-300' : 'border-gray-300'
+                          errors[`${activeTab}-${index}-price`] ? 'border-red-300' : 'border-border'
                         }`}
                         placeholder="0.00"
                       />
@@ -400,7 +400,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                         value={ticket.maxQuantity}
                         onChange={(e) => updateTicket(activeTab, index, 'maxQuantity', Number(e.target.value))}
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors[`${activeTab}-${index}-quantity`] ? 'border-red-300' : 'border-gray-300'
+                          errors[`${activeTab}-${index}-quantity`] ? 'border-red-300' : 'border-border'
                         }`}
                         placeholder="Number of tickets"
                       />
@@ -419,7 +419,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                       rows={2}
                       value={ticket.description}
                       onChange={(e) => updateTicket(activeTab, index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Describe what's included in this ticket"
                     />
                   </div>
@@ -436,7 +436,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                         step="0.01"
                         value={ticket.earlyBirdPrice || ''}
                         onChange={(e) => updateTicket(activeTab, index, 'earlyBirdPrice', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Early bird price"
                       />
                     </div>
@@ -448,7 +448,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                         type="date"
                         value={ticket.earlyBirdDeadline || ''}
                         onChange={(e) => updateTicket(activeTab, index, 'earlyBirdDeadline', e.target.value || undefined)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -466,7 +466,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                             type="text"
                             value={benefit}
                             onChange={(e) => updateBenefit(activeTab, index, benefitIndex, e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="flex-1 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Enter benefit or feature"
                           />
                           <button
@@ -481,7 +481,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                       <button
                         type="button"
                         onClick={() => addBenefit(activeTab, index)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-primary hover:text-blue-800 text-sm"
                       >
                         + Add Benefit
                       </button>
@@ -511,7 +511,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                       id={`active-${activeTab}-${index}`}
                       checked={ticket.isActive}
                       onChange={(e) => updateTicket(activeTab, index, 'isActive', e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-primary focus:ring-blue-500 border-border rounded"
                     />
                     <label htmlFor={`active-${activeTab}-${index}`} className="ml-2 text-sm text-gray-700">
                       Active (available for purchase)
@@ -548,7 +548,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                     type="datetime-local"
                     value={config.salesStartDate.slice(0, 16)}
                     onChange={(e) => setConfig(prev => ({ ...prev, salesStartDate: e.target.value + ':00Z' }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -561,7 +561,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                     value={config.salesEndDate.slice(0, 16)}
                     onChange={(e) => setConfig(prev => ({ ...prev, salesEndDate: e.target.value + ':00Z' }))}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.salesEndDate ? 'border-red-300' : 'border-gray-300'
+                      errors.salesEndDate ? 'border-red-300' : 'border-border'
                     }`}
                   />
                   {errors.salesEndDate && <p className="text-red-600 text-sm mt-1">{errors.salesEndDate}</p>}
@@ -577,7 +577,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                     value={config.maxTicketsPerOrder}
                     onChange={(e) => setConfig(prev => ({ ...prev, maxTicketsPerOrder: Number(e.target.value) }))}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.maxTicketsPerOrder ? 'border-red-300' : 'border-gray-300'
+                      errors.maxTicketsPerOrder ? 'border-red-300' : 'border-border'
                     }`}
                   />
                   {errors.maxTicketsPerOrder && <p className="text-red-600 text-sm mt-1">{errors.maxTicketsPerOrder}</p>}
@@ -593,7 +593,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                     rows={3}
                     value={config.refundPolicy}
                     onChange={(e) => setConfig(prev => ({ ...prev, refundPolicy: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Describe your refund policy"
                   />
                 </div>
@@ -606,7 +606,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
                     rows={3}
                     value={config.terms}
                     onChange={(e) => setConfig(prev => ({ ...prev, terms: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Terms and conditions for ticket purchase"
                   />
                 </div>
@@ -625,7 +625,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 text-gray-700 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
               disabled={loading}
             >
               Cancel
@@ -635,7 +635,7 @@ const TicketConfigModal: React.FC<TicketConfigModalProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {loading ? (
                 <>

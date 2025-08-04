@@ -189,7 +189,7 @@ const GoogleDriveIntegration: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <HardDrive className="h-8 w-8 text-blue-600" />
+            <HardDrive className="h-8 w-8 text-primary" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Connect to Google Drive</h2>
           <p className="text-gray-600 mb-6">
@@ -210,7 +210,7 @@ const GoogleDriveIntegration: React.FC = () => {
           <button 
             onClick={connectToGoogleDrive}
             disabled={isLoading}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center mx-auto"
+            className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-accent disabled:opacity-50 flex items-center mx-auto"
           >
             {isLoading ? (
               <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
@@ -261,7 +261,7 @@ const GoogleDriveIntegration: React.FC = () => {
             <button 
               onClick={syncFiles}
               disabled={isLoading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-accent disabled:opacity-50 flex items-center"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Sync Now
@@ -286,11 +286,11 @@ const GoogleDriveIntegration: React.FC = () => {
                 placeholder="Search files and folders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             
-            <button className="flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button className="flex items-center px-3 py-2 border border-border rounded-lg hover:bg-gray-50">
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </button>
@@ -299,7 +299,7 @@ const GoogleDriveIntegration: React.FC = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-400'}`}
+              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-primary' : 'text-gray-400'}`}
             >
               <div className="w-4 h-4 grid grid-cols-2 gap-0.5">
                 <div className="bg-current rounded-sm"></div>
@@ -311,7 +311,7 @@ const GoogleDriveIntegration: React.FC = () => {
             
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-400'}`}
+              className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-primary' : 'text-gray-400'}`}
             >
               <div className="w-4 h-4 space-y-1">
                 <div className="h-0.5 bg-current rounded"></div>
@@ -408,7 +408,7 @@ const GoogleDriveIntegration: React.FC = () => {
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                         selectedFiles.includes(file.id) 
                           ? 'bg-blue-500 border-blue-500 text-white' 
-                          : 'border-gray-300'
+                          : 'border-border'
                       }`}
                     >
                       {selectedFiles.includes(file.id) && <CheckCircle className="h-3 w-3" />}
@@ -454,7 +454,7 @@ const GoogleDriveIntegration: React.FC = () => {
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                         selectedFiles.includes(file.id) 
                           ? 'bg-blue-500 border-blue-500 text-white' 
-                          : 'border-gray-300'
+                          : 'border-border'
                       }`}
                     >
                       {selectedFiles.includes(file.id) && <CheckCircle className="h-3 w-3" />}
@@ -506,7 +506,7 @@ const GoogleDriveIntegration: React.FC = () => {
                 </span>
                 
                 <div className="flex items-center space-x-2">
-                  <button className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+                  <button className="text-sm bg-primary text-white px-3 py-1 rounded hover:bg-accent">
                     <Download className="h-4 w-4 inline mr-1" />
                     Download
                   </button>

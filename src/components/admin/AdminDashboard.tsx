@@ -213,7 +213,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -224,7 +224,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
@@ -283,7 +283,7 @@ const AdminDashboard: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-all relative ${
                   isActive
                     ? 'bg-blue-50 text-blue-700 border-r-4 border-blue-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-background'
                 }`}
               >
                 <div className="flex items-center">
@@ -381,7 +381,7 @@ const AdminDashboard: React.FC = () => {
               {location.pathname.includes('events') && (
                 <button
                   onClick={() => setShowEventModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-accent transition-colors"
                 >
                   + New Event
                 </button>
@@ -428,7 +428,7 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {/* Breadcrumb */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-2">
+        <div className="bg-background border-b border-gray-200 px-6 py-2">
           <div className="flex items-center text-sm text-gray-600">
             <span>🏠 Admin</span>
             <span className="mx-2">›</span>
@@ -595,7 +595,7 @@ const AdminDashboard: React.FC = () => {
                         name="title"
                         defaultValue={editingEvent?.title || ''}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -606,7 +606,7 @@ const AdminDashboard: React.FC = () => {
                         name="type"
                         defaultValue={editingEvent?.type || ''}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Select Type</option>
                         <option value="Gala">Gala</option>
@@ -630,7 +630,7 @@ const AdminDashboard: React.FC = () => {
                         name="date"
                         defaultValue={editingEvent?.date || ''}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -643,7 +643,7 @@ const AdminDashboard: React.FC = () => {
                         placeholder="e.g., From €150"
                         defaultValue={editingEvent?.price || ''}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -658,7 +658,7 @@ const AdminDashboard: React.FC = () => {
                         name="location"
                         defaultValue={editingEvent?.location || ''}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -671,7 +671,7 @@ const AdminDashboard: React.FC = () => {
                         defaultValue={editingEvent?.maxCapacity || 100}
                         required
                         min="1"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -685,7 +685,7 @@ const AdminDashboard: React.FC = () => {
                       rows={3}
                       defaultValue={editingEvent?.description || ''}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -693,11 +693,11 @@ const AdminDashboard: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Event Image
                     </label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-lg">
                       <div className="space-y-1 text-center">
                         <div className="text-4xl text-gray-400">📷</div>
                         <div className="flex text-sm text-gray-600">
-                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-blue-500 focus-within:outline-none">
                             <span>Upload a file</span>
                             <input
                               type="file"
@@ -724,7 +724,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                         {uploadingImage && (
-                          <div className="text-blue-600">
+                          <div className="text-primary">
                             <div className="animate-spin inline-block mr-2">⏳</div>
                             Uploading to Google Drive...
                           </div>
@@ -741,14 +741,14 @@ const AdminDashboard: React.FC = () => {
                       setShowEventModal(false);
                       setEditingEvent(null);
                     }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 border border-border rounded-lg text-gray-700 hover:bg-background transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={uploadingImage}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
                   >
                     {editingEvent ? 'Update Event' : 'Create Event'}
                   </button>

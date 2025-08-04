@@ -172,14 +172,14 @@ const UserManagement: React.FC = () => {
       <div className="mb-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+            <h1 className="text-3xl font-bold text-white">User Management</h1>
             <p className="text-gray-600 mt-2">Manage users, roles, and permissions across your platform</p>
             <p className="text-sm text-gray-500 mt-1">Current time: 2025-08-03 03:11:25 UTC | User: VeroC12-hub</p>
           </div>
           
           <button
             onClick={() => alert('Create User Modal would open here')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className="btn-luxury text-white px-6 py-3 rounded-lg hover:bg-accent transition-colors flex items-center space-x-2"
           >
             <span className="text-lg">➕</span>
             <span>Add New User</span>
@@ -189,59 +189,59 @@ const UserManagement: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="card-luxury">
           <div className="flex items-center">
-            <span className="text-3xl text-blue-600 mr-4">👤</span>
+            <span className="text-3xl text-primary mr-4">👤</span>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="card-luxury">
           <div className="flex items-center">
             <span className="text-3xl text-green-600 mr-4">✅</span>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Active Users</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+              <p className="text-2xl font-bold text-white">{stats.active}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="card-luxury">
           <div className="flex items-center">
             <span className="text-3xl text-purple-600 mr-4">🛡️</span>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Admins</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.admins}</p>
+              <p className="text-2xl font-bold text-white">{stats.admins}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="card-luxury">
           <div className="flex items-center">
-            <span className="text-3xl text-blue-600 mr-4">🎯</span>
+            <span className="text-3xl text-primary mr-4">🎯</span>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Organizers</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.organizers}</p>
+              <p className="text-2xl font-bold text-white">{stats.organizers}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="card-luxury">
           <div className="flex items-center">
             <span className="text-3xl text-green-600 mr-4">✓</span>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Verified</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
+              <p className="text-2xl font-bold text-white">{stats.verified}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
+      <div className="card-luxury mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <span className="absolute left-3 top-3 text-gray-400">🔍</span>
@@ -250,7 +250,7 @@ const UserManagement: React.FC = () => {
               placeholder="Search users by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-border bg-background rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
           
@@ -260,7 +260,7 @@ const UserManagement: React.FC = () => {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="border border-border bg-background rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="all">All Roles</option>
                 <option value="admin">Admin</option>
@@ -272,7 +272,7 @@ const UserManagement: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-border bg-background rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -284,10 +284,10 @@ const UserManagement: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="card-luxury overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-background">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
@@ -314,7 +314,7 @@ const UserManagement: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+                <tr key={user.id} className="hover:bg-background">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -326,7 +326,7 @@ const UserManagement: React.FC = () => {
                       </div>
                       <div className="ml-4">
                         <div className="flex items-center">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm font-medium text-white">{user.name}</div>
                           {user.verified && (
                             <span className="ml-2 text-green-500">✓</span>
                           )}
@@ -357,11 +357,11 @@ const UserManagement: React.FC = () => {
                       <option value="banned">Banned</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                     <div>Created: {user.eventsCreated}</div>
                     <div className="text-gray-500">Attended: {user.eventsAttended}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                     ${user.totalSpent.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -371,7 +371,7 @@ const UserManagement: React.FC = () => {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => setSelectedUser(user)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-primary hover:text-blue-900"
                         title="View Details"
                       >
                         <span className="text-sm">👁️</span>
@@ -402,7 +402,7 @@ const UserManagement: React.FC = () => {
       {filteredUsers.length === 0 && (
         <div className="text-center py-12">
           <span className="text-6xl text-gray-400 block mb-4">👤</span>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+          <h3 className="text-lg font-medium text-white mb-2">No users found</h3>
           <p className="text-gray-500">Try adjusting your search or filters.</p>
         </div>
       )}
@@ -413,7 +413,7 @@ const UserManagement: React.FC = () => {
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+                <h2 className="text-2xl font-bold text-white">User Details</h2>
                 <button
                   onClick={() => setSelectedUser(null)}
                   className="text-gray-400 hover:text-gray-600 text-xl"
@@ -430,7 +430,7 @@ const UserManagement: React.FC = () => {
                 />
                 <div>
                   <div className="flex items-center">
-                    <h3 className="text-xl font-semibold text-gray-900">{selectedUser.name}</h3>
+                    <h3 className="text-xl font-semibold text-white">{selectedUser.name}</h3>
                     {selectedUser.verified && (
                       <span className="ml-2 text-green-500 text-lg">✓</span>
                     )}
@@ -450,40 +450,40 @@ const UserManagement: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <p className="text-gray-900">{selectedUser.phone}</p>
+                  <p className="text-white">{selectedUser.phone}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Join Date</label>
-                  <p className="text-gray-900">{selectedUser.joinDate}</p>
+                  <p className="text-white">{selectedUser.joinDate}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Events Created</label>
-                  <p className="text-gray-900">{selectedUser.eventsCreated}</p>
+                  <p className="text-white">{selectedUser.eventsCreated}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Events Attended</label>
-                  <p className="text-gray-900">{selectedUser.eventsAttended}</p>
+                  <p className="text-white">{selectedUser.eventsAttended}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Total Spent</label>
-                  <p className="text-gray-900">${selectedUser.totalSpent.toLocaleString()}</p>
+                  <p className="text-white">${selectedUser.totalSpent.toLocaleString()}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Last Login</label>
-                  <p className="text-gray-900">{selectedUser.lastLogin}</p>
+                  <p className="text-white">{selectedUser.lastLogin}</p>
                 </div>
               </div>
               
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-border bg-background rounded-lg text-gray-700 hover:bg-background"
                 >
                   Close
                 </button>
                 <button 
                   onClick={() => alert(`Edit ${selectedUser.name}`)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-4 py-2 btn-luxury text-white rounded-lg hover:bg-accent"
                 >
                   Edit User
                 </button>
