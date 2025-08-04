@@ -1,3 +1,4 @@
+// src/components/auth/Login.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types/api';
@@ -20,9 +21,14 @@ const Login: React.FC = () => {
       return;
     }
 
+    console.log('🔐 Submitting login form...', { email: formData.email });
+    
     const success = await login(formData);
     if (!success) {
-      setError('Invalid email or password');
+      setError('Invalid email or password. Please check your credentials.');
+      console.log('❌ Login failed');
+    } else {
+      console.log('✅ Login successful, should redirect to dashboard');
     }
   };
 
@@ -32,11 +38,11 @@ const Login: React.FC = () => {
     if (error) setError(''); // Clear error when user starts typing
   };
 
-  // Demo credentials helper
+  // FIXED: Use correct demo credentials that match credentials.ts
   const fillDemoCredentials = () => {
     setFormData({
-      email: 'veroc12@example.com',
-      password: 'password123'
+      email: 'admin@test.com',
+      password: 'TestAdmin2025'
     });
     setError('');
   };
@@ -51,23 +57,29 @@ const Login: React.FC = () => {
           </div>
           <h2 className="text-3xl font-bold text-white">EventHub Admin</h2>
           <p className="mt-2 text-gray-300">Sign in to your admin dashboard</p>
-          <p className="text-sm text-gray-400 mt-1">Current time: 2025-08-03 03:42:59 UTC</p>
+          <p className="text-sm text-gray-400 mt-1">Current time: {new Date().toLocaleString()} UTC</p>
         </div>
 
-        {/* Demo Credentials Notice */}
+        {/* Demo Credentials Notice - FIXED */}
         <div className="bg-blue-800 bg-opacity-50 border border-blue-600 rounded-lg p-4">
           <div className="flex items-center">
             <span className="text-blue-300 mr-2">ℹ️</span>
             <div>
               <h3 className="text-sm font-medium text-blue-200">Demo Credentials</h3>
               <p className="text-xs text-blue-300 mt-1">
-                Email: veroc12@example.com | Password: password123
+                <strong>Admin:</strong> admin@test.com | TestAdmin2025
+              </p>
+              <p className="text-xs text-blue-300">
+                <strong>Organizer:</strong> organizer@test.com | TestOrganizer2025
+              </p>
+              <p className="text-xs text-blue-300">
+                <strong>Member:</strong> member@test.com | TestMember2025
               </p>
               <button
                 onClick={fillDemoCredentials}
                 className="text-xs text-blue-200 hover:text-white underline mt-1"
               >
-                Click to fill demo credentials
+                Click to fill admin credentials
               </button>
             </div>
           </div>
@@ -81,6 +93,14 @@ const Login: React.FC = () => {
               <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3 flex items-center">
                 <span className="text-red-300 mr-2">⚠️</span>
                 <span className="text-red-200 text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Success indicator */}
+            {state.isAuthenticated && (
+              <div className="bg-green-500 bg-opacity-20 border border-green-500 rounded-lg p-3 flex items-center">
+                <span className="text-green-300 mr-2">✅</span>
+                <span className="text-green-200 text-sm">Login successful! Redirecting...</span>
               </div>
             )}
 
@@ -165,7 +185,7 @@ const Login: React.FC = () => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-xs text-gray-400">
-            EventHub Admin Dashboard v1.0 | 2025-08-03 03:42:59 UTC
+            EventHub Admin Dashboard v1.0 | {new Date().toLocaleString()} UTC
           </p>
         </div>
       </div>
