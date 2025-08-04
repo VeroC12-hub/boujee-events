@@ -56,24 +56,72 @@ export interface UpdateUserRequest {
   status?: 'active' | 'inactive' | 'banned';
 }
 
-// Event Types
+// Event Types  
 export interface Event {
   id: string;
   title: string;
+  subtitle?: string;
   description: string;
   date: string;
   time: string;
+  endDate?: string; // For multi-day events
+  endTime?: string;
   location: string;
+  venue?: string;
   organizer: string;
   organizerId: string;
   attendees: number;
   maxAttendees: number;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
-  category: string;
+  category: 'Festival' | 'Luxury Experience' | 'Party' | 'Corporate' | 'VIP Experience';
   price: number;
+  priceMax?: number; // For price ranges
   image: string;
+  gallery?: string[]; // Additional images
+  rating?: number;
+  totalRatings?: number;
+  isVip?: boolean;
+  isPremium?: boolean;
+  isFeatured?: boolean;
+  tags?: string[];
+  coordinates?: { lat: number; lng: number }; // For maps
+  capacity?: {
+    total: number;
+    vip: number;
+    general: number;
+  };
+  schedule?: EventSchedule[]; // For multi-day events with stages
+  ticketTiers?: TicketTier[];
+  perks?: string[];
+  restrictions?: string[];
+  ageLimit?: number;
+  dressCode?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface EventSchedule {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  stage?: string;
+  performer?: string;
+  description?: string;
+  type: 'performance' | 'break' | 'special';
+}
+
+export interface TicketTier {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  maxQuantity: number;
+  currentSold: number;
+  isActive: boolean;
+  benefits: string[];
+  color: string;
+  priority: number;
 }
 
 export interface CreateEventRequest {
