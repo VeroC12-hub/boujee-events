@@ -6,16 +6,16 @@ import { ToastContainer } from './components/common/ToastContainer';
 // Pages
 import HomePage from './pages/HomePage';
 import IndexPage from './pages/Index';
-import Login from './pages/Login';
+import Login from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
 
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
-import Analytics from './pages/admin/Analytics';
-import EventManagement from './pages/admin/EventManagement';
-import VIPManagement from './pages/admin/VIPManagement';
-import UserManagement from './pages/admin/UserManagement';
-import Settings from './pages/admin/Settings';
+import Analytics from './components/admin/Analytics';
+import EventManagement from './components/admin/EventManagement';
+import VIPManagement from './components/admin/VIPManagement';
+import UserManagement from './components/admin/UserManagement';
+import Settings from './components/admin/Settings';
 
 // Contexts
 import { AuthProvider } from './contexts/AuthContext';

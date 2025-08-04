@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import GoogleDriveIntegration from './GoogleDriveIntegration';
 
 interface SettingsSection {
   id: string;
@@ -40,6 +41,12 @@ const Settings: React.FC = () => {
       title: 'General Settings',
       icon: '⚙️',
       description: 'Basic platform configuration and preferences'
+    },
+    {
+      id: 'media',
+      title: 'Media Management',
+      icon: '📁',
+      description: 'Google Drive integration and media storage settings'
     },
     {
       id: 'notifications',
@@ -306,6 +313,8 @@ const Settings: React.FC = () => {
     switch (activeSection) {
       case 'general':
         return renderGeneralSettings();
+      case 'media':
+        return <GoogleDriveIntegration />;
       case 'notifications':
         return renderNotificationSettings();
       case 'security':
