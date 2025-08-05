@@ -1,58 +1,62 @@
 // src/pages/LoginPage.tsx
-import { useEffect } from "react";
-import { GoogleLogin, googleLogout, useGoogleLogin } from "@react-oauth/google";
-import axios from "axios";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
-import { getUserRole } from "@/lib/auth";
+import { signInWithGoogle } from "@/lib/supabase"; // Fixed import
+import { getUserRole, getCurrentUser } from "@/lib/auth";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const login = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const userInfo = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: {
-            Authorization: `Bearer ${tokenResponse.access_token}`,
-          },
-        });
-
-        const { email, sub: id, name, picture } = userInfo.data;
-
-        // Store in Supabase
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: "google",
-          token: tokenResponse.access_token,
-        });
-
-        if (error) throw error;
-
-        const user = data.user;
-        const role = await getUserRole(user?.id);
-
-        if (role === "admin") navigate("/admin-dashboard");
-        else if (role === "organiser") navigate("/organiser-dashboard");
-        else navigate("/member-dashboard");
-
-      } catch (err) {
-        console.error("Login failed:", err);
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkUser = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        const role = await getUserRole(user.id);
+        redirectUserByRole(role);
       }
-    },
-    onError: () => {
-      console.log("Google login failed");
-    },
-  });
+    };
+    checkUser();
+  }, []);
+
+  const redirectUserByRole = (role: string | null) => {
+    if (role === "admin") navigate("/admin-dashboard");
+    else if (role === "organiser") navigate("/organiser-dashboard");
+    else navigate("/member-dashboard");
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      const result = await signInWithGoogle();
+      
+      if (result.error) {
+        console.error("Login failed:", result.error);
+        // Handle error (show toast, etc.)
+        return;
+      }
+      
+      // The redirect will happen automatically via Supabase OAuth flow
+      // After redirect, the callback page will handle the user role routing
+      
+    } catch (err) {
+      console.error("Login failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded shadow-md">
         <h2 className="text-2xl font-semibold mb-4">Login</h2>
         <button
-          onClick={() => login()}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Login with Google
+          {loading ? "Logging in..." : "Login with Google"}
         </button>
       </div>
     </div>
