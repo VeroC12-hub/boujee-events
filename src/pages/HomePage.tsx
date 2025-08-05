@@ -380,122 +380,163 @@ const HomePage = () => {
               </p>
             </div>
 
-            {/* Events Grid - Masonry Layout */}
+            {/* Events Grid - Compact Masonry Layout with Mixed Content */}
             {loading ? (
               <div className="text-center py-20">
                 <div className="w-12 h-12 border-4 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
                 <p className="text-gray-600 text-lg">Loading magical experiences...</p>
               </div>
             ) : (
-              <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-8 space-y-8">
-                {filteredEvents.map((event, index) => (
-                  <div 
-                    key={event.id} 
-                    className="break-inside-avoid mb-8"
-                  >
-                    <div className="group relative bg-white/90 backdrop-blur-md rounded-3xl overflow-hidden border border-rose-200/50 hover:border-rose-400/50 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-rose-500/20 transform">
-                      {/* Event Image */}
-                      <div className="relative overflow-hidden">
-                        <img
-                          src={event.image}
-                          alt={event.title}
-                          className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-                        
-                        {/* Floating Price Tag */}
-                        <div className="absolute top-4 right-4 bg-gradient-to-r from-rose-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                          {event.price}
-                        </div>
-                        
-                        {/* Featured Badge */}
-                        {event.featured && (
-                          <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-3 py-2 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                            <Star size={14} className="fill-current" />
-                            Featured
-                          </div>
-                        )}
+              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+                {(() => {
+                  // Mix events with random decorative images
+                  const decorativeImages = [
+                    "https://images.unsplash.com/photo-1511795409834-432270e6ce40?w=400&h=300&fit=crop",
+                    "https://images.unsplash.com/photo-1519167758481-83f29c86c2a8?w=400&h=500&fit=crop",
+                    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1478147427282-58e87a9a9b4c?w=400&h=350&fit=crop",
+                    "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=450&fit=crop",
+                    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop"
+                  ];
 
-                        {/* Quick Actions */}
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="flex gap-2">
-                            <button className="bg-white/90 text-rose-600 p-3 rounded-full hover:bg-white shadow-lg transform hover:scale-110 transition-all">
-                              <Heart size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleShareEvent(event.id)}
-                              className="bg-white/90 text-rose-600 p-3 rounded-full hover:bg-white shadow-lg transform hover:scale-110 transition-all"
-                            >
-                              <Share2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                  const mixedContent = [];
+                  filteredEvents.forEach((event, index) => {
+                    // Add event
+                    mixedContent.push({ type: 'event', data: event, key: `event-${event.id}` });
+                    
+                    // Add decorative image every 3-4 events
+                    if ((index + 1) % 3 === 0 && index < filteredEvents.length - 1) {
+                      const randomImage = decorativeImages[index % decorativeImages.length];
+                      mixedContent.push({ 
+                        type: 'image', 
+                        data: randomImage, 
+                        key: `image-${index}`,
+                        height: [200, 250, 300, 350][Math.floor(Math.random() * 4)]
+                      });
+                    }
+                  });
 
-                      {/* Event Details */}
-                      <div className="p-6">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Badge className="bg-gradient-to-r from-rose-100 to-orange-100 text-rose-700 border-0">
-                            {event.type}
-                          </Badge>
-                        </div>
-
-                        <h3 className="text-xl font-bold text-gray-800 mb-3 line-clamp-2 group-hover:text-rose-600 transition-colors">
-                          {event.title}
-                        </h3>
-                        
-                        <div className="flex items-center gap-2 text-gray-600 text-sm mb-2">
-                          <Calendar size={16} className="text-rose-500" />
-                          <span>{new Date(event.date).toLocaleDateString('en-US', { 
-                            weekday: 'short', 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-gray-600 text-sm mb-4">
-                          <MapPin size={16} className="text-rose-500" />
-                          <span className="line-clamp-1">{event.location}</span>
-                        </div>
-                        
-                        <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed">
-                          {event.description}
-                        </p>
-
-                        {/* Capacity Indicator */}
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="flex-1 bg-rose-100 rounded-full h-3">
-                            <div 
-                              className="bg-gradient-to-r from-rose-500 to-orange-500 h-3 rounded-full transition-all duration-500 shadow-sm"
-                              style={{ width: `${Math.min((event.ticketsSold / event.maxCapacity) * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-gray-500 font-medium">
-                            {event.ticketsSold}/{event.maxCapacity}
-                          </span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3">
-                          <Button
-                            onClick={() => handleBookEvent(event.id)}
-                            className="flex-1 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold shadow-lg transform hover:scale-105 transition-all"
+                  return mixedContent.map((item) => {
+                    if (item.type === 'event') {
+                      const event = item.data;
+                      const heights = [280, 320, 360, 300, 340];
+                      const randomHeight = heights[Math.floor(Math.random() * heights.length)];
+                      
+                      return (
+                        <div key={item.key} className="break-inside-avoid mb-4">
+                          <div 
+                            className="group relative rounded-2xl overflow-hidden border border-rose-200/30 hover:border-rose-400/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
+                            style={{ height: `${randomHeight}px` }}
                           >
-                            Book Now ✨
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-rose-300 text-rose-600 hover:bg-rose-50 px-4 transform hover:scale-105 transition-all"
-                          >
-                            Details
-                          </Button>
+                            {/* Event Image with Overlay */}
+                            <img
+                              src={event.image}
+                              alt={event.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                            />
+                            
+                            {/* Dark Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10"></div>
+                            
+                            {/* Price Tag */}
+                            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                              {event.price}
+                            </div>
+                            
+                            {/* Featured Badge */}
+                            {event.featured && (
+                              <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                                <Star size={10} className="fill-current" />
+                                Featured
+                              </div>
+                            )}
+
+                            {/* Event Details Overlay */}
+                            <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                              {/* Category Badge */}
+                              <div className="mb-2">
+                                <Badge className="bg-white/20 backdrop-blur-sm text-white border-white/30 text-xs">
+                                  {event.type}
+                                </Badge>
+                              </div>
+
+                              {/* Title */}
+                              <h3 className="text-lg font-bold mb-2 line-clamp-2 text-white drop-shadow-lg">
+                                {event.title}
+                              </h3>
+                              
+                              {/* Date & Location */}
+                              <div className="flex items-center gap-3 text-white/90 text-sm mb-3">
+                                <div className="flex items-center gap-1">
+                                  <Calendar size={12} />
+                                  <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={12} />
+                                  <span className="truncate">{event.location.split(',')[0]}</span>
+                                </div>
+                              </div>
+
+                              {/* Capacity Bar */}
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="flex-1 bg-white/30 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-white rounded-full h-1.5 transition-all duration-500"
+                                    style={{ width: `${Math.min((event.ticketsSold / event.maxCapacity) * 100, 100)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-white/80 font-medium">
+                                  {event.ticketsSold}/{event.maxCapacity}
+                                </span>
+                              </div>
+
+                              {/* Quick Actions */}
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <Button
+                                  onClick={() => handleBookEvent(event.id)}
+                                  size="sm"
+                                  className="flex-1 bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white font-semibold text-xs py-2 border-0"
+                                >
+                                  Book Now
+                                </Button>
+                                <Button
+                                  onClick={() => handleShareEvent(event.id)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-white/50 text-white hover:bg-white/20 backdrop-blur-sm px-3"
+                                >
+                                  <Share2 size={14} />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                      );
+                    } else {
+                      // Decorative image
+                      return (
+                        <div key={item.key} className="break-inside-avoid mb-4">
+                          <div 
+                            className="group relative rounded-2xl overflow-hidden border border-rose-200/20 hover:border-rose-300/40 transition-all duration-500 hover:scale-[1.02] cursor-pointer"
+                            style={{ height: `${item.height}px` }}
+                          >
+                            <img
+                              src={item.data}
+                              alt="Gallery"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            
+                            {/* Decorative overlay */}
+                            <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <p className="text-white text-sm font-medium drop-shadow-lg">✨ Magical Moments</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  });
+                })()}
               </div>
             )}
 
