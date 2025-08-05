@@ -185,30 +185,31 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-yellow-50">
+    <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-black/95 backdrop-blur-md border-b border-yellow-400/20 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="text-3xl font-bold text-yellow-500">be</div>
+              <div className="text-4xl font-bold text-yellow-400 bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">be</div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Boujee Events</h1>
-                <p className="text-xs text-gray-600">Visual-First Experience</p>
+                <h1 className="text-xl font-bold text-white">Boujee Events</h1>
+                <p className="text-xs text-yellow-400/80">Setting the new standard</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 group">
+              {/* Hover-only Admin Dashboard Button */}
               <Button
                 variant="outline"
                 onClick={() => navigate('/admin')}
-                className="hidden md:flex"
+                className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 border-yellow-400/50 text-yellow-400 hover:bg-yellow-400 hover:text-black"
               >
                 Admin Dashboard
               </Button>
               <Button
                 onClick={() => navigate('/login')}
-                className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold"
               >
                 Login
               </Button>
@@ -219,30 +220,30 @@ const HomePage: React.FC = () => {
 
       {/* Main Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200">
+        <div className="bg-black/80 backdrop-blur-sm border-b border-yellow-400/20">
           <div className="container mx-auto px-6">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-4 bg-transparent p-1">
               <TabsTrigger 
                 value="events" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-semibold hover:text-yellow-400"
               >
                 📅 Events
               </TabsTrigger>
               <TabsTrigger 
                 value="gallery" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-semibold hover:text-yellow-400"
               >
                 📸 Gallery
               </TabsTrigger>
               <TabsTrigger 
                 value="about" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-semibold hover:text-yellow-400"
               >
                 ℹ️ About
               </TabsTrigger>
               <TabsTrigger 
                 value="contact" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-gray-600 font-semibold"
+                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-semibold hover:text-yellow-400"
               >
                 📞 Contact
               </TabsTrigger>
@@ -255,10 +256,10 @@ const HomePage: React.FC = () => {
           <div className="container mx-auto px-6 py-12">
             {/* Hero Section for Events */}
             <div className="text-center mb-12">
-              <h1 className="text-5xl font-bold text-gray-900 mb-4">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">
                 Discover Amazing Events
               </h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              <p className="text-xl text-gray-300 max-w-2xl mx-auto">
                 Experience luxury, culture, and entertainment like never before with our curated collection of premium events.
               </p>
             </div>
@@ -266,7 +267,7 @@ const HomePage: React.FC = () => {
             {/* Featured Events Carousel */}
             {featuredEvents.length > 0 && (
               <div className="mb-16">
-                <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">✨ Featured Events</h2>
+                <h2 className="text-3xl font-bold text-yellow-400 mb-8 text-center">✨ Featured Events</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {featuredEvents.slice(0, 3).map((event) => (
                     <VisualEventCard
@@ -294,7 +295,7 @@ const HomePage: React.FC = () => {
             {loading ? (
               <div className="text-center py-12">
                 <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading amazing events...</p>
+                <p className="text-gray-300">Loading amazing events...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -313,8 +314,8 @@ const HomePage: React.FC = () => {
             {filteredEvents.length === 0 && !loading && (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🎪</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">No events found</h3>
-                <p className="text-gray-600 mb-6">
+                <h3 className="text-2xl font-bold text-white mb-2">No events found</h3>
+                <p className="text-gray-300 mb-6">
                   {selectedCategory === 'All' 
                     ? 'No events are currently available.' 
                     : `No ${selectedCategory.toLowerCase()} events are currently available.`
@@ -322,7 +323,7 @@ const HomePage: React.FC = () => {
                 </p>
                 <Button 
                   onClick={() => setSelectedCategory('All')}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                  className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold"
                 >
                   View All Events
                 </Button>
@@ -335,8 +336,8 @@ const HomePage: React.FC = () => {
         <TabsContent value="gallery" className="mt-0">
           <div className="container mx-auto px-6 py-12">
             <div className="text-center mb-12">
-              <h1 className="text-5xl font-bold text-gray-900 mb-4">Event Gallery</h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">Event Gallery</h1>
+              <p className="text-xl text-gray-300 max-w-2xl mx-auto">
                 Immerse yourself in the beauty and excitement of our past events through this visual journey.
               </p>
             </div>
@@ -347,7 +348,7 @@ const HomePage: React.FC = () => {
                   <ImageGallery
                     images={[image]}
                     title={`Gallery Image ${index + 1}`}
-                    className="h-64 rounded-lg overflow-hidden"
+                    className="h-64 rounded-lg overflow-hidden border border-yellow-400/20 hover:border-yellow-400/50 transition-colors"
                   />
                 </div>
               ))}
@@ -360,32 +361,32 @@ const HomePage: React.FC = () => {
           <div className="container mx-auto px-6 py-12">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
-                <h1 className="text-5xl font-bold text-gray-900 mb-4">About Boujee Events</h1>
-                <p className="text-xl text-gray-600">
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">About Boujee Events</h1>
+                <p className="text-xl text-gray-300">
                   Creating unforgettable experiences through luxury and elegance.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-                  <p className="text-gray-600 mb-6">
+                  <h2 className="text-3xl font-bold text-yellow-400 mb-6">Our Story</h2>
+                  <p className="text-gray-300 mb-6">
                     Boujee Events was founded with a simple vision: to create extraordinary experiences that leave lasting memories. 
                     We specialize in curating luxury events that combine sophistication, entertainment, and unparalleled service.
                   </p>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-300 mb-6">
                     From exclusive festivals to VIP experiences, our team of expert event planners ensures every detail is perfect. 
                     We believe that life's best moments deserve to be celebrated in style.
                   </p>
                   
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-yellow-500 mb-2">500+</div>
-                      <div className="text-gray-600">Events Hosted</div>
+                    <div className="text-center border border-yellow-400/20 rounded-lg p-4">
+                      <div className="text-3xl font-bold text-yellow-400 mb-2">500+</div>
+                      <div className="text-gray-300">Events Hosted</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-yellow-500 mb-2">50K+</div>
-                      <div className="text-gray-600">Happy Guests</div>
+                    <div className="text-center border border-yellow-400/20 rounded-lg p-4">
+                      <div className="text-3xl font-bold text-yellow-400 mb-2">50K+</div>
+                      <div className="text-gray-300">Happy Guests</div>
                     </div>
                   </div>
                 </div>
@@ -394,7 +395,7 @@ const HomePage: React.FC = () => {
                   <ImageGallery
                     images={galleryImages.slice(0, 3)}
                     title="About Us"
-                    className="h-96 rounded-2xl overflow-hidden shadow-2xl"
+                    className="h-96 rounded-2xl overflow-hidden shadow-2xl border border-yellow-400/20"
                   />
                 </div>
               </div>
@@ -407,54 +408,54 @@ const HomePage: React.FC = () => {
           <div className="container mx-auto px-6 py-12">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
-                <h1 className="text-5xl font-bold text-gray-900 mb-4">Get In Touch</h1>
-                <p className="text-xl text-gray-600">
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">Get In Touch</h1>
+                <p className="text-xl text-gray-300">
                   Ready to create an unforgettable experience? Let's talk.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 {/* Contact Information */}
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
+                <div className="bg-gray-900/50 border border-yellow-400/20 rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-yellow-400 mb-6">Contact Information</h2>
                   
                   <div className="space-y-6">
                     <div className="flex items-center">
-                      <div className="bg-yellow-100 p-3 rounded-full mr-4">
-                        <Mail className="h-6 w-6 text-yellow-600" />
+                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
+                        <Mail className="h-6 w-6 text-yellow-400" />
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">Email</div>
-                        <div className="text-gray-600">hello@boujeeevents.com</div>
+                        <div className="font-semibold text-white">Email</div>
+                        <div className="text-gray-300">hello@boujeeevents.com</div>
                       </div>
                     </div>
 
                     <div className="flex items-center">
-                      <div className="bg-yellow-100 p-3 rounded-full mr-4">
-                        <Phone className="h-6 w-6 text-yellow-600" />
+                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
+                        <Phone className="h-6 w-6 text-yellow-400" />
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">Phone</div>
-                        <div className="text-gray-600">+1 (555) 123-4567</div>
+                        <div className="font-semibold text-white">Phone</div>
+                        <div className="text-gray-300">+1 (555) 123-4567</div>
                       </div>
                     </div>
 
                     <div className="flex items-center">
-                      <div className="bg-yellow-100 p-3 rounded-full mr-4">
-                        <MapPin className="h-6 w-6 text-yellow-600" />
+                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
+                        <MapPin className="h-6 w-6 text-yellow-400" />
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">Location</div>
-                        <div className="text-gray-600">Global Events Worldwide</div>
+                        <div className="font-semibold text-white">Location</div>
+                        <div className="text-gray-300">Global Events Worldwide</div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Newsletter Signup */}
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Stay Updated</h2>
-                  <p className="text-gray-600 mb-6">
+                <div className="bg-gray-900/50 border border-yellow-400/20 rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-yellow-400 mb-6">Stay Updated</h2>
+                  <p className="text-gray-300 mb-6">
                     Subscribe to our newsletter for exclusive event announcements and special offers.
                   </p>
 
@@ -465,21 +466,21 @@ const HomePage: React.FC = () => {
                         value={newsletterEmail}
                         onChange={(e) => setNewsletterEmail(e.target.value)}
                         placeholder="Enter your email address"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-black border border-yellow-400/30 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 text-white placeholder-gray-400"
                         required
                       />
                     </div>
                     <Button
                       type="submit"
                       disabled={newsletterLoading}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3"
+                      className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold py-3"
                     >
                       {newsletterLoading ? 'Subscribing...' : 'Subscribe Now'}
                     </Button>
                   </form>
 
                   {newsletterMessage && (
-                    <p className="mt-4 text-center text-sm text-green-600">
+                    <p className="mt-4 text-center text-sm text-yellow-400">
                       {newsletterMessage}
                     </p>
                   )}
@@ -491,18 +492,18 @@ const HomePage: React.FC = () => {
       </Tabs>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-900 border-t border-yellow-400/20 text-white py-12">
         <div className="container mx-auto px-6">
           <div className="text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-4">be</div>
-            <h3 className="text-xl font-semibold mb-2">Boujee Events</h3>
-            <p className="text-gray-400 mb-6">Creating unforgettable experiences since 2020</p>
-            <div className="flex justify-center space-x-6 text-sm text-gray-400">
+            <div className="text-4xl font-bold text-yellow-400 bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">be</div>
+            <h3 className="text-xl font-semibold mb-2 text-white">Boujee Events</h3>
+            <p className="text-gray-400 mb-6">Setting the new standard since 2020</p>
+            <div className="flex justify-center space-x-6 text-sm text-gray-500">
               <span>© 2024 Boujee Events</span>
               <span>•</span>
-              <span>Privacy Policy</span>
+              <span className="hover:text-yellow-400 cursor-pointer transition-colors">Privacy Policy</span>
               <span>•</span>
-              <span>Terms of Service</span>
+              <span className="hover:text-yellow-400 cursor-pointer transition-colors">Terms of Service</span>
             </div>
           </div>
         </div>
