@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Users, Star, Mail, Phone, MessageCircle, Play, Pause, Volume2, VolumeX, Heart, Share2 } from 'lucide-react';
+import Logo from '../components/branding/Logo';
 
 const HomePage = () => {
   const [activeTab, setActiveTab] = useState('events');
@@ -295,11 +296,8 @@ const HomePage = () => {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="text-4xl font-bold bg-gradient-to-r from-amber-500 to-yellow-600 bg-clip-text text-transparent">✨</div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent">Boujee Events</h1>
-                <p className="text-sm text-amber-600/80 font-medium">Creating magical moments</p>
-              </div>
+              <div className="text-4xl">✨</div>
+              <Logo variant="primary" size="large" showTagline={true} />
             </div>
             
             <div className="flex items-center gap-4">
@@ -813,8 +811,9 @@ const HomePage = () => {
       <footer className="relative z-20 bg-gradient-to-br from-amber-900 to-yellow-800 text-white py-16">
         <div className="container mx-auto px-6">
           <div className="text-center">
-            <div className="text-6xl font-bold bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-transparent mb-4">✨</div>
-            <h3 className="text-3xl font-bold mb-4 text-white">Boujee Events</h3>
+            <div className="flex justify-center mb-4">
+              <Logo variant="light" size="xlarge" showTagline={false} />
+            </div>
             <p className="text-amber-200 mb-8 text-lg">Creating magical moments since 2020</p>
             <div className="flex justify-center items-center space-x-8 text-amber-300">
               <span>© 2024 Boujee Events</span>
