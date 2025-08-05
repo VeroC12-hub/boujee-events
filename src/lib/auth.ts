@@ -1,39 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// src/lib/auth.ts
+import { supabase } from "@/lib/supabaseClient";
 
 /**
- * Sign in with Google OAuth
+ * Fetches the user's role from Supabase based on user ID
  */
-export const signInWithGoogle = async () => {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`, // or your redirect page
-    },
-  });
+export const getUserRole = async (userId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from("profiles") // Make sure this table exists and contains a 'role' column
+    .select("role")
+    .eq("id", userId)
+    .single();
 
   if (error) {
-    console.error("Google login error:", error.message);
-    return { error };
+    console.error("❌ Failed to get user role:", error);
+    return null;
   }
 
-  return { data };
-};
-
-/**
- * Sign out
- */
-export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    console.error("Logout error:", error.message);
-    return { error };
-  }
-
-  return { message: "Logged out successfully" };
+  return data?.role ?? null;
 };
