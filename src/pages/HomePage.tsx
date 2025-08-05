@@ -1,33 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Users, Star, Mail, Phone, MessageCircle, Play, Pause, Volume2, VolumeX } from 'lucide-react';
-import { eventService, Event } from '../services/eventService';
-import { newsletterService } from '../services/newsletterService';
-import VisualEventCard from '../components/visual/VisualEventCard';
-import VisualFilters from '../components/visual/VisualFilters';
-import ImageGallery from '../components/visual/ImageGallery';
+import { Calendar, MapPin, Users, Star, Mail, Phone, MessageCircle, Play, Pause, Volume2, VolumeX, Heart, Share2 } from 'lucide-react';
 
-const HomePage: React.FC = () => {
-  const navigate = useNavigate();
+const HomePage = () => {
   const [activeTab, setActiveTab] = useState('events');
-  const [events, setEvents] = useState<Event[]>([]);
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState([]);
+  const [featuredEvents, setFeaturedEvents] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState('');
   const [videoPlaying, setVideoPlaying] = useState(true);
   const [videoMuted, setVideoMuted] = useState(true);
 
-  // Enhanced category data with icons and smaller buttons
+  // Enhanced category data with icons
   const categories = [
-    { name: 'All', icon: '🏛️', count: 0 },
+    { name: 'All', icon: '🌟', count: 0 },
     { name: 'Festival', icon: '🎪', count: 0 },
-    { name: 'Luxury Experience', icon: '⭐', count: 0 },
+    { name: 'Luxury Experience', icon: '✨', count: 0 },
     { name: 'Party', icon: '🎉', count: 0 },
     { name: 'Corporate', icon: '🏢', count: 0 },
     { name: 'VIP Experience', icon: '👑', count: 0 },
@@ -38,153 +31,162 @@ const HomePage: React.FC = () => {
     { name: 'Wellness', icon: '🧘', count: 0 }
   ];
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  const loadEvents = async () => {
-    try {
-      setLoading(true);
-      const allEvents = await eventService.getEvents();
-      setEvents(allEvents);
-      setFeaturedEvents(allEvents.filter(event => event.featured && event.status === 'active'));
-    } catch (error) {
-      console.error('Failed to load events:', error);
-      // Enhanced sample events with more variety
-      const sampleEvents = [
-        {
-          id: 1,
-          title: "Midnight Paradise Festival",
-          date: "2025-12-31",
-          location: "Santorini, Greece",
-          type: "Festival",
-          image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop"],
-          price: "€2,500",
-          description: "An exclusive New Year celebration with world-class DJs and luxury accommodations.",
-          status: "active" as const,
-          ticketsSold: 75,
-          maxCapacity: 100,
-          featured: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["VIP", "Luxury", "Exclusive"],
-          basePrice: 2500,
-          organizerId: "admin",
-          metadata: { views: 1234, bookings: 75, revenue: 187500, lastModified: new Date().toISOString() }
-        },
-        {
-          id: 2,
-          title: "Golden Gala Experience",
-          date: "2025-03-15",
-          location: "Monaco",
-          type: "Luxury Experience",
-          image: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&h=600&fit=crop"],
-          price: "€1,800",
-          description: "A sophisticated evening of fine dining and classical entertainment.",
-          status: "active" as const,
-          ticketsSold: 45,
-          maxCapacity: 80,
-          featured: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Classical", "Fine Dining"],
-          basePrice: 1800,
-          organizerId: "admin",
-          metadata: { views: 890, bookings: 45, revenue: 81000, lastModified: new Date().toISOString() }
-        },
-        {
-          id: 3,
-          title: "Neon Beach Party",
-          date: "2025-02-20",
-          location: "Ibiza, Spain",
-          type: "Party",
-          image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop"],
-          price: "€350",
-          description: "Dance under the stars with world-renowned DJs and stunning beach views.",
-          status: "active" as const,
-          ticketsSold: 180,
-          maxCapacity: 200,
-          featured: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Electronic", "Beach"],
-          basePrice: 350,
-          organizerId: "admin",
-          metadata: { views: 2156, bookings: 180, revenue: 63000, lastModified: new Date().toISOString() }
-        },
-        {
-          id: 4,
-          title: "Corporate Summit 2025",
-          date: "2025-04-10",
-          location: "London, UK",
-          type: "Corporate",
-          image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&h=600&fit=crop"],
-          price: "€850",
-          description: "Network with industry leaders and discover the latest business innovations.",
-          status: "active" as const,
-          ticketsSold: 120,
-          maxCapacity: 150,
-          featured: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Business", "Networking"],
-          basePrice: 850,
-          organizerId: "admin",
-          metadata: { views: 756, bookings: 120, revenue: 102000, lastModified: new Date().toISOString() }
-        },
-        {
-          id: 5,
-          title: "Jazz & Wine Evening",
-          date: "2025-03-25",
-          location: "Paris, France",
-          type: "Music",
-          image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop"],
-          price: "€450",
-          description: "An intimate evening of smooth jazz and premium wine tasting.",
-          status: "active" as const,
-          ticketsSold: 60,
-          maxCapacity: 80,
-          featured: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Jazz", "Wine"],
-          basePrice: 450,
-          organizerId: "admin",
-          metadata: { views: 543, bookings: 60, revenue: 27000, lastModified: new Date().toISOString() }
-        },
-        {
-          id: 6,
-          title: "Wellness Retreat",
-          date: "2025-05-15",
-          location: "Bali, Indonesia",
-          type: "Wellness",
-          image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=600&fit=crop",
-          images: ["https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=600&fit=crop"],
-          price: "€1,200",
-          description: "Rejuvenate your mind and body in paradise.",
-          status: "active" as const,
-          ticketsSold: 30,
-          maxCapacity: 50,
-          featured: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: ["Wellness", "Retreat"],
-          basePrice: 1200,
-          organizerId: "admin",
-          metadata: { views: 432, bookings: 30, revenue: 36000, lastModified: new Date().toISOString() }
-        }
-      ];
-      setEvents(sampleEvents);
-      setFeaturedEvents(sampleEvents.filter(event => event.featured));
-    } finally {
-      setLoading(false);
+  // Beautiful sample events with stunning images
+  const sampleEvents = [
+    {
+      id: 1,
+      title: "Sunset Paradise Festival",
+      date: "2025-12-31",
+      location: "Santorini, Greece",
+      type: "Festival",
+      image: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop&crop=center",
+      images: [
+        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop",
+        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop"
+      ],
+      price: "€2,500",
+      description: "Experience the most breathtaking sunset festival in Santorini with world-class DJs, luxury accommodations, and unforgettable views.",
+      status: "active",
+      ticketsSold: 75,
+      maxCapacity: 100,
+      featured: true,
+      tags: ["VIP", "Luxury", "Exclusive"],
+      basePrice: 2500,
+      organizerId: "admin"
+    },
+    {
+      id: 2,
+      title: "Golden Gala Monaco",
+      date: "2025-03-15",
+      location: "Monte Carlo, Monaco",
+      type: "Luxury Experience",
+      image: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&h=600&fit=crop"],
+      price: "€1,800",
+      description: "An elegant evening of fine dining, classical entertainment, and luxury networking in the heart of Monaco.",
+      status: "active",
+      ticketsSold: 45,
+      maxCapacity: 80,
+      featured: true,
+      tags: ["Classical", "Fine Dining", "Networking"],
+      basePrice: 1800,
+      organizerId: "admin"
+    },
+    {
+      id: 3,
+      title: "Neon Dreams Beach Party",
+      date: "2025-02-20",
+      location: "Ibiza, Spain",
+      type: "Party",
+      image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&h=600&fit=crop"],
+      price: "€350",
+      description: "Dance under the stars with world-renowned DJs, stunning beach views, and electric atmosphere.",
+      status: "active",
+      ticketsSold: 180,
+      maxCapacity: 200,
+      featured: false,
+      tags: ["Electronic", "Beach", "Dance"],
+      basePrice: 350,
+      organizerId: "admin"
+    },
+    {
+      id: 4,
+      title: "Innovation Summit 2025",
+      date: "2025-04-10",
+      location: "London, UK",
+      type: "Corporate",
+      image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=600&fit=crop"],
+      price: "€850",
+      description: "Connect with industry leaders and discover cutting-edge innovations shaping the future.",
+      status: "active",
+      ticketsSold: 120,
+      maxCapacity: 150,
+      featured: false,
+      tags: ["Business", "Innovation", "Networking"],
+      basePrice: 850,
+      organizerId: "admin"
+    },
+    {
+      id: 5,
+      title: "Jazz & Wine Soirée",
+      date: "2025-03-25",
+      location: "Paris, France",
+      type: "Music",
+      image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop"],
+      price: "€450",
+      description: "An intimate evening of smooth jazz, premium wine tasting, and Parisian elegance.",
+      status: "active",
+      ticketsSold: 60,
+      maxCapacity: 80,
+      featured: true,
+      tags: ["Jazz", "Wine", "Intimate"],
+      basePrice: 450,
+      organizerId: "admin"
+    },
+    {
+      id: 6,
+      title: "Bali Wellness Retreat",
+      date: "2025-05-15",
+      location: "Ubud, Bali",
+      type: "Wellness",
+      image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=600&fit=crop"],
+      price: "€1,200",
+      description: "Rejuvenate your mind, body, and soul in the paradise of Bali with yoga, meditation, and spa treatments.",
+      status: "active",
+      ticketsSold: 30,
+      maxCapacity: 50,
+      featured: false,
+      tags: ["Wellness", "Retreat", "Meditation"],
+      basePrice: 1200,
+      organizerId: "admin"
+    },
+    {
+      id: 7,
+      title: "Michelin Star Food Festival",
+      date: "2025-06-20",
+      location: "Tokyo, Japan",
+      type: "Food & Drink",
+      image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop"],
+      price: "€680",
+      description: "Indulge in culinary masterpieces crafted by Michelin-starred chefs from around the world.",
+      status: "active",
+      ticketsSold: 95,
+      maxCapacity: 120,
+      featured: true,
+      tags: ["Culinary", "Michelin", "Gourmet"],
+      basePrice: 680,
+      organizerId: "admin"
+    },
+    {
+      id: 8,
+      title: "Art Gallery Opening",
+      date: "2025-04-05",
+      location: "New York, USA",
+      type: "Art & Culture",
+      image: "https://images.unsplash.com/photo-1544986581-efac024faf62?w=800&h=600&fit=crop&crop=center",
+      images: ["https://images.unsplash.com/photo-1544986581-efac024faf62?w=800&h=600&fit=crop"],
+      price: "€125",
+      description: "Discover contemporary art from emerging artists in an exclusive gallery opening event.",
+      status: "active",
+      ticketsSold: 220,
+      maxCapacity: 250,
+      featured: false,
+      tags: ["Art", "Contemporary", "Culture"],
+      basePrice: 125,
+      organizerId: "admin"
     }
-  };
+  ];
+
+  useEffect(() => {
+    setEvents(sampleEvents);
+    setFeaturedEvents(sampleEvents.filter(event => event.featured));
+  }, []);
 
   const filteredEvents = selectedCategory === 'All' 
     ? events.filter(event => event.status === 'active')
@@ -196,13 +198,13 @@ const HomePage: React.FC = () => {
       acc['All'] = (acc['All'] || 0) + 1;
     }
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
 
-  const handleBookEvent = (eventId: number) => {
-    navigate(`/book/${eventId}`);
+  const handleBookEvent = (eventId) => {
+    alert(`Booking event ${eventId}! This would redirect to booking page.`);
   };
 
-  const handleShareEvent = (eventId: number) => {
+  const handleShareEvent = (eventId) => {
     if (navigator.share) {
       navigator.share({
         title: 'Check out this amazing event!',
@@ -214,13 +216,13 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleNewsletterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleNewsletterSubmit = async () => {
     if (!newsletterEmail) return;
 
     setNewsletterLoading(true);
     try {
-      await newsletterService.subscribe(newsletterEmail);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setNewsletterMessage('Thank you for subscribing!');
       setNewsletterEmail('');
     } catch (error) {
@@ -231,7 +233,7 @@ const HomePage: React.FC = () => {
   };
 
   const toggleVideo = () => {
-    const video = document.getElementById('bg-video') as HTMLVideoElement;
+    const video = document.getElementById('bg-video');
     if (video) {
       if (videoPlaying) {
         video.pause();
@@ -243,7 +245,7 @@ const HomePage: React.FC = () => {
   };
 
   const toggleMute = () => {
-    const video = document.getElementById('bg-video') as HTMLVideoElement;
+    const video = document.getElementById('bg-video');
     if (video) {
       video.muted = !videoMuted;
       setVideoMuted(!videoMuted);
@@ -251,67 +253,43 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      {/* Background Video */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50 text-gray-900 relative overflow-hidden">
+      {/* Background Video/Image */}
       <div className="fixed inset-0 z-0">
-        <video
-          id="bg-video"
-          autoPlay
-          muted={videoMuted}
-          loop
-          playsInline
-          className="w-full h-full object-cover opacity-30"
-        >
-          <source src="https://cdn.coverr.co/videos/coverr-luxury-party-with-golden-confetti-4735/1080p.mp4" type="video/mp4" />
-          <source src="https://cdn.coverr.co/videos/coverr-elegant-party-setup-6789/1080p.mp4" type="video/mp4" />
-          {/* Fallback gradient if video fails */}
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-purple-900/30"></div>
-      </div>
-
-      {/* Video Controls */}
-      <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-        <button
-          onClick={toggleVideo}
-          className="bg-black/50 backdrop-blur-md border border-yellow-400/30 text-yellow-400 p-2 rounded-full hover:bg-yellow-400/20 transition-colors"
-        >
-          {videoPlaying ? <Pause size={16} /> : <Play size={16} />}
-        </button>
-        <button
-          onClick={toggleMute}
-          className="bg-black/50 backdrop-blur-md border border-yellow-400/30 text-yellow-400 p-2 rounded-full hover:bg-yellow-400/20 transition-colors"
-        >
-          {videoMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
+        <div 
+          className="w-full h-full bg-cover bg-center bg-fixed opacity-20"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop&crop=center')`
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-transparent to-rose-100/40"></div>
       </div>
 
       {/* Header */}
-      <header className="relative z-40 bg-black/20 backdrop-blur-xl border-b border-yellow-400/20 sticky top-0">
-        <div className="container mx-auto px-6 py-3">
+      <header className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-rose-200/50 sticky top-0 shadow-lg">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">be</div>
+              <div className="text-4xl font-bold bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">✨</div>
               <div>
-                <h1 className="text-lg font-bold text-white">Boujee Events</h1>
-                <p className="text-xs text-yellow-400/80">Setting the new standard</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent">Boujee Events</h1>
+                <p className="text-sm text-rose-500/80 font-medium">Creating magical moments</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 group">
+            <div className="flex items-center gap-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/admin')}
-                className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 border-yellow-400/50 text-yellow-400 hover:bg-yellow-400 hover:text-black text-xs px-3 py-1"
+                className="hidden md:flex border-rose-300 text-rose-600 hover:bg-rose-50 hover:border-rose-400"
               >
-                Admin
+                Admin Portal
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate('/login')}
-                className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold text-xs px-4 py-1"
+                className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold shadow-lg"
               >
-                Login
+                Sign In
               </Button>
             </div>
           </div>
@@ -320,30 +298,30 @@ const HomePage: React.FC = () => {
 
       {/* Main Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full relative z-30">
-        <div className="bg-black/10 backdrop-blur-sm border-b border-yellow-400/10">
+        <div className="bg-white/60 backdrop-blur-md border-b border-rose-200/30">
           <div className="container mx-auto px-6">
-            <TabsList className="grid w-full max-w-sm mx-auto grid-cols-4 bg-transparent p-0.5">
+            <TabsList className="grid w-full max-w-lg mx-auto grid-cols-4 bg-white/70 p-1 rounded-xl shadow-md">
               <TabsTrigger 
                 value="events" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-medium hover:text-yellow-400 text-xs py-2"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
               >
-                📅 Events
+                🎪 Events
               </TabsTrigger>
               <TabsTrigger 
                 value="gallery" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-medium hover:text-yellow-400 text-xs py-2"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
               >
                 📸 Gallery
               </TabsTrigger>
               <TabsTrigger 
                 value="about" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-medium hover:text-yellow-400 text-xs py-2"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
               >
-                ℹ️ About
+                💫 About
               </TabsTrigger>
               <TabsTrigger 
                 value="contact" 
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black text-yellow-400/80 font-medium hover:text-yellow-400 text-xs py-2"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
               >
                 📞 Contact
               </TabsTrigger>
@@ -353,37 +331,41 @@ const HomePage: React.FC = () => {
 
         {/* Events Tab */}
         <TabsContent value="events" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-8">
+          <div className="container mx-auto px-6 py-12">
             {/* Hero Section */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent mb-4">
-                Discover Amazing Experiences
+            <div className="text-center mb-16">
+              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-rose-600 via-orange-500 to-pink-600 bg-clip-text text-transparent mb-6 leading-tight">
+                Discover Magic
               </h1>
-              <p className="text-lg text-gray-300 max-w-3xl mx-auto mb-6">
-                Tailored to your interests
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
+                Step into a world of extraordinary experiences, where every moment is crafted to perfection
               </p>
+              <div className="flex justify-center gap-4">
+                <Button className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold px-8 py-3 shadow-xl">
+                  Explore Events
+                </Button>
+                <Button variant="outline" className="border-rose-300 text-rose-600 hover:bg-rose-50 px-8 py-3">
+                  Watch Video
+                </Button>
+              </div>
             </div>
 
-            {/* Horizontal Category Filter - Just like your image */}
-            <div className="mb-8">
-              <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+            {/* Category Filter */}
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-center mb-8 text-gray-800">Browse by Category</h3>
+              <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide justify-center">
                 {categories.map((category, index) => (
                   <button
                     key={category.name}
                     onClick={() => setSelectedCategory(category.name)}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[80px] h-[80px] rounded-2xl border-2 transition-all duration-300 ${
+                    className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[100px] h-[100px] rounded-3xl border-2 transition-all duration-300 transform hover:scale-105 ${
                       selectedCategory === category.name
-                        ? 'bg-yellow-400 text-black border-yellow-400 shadow-xl scale-105'
-                        : 'bg-white/10 backdrop-blur-md text-white border-white/20 hover:border-yellow-400/50 hover:bg-white/20'
-                    } ${index === 0 ? 'relative' : ''}`}
+                        ? 'bg-gradient-to-br from-rose-500 to-orange-500 text-white border-rose-400 shadow-2xl scale-105'
+                        : 'bg-white/80 backdrop-blur-md text-gray-700 border-rose-200 hover:border-rose-400 hover:bg-white/90 shadow-lg'
+                    }`}
                   >
-                    {index === 0 && selectedCategory === 'All' && (
-                      <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                        {eventCounts['All'] || 0}
-                      </div>
-                    )}
-                    <span className="text-xl mb-1">{category.icon}</span>
-                    <span className="text-xs font-medium text-center leading-tight">
+                    <span className="text-2xl mb-2">{category.icon}</span>
+                    <span className="text-sm font-semibold text-center leading-tight px-2">
                       {category.name === 'Luxury Experience' ? 'Luxury' : 
                        category.name === 'VIP Experience' ? 'VIP' :
                        category.name === 'Food & Drink' ? 'Food & Drink' :
@@ -393,100 +375,121 @@ const HomePage: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <p className="text-center text-gray-400 text-sm mt-4">
-                Showing all {filteredEvents.length} events
+              <p className="text-center text-gray-500 text-lg mt-6">
+                {filteredEvents.length} magical experiences waiting for you ✨
               </p>
             </div>
 
-            {/* Events Spread Across Screen - Masonry Layout */}
+            {/* Events Grid - Masonry Layout */}
             {loading ? (
-              <div className="text-center py-16">
-                <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-300">Loading amazing events...</p>
+              <div className="text-center py-20">
+                <div className="w-12 h-12 border-4 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                <p className="text-gray-600 text-lg">Loading magical experiences...</p>
               </div>
             ) : (
-              <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
+              <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-8 space-y-8">
                 {filteredEvents.map((event, index) => (
                   <div 
                     key={event.id} 
-                    className={`break-inside-avoid mb-6 ${
-                      index % 4 === 0 ? 'md:h-80' : 
-                      index % 4 === 1 ? 'md:h-96' : 
-                      index % 4 === 2 ? 'md:h-72' : 'md:h-88'
-                    }`}
+                    className="break-inside-avoid mb-8"
                   >
-                    <div className="group relative bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden border border-yellow-400/20 hover:border-yellow-400/50 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-400/20">
+                    <div className="group relative bg-white/90 backdrop-blur-md rounded-3xl overflow-hidden border border-rose-200/50 hover:border-rose-400/50 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-rose-500/20 transform">
                       {/* Event Image */}
                       <div className="relative overflow-hidden">
                         <img
                           src={event.image}
                           alt={event.title}
-                          className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
+                          className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
                         
                         {/* Floating Price Tag */}
-                        <div className="absolute top-4 right-4 bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-bold">
+                        <div className="absolute top-4 right-4 bg-gradient-to-r from-rose-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
                           {event.price}
                         </div>
                         
                         {/* Featured Badge */}
                         {event.featured && (
-                          <div className="absolute top-4 left-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                            <Star size={12} className="fill-current" />
+                          <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-3 py-2 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                            <Star size={14} className="fill-current" />
                             Featured
                           </div>
                         )}
+
+                        {/* Quick Actions */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="flex gap-2">
+                            <button className="bg-white/90 text-rose-600 p-3 rounded-full hover:bg-white shadow-lg transform hover:scale-110 transition-all">
+                              <Heart size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleShareEvent(event.id)}
+                              className="bg-white/90 text-rose-600 p-3 rounded-full hover:bg-white shadow-lg transform hover:scale-110 transition-all"
+                            >
+                              <Share2 size={18} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Event Details */}
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold text-white mb-2 line-clamp-2">
+                      <div className="p-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge className="bg-gradient-to-r from-rose-100 to-orange-100 text-rose-700 border-0">
+                            {event.type}
+                          </Badge>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-gray-800 mb-3 line-clamp-2 group-hover:text-rose-600 transition-colors">
                           {event.title}
                         </h3>
                         
-                        <div className="flex items-center gap-2 text-gray-300 text-sm mb-2">
-                          <Calendar size={14} />
-                          <span>{event.date}</span>
+                        <div className="flex items-center gap-2 text-gray-600 text-sm mb-2">
+                          <Calendar size={16} className="text-rose-500" />
+                          <span>{new Date(event.date).toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}</span>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-gray-300 text-sm mb-3">
-                          <MapPin size={14} />
+                        <div className="flex items-center gap-2 text-gray-600 text-sm mb-4">
+                          <MapPin size={16} className="text-rose-500" />
                           <span className="line-clamp-1">{event.location}</span>
                         </div>
                         
-                        <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                        <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed">
                           {event.description}
                         </p>
 
                         {/* Capacity Indicator */}
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="flex-1 bg-gray-700 rounded-full h-2">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="flex-1 bg-rose-100 rounded-full h-3">
                             <div 
-                              className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${(event.ticketsSold / event.maxCapacity) * 100}%` }}
+                              className="bg-gradient-to-r from-rose-500 to-orange-500 h-3 rounded-full transition-all duration-500 shadow-sm"
+                              style={{ width: `${Math.min((event.ticketsSold / event.maxCapacity) * 100, 100)}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-sm text-gray-500 font-medium">
                             {event.ticketsSold}/{event.maxCapacity}
                           </span>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                           <Button
                             onClick={() => handleBookEvent(event.id)}
-                            className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold text-sm py-2"
+                            className="flex-1 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold shadow-lg transform hover:scale-105 transition-all"
                           >
-                            Book Now
+                            Book Now ✨
                           </Button>
                           <Button
-                            onClick={() => handleShareEvent(event.id)}
                             variant="outline"
                             size="sm"
-                            className="border-yellow-400/50 text-yellow-400 hover:bg-yellow-400 hover:text-black px-3"
+                            className="border-rose-300 text-rose-600 hover:bg-rose-50 px-4 transform hover:scale-105 transition-all"
                           >
-                            Share
+                            Details
                           </Button>
                         </div>
                       </div>
@@ -497,10 +500,10 @@ const HomePage: React.FC = () => {
             )}
 
             {filteredEvents.length === 0 && !loading && (
-              <div className="text-center py-16">
-                <div className="text-6xl mb-4">🎪</div>
-                <h3 className="text-2xl font-bold text-white mb-2">No events found</h3>
-                <p className="text-gray-300 mb-6">
+              <div className="text-center py-20">
+                <div className="text-8xl mb-6">🎪</div>
+                <h3 className="text-3xl font-bold text-gray-800 mb-4">No events found</h3>
+                <p className="text-gray-600 mb-8 text-lg">
                   {selectedCategory === 'All' 
                     ? 'No events are currently available.' 
                     : `No ${selectedCategory.toLowerCase()} events are currently available.`
@@ -508,7 +511,7 @@ const HomePage: React.FC = () => {
                 </p>
                 <Button 
                   onClick={() => setSelectedCategory('All')}
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold"
+                  className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold px-8 py-3 shadow-lg"
                 >
                   View All Events
                 </Button>
@@ -519,25 +522,42 @@ const HomePage: React.FC = () => {
 
         {/* Gallery Tab */}
         <TabsContent value="gallery" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-12">
-            <div className="text-center mb-12">
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">Event Gallery</h1>
-              <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-                Immerse yourself in the beauty and excitement of our past events through this visual journey.
+          <div className="container mx-auto px-6 py-16">
+            <div className="text-center mb-16">
+              <h1 className="text-6xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Event Gallery</h1>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Immerse yourself in the beauty and excitement of our unforgettable events
               </p>
             </div>
 
             <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6">
-              {Array.from({ length: 12 }, (_, index) => (
+              {[
+                "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=600&fit=crop",
+                "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop",
+                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=500&fit=crop",
+                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=450&fit=crop",
+                "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=550&fit=crop",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&h=400&fit=crop",
+                "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=500&fit=crop",
+                "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=600&fit=crop",
+                "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=400&fit=crop",
+                "https://images.unsplash.com/photo-1544986581-efac024faf62?w=400&h=450&fit=crop",
+                "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=400&h=500&fit=crop",
+                "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=550&fit=crop"
+              ].map((imageUrl, index) => (
                 <div key={index} className="break-inside-avoid mb-6">
-                  <div className="group relative overflow-hidden rounded-2xl border border-yellow-400/20 hover:border-yellow-400/50 transition-all duration-500 hover:scale-105">
+                  <div className="group relative overflow-hidden rounded-3xl border border-rose-200/50 hover:border-rose-400/50 transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-2xl">
                     <img
-                      src={`https://images.unsplash.com/photo-${1514525253161 + index}?w=400&h=${300 + (index % 3) * 100}&fit=crop`}
+                      src={imageUrl}
                       alt={`Gallery ${index + 1}`}
                       className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-rose-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="absolute bottom-4 left-4 right-4 transform translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <p className="text-white font-semibold">Event Gallery {index + 1}</p>
+                      <p className="text-white/80 text-sm">Magical moments captured</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -547,50 +567,75 @@ const HomePage: React.FC = () => {
 
         {/* About Tab */}
         <TabsContent value="about" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-12">
-            <div className="max-w-4xl mx-auto">
-              <div className="text-center mb-12">
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">About Boujee Events</h1>
-                <p className="text-xl text-gray-300">
-                  Creating unforgettable experiences through luxury and elegance.
+          <div className="container mx-auto px-6 py-16">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                <h1 className="text-6xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Our Story</h1>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                  Creating magical experiences that bring people together and create lasting memories.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="bg-black/40 backdrop-blur-md rounded-2xl p-8 border border-yellow-400/20">
-                  <h2 className="text-3xl font-bold text-yellow-400 mb-6">Our Story</h2>
-                  <p className="text-gray-300 mb-6">
-                    Boujee Events was founded with a simple vision: to create extraordinary experiences that leave lasting memories. 
-                    We specialize in curating luxury events that combine sophistication, entertainment, and unparalleled service.
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-16">
+                <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 border border-rose-200/50 shadow-xl">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Our Mission</h2>
+                  <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                    Boujee Events was founded with a passion for creating extraordinary experiences that transcend the ordinary. 
+                    We believe every celebration deserves to be magical, every gathering should spark joy, and every moment should be unforgettable.
                   </p>
-                  <p className="text-gray-300 mb-6">
-                    From exclusive festivals to VIP experiences, our team of expert event planners ensures every detail is perfect. 
-                    We believe that life's best moments deserve to be celebrated in style.
+                  <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                    From intimate gatherings to grand celebrations, we curate experiences that reflect your unique style and create memories that last a lifetime.
                   </p>
                   
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center border border-yellow-400/20 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-yellow-400 mb-2">500+</div>
-                      <div className="text-gray-300">Events Hosted</div>
+                    <div className="text-center bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-200 rounded-2xl p-6">
+                      <div className="text-4xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-2">500+</div>
+                      <div className="text-gray-600 font-medium">Magical Events</div>
                     </div>
-                    <div className="text-center border border-yellow-400/20 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-yellow-400 mb-2">50K+</div>
-                      <div className="text-gray-300">Happy Guests</div>
+                    <div className="text-center bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-200 rounded-2xl p-6">
+                      <div className="text-4xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-2">50K+</div>
+                      <div className="text-gray-600 font-medium">Happy Guests</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="relative">
                   <div className="grid grid-cols-2 gap-4">
-                    {Array.from({ length: 4 }, (_, index) => (
-                      <div key={index} className="rounded-2xl overflow-hidden border border-yellow-400/20">
+                    {[
+                      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=300&h=300&fit=crop",
+                      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=300&h=300&fit=crop",
+                      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop",
+                      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop"
+                    ].map((imageUrl, index) => (
+                      <div key={index} className="rounded-3xl overflow-hidden border border-rose-200/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                         <img
-                          src={`https://images.unsplash.com/photo-${1514525253161 + index * 100}?w=300&h=300&fit=crop`}
+                          src={imageUrl}
                           alt={`About ${index + 1}`}
                           className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
                         />
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-rose-50 to-orange-50 rounded-3xl p-12 border border-rose-200/50">
+                <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent">Why Choose Us?</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">✨</div>
+                    <h4 className="text-xl font-bold text-gray-800 mb-3">Magical Experiences</h4>
+                    <p className="text-gray-600">Every detail is crafted to create moments that take your breath away.</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🎭</div>
+                    <h4 className="text-xl font-bold text-gray-800 mb-3">Unique Themes</h4>
+                    <p className="text-gray-600">From elegant galas to adventurous festivals, we bring your vision to life.</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">💫</div>
+                    <h4 className="text-xl font-bold text-gray-800 mb-3">Unforgettable Memories</h4>
+                    <p className="text-gray-600">Creating experiences that you and your guests will cherish forever.</p>
                   </div>
                 </div>
               </div>
@@ -600,85 +645,97 @@ const HomePage: React.FC = () => {
 
         {/* Contact Tab */}
         <TabsContent value="contact" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-12">
-            <div className="max-w-4xl mx-auto">
-              <div className="text-center mb-12">
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">Get In Touch</h1>
-                <p className="text-xl text-gray-300">
-                  Ready to create an unforgettable experience? Let's talk.
+          <div className="container mx-auto px-6 py-16">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                <h1 className="text-6xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Let's Create Magic</h1>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                  Ready to turn your vision into an unforgettable experience? We'd love to hear from you.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 {/* Contact Information */}
-                <div className="bg-black/40 backdrop-blur-md border border-yellow-400/20 rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold text-yellow-400 mb-6">Contact Information</h2>
+                <div className="bg-white/80 backdrop-blur-md border border-rose-200/50 rounded-3xl p-8 shadow-xl">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-8">Get In Touch</h2>
                   
                   <div className="space-y-6">
-                    <div className="flex items-center">
-                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
-                        <Mail className="h-6 w-6 text-yellow-400" />
+                    <div className="flex items-center group">
+                      <div className="bg-gradient-to-br from-rose-100 to-orange-100 p-4 rounded-2xl mr-6 group-hover:scale-110 transition-transform">
+                        <Mail className="h-6 w-6 text-rose-600" />
                       </div>
                       <div>
-                        <div className="font-semibold text-white">Email</div>
-                        <div className="text-gray-300">hello@boujeeevents.com</div>
+                        <div className="font-semibold text-gray-800 text-lg">Email Us</div>
+                        <div className="text-gray-600">hello@boujeeevents.com</div>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
-                        <Phone className="h-6 w-6 text-yellow-400" />
+                    <div className="flex items-center group">
+                      <div className="bg-gradient-to-br from-rose-100 to-orange-100 p-4 rounded-2xl mr-6 group-hover:scale-110 transition-transform">
+                        <Phone className="h-6 w-6 text-rose-600" />
                       </div>
                       <div>
-                        <div className="font-semibold text-white">Phone</div>
-                        <div className="text-gray-300">+1 (555) 123-4567</div>
+                        <div className="font-semibold text-gray-800 text-lg">Call Us</div>
+                        <div className="text-gray-600">+1 (555) 123-4567</div>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <div className="bg-yellow-400/20 p-3 rounded-full mr-4">
-                        <MapPin className="h-6 w-6 text-yellow-400" />
+                    <div className="flex items-center group">
+                      <div className="bg-gradient-to-br from-rose-100 to-orange-100 p-4 rounded-2xl mr-6 group-hover:scale-110 transition-transform">
+                        <MapPin className="h-6 w-6 text-rose-600" />
                       </div>
                       <div>
-                        <div className="font-semibold text-white">Location</div>
-                        <div className="text-gray-300">Global Events Worldwide</div>
+                        <div className="font-semibold text-gray-800 text-lg">Visit Us</div>
+                        <div className="text-gray-600">Creating magic worldwide</div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="mt-12 p-6 bg-gradient-to-br from-rose-50 to-orange-50 rounded-2xl border border-rose-200">
+                    <h3 className="font-bold text-gray-800 mb-2">🕐 Business Hours</h3>
+                    <p className="text-gray-600 text-sm">Monday - Friday: 9:00 AM - 6:00 PM</p>
+                    <p className="text-gray-600 text-sm">Saturday: 10:00 AM - 4:00 PM</p>
+                    <p className="text-gray-600 text-sm">Sunday: By appointment</p>
                   </div>
                 </div>
 
                 {/* Newsletter Signup */}
-                <div className="bg-black/40 backdrop-blur-md border border-yellow-400/20 rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold text-yellow-400 mb-6">Stay Updated</h2>
-                  <p className="text-gray-300 mb-6">
-                    Subscribe to our newsletter for exclusive event announcements and special offers.
+                <div className="bg-white/80 backdrop-blur-md border border-rose-200/50 rounded-3xl p-8 shadow-xl">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-8">Stay Magical</h2>
+                  <p className="text-gray-600 mb-8 text-lg">
+                    Join our community and be the first to know about exclusive events, special offers, and magical experiences.
                   </p>
 
-                  <form onSubmit={handleNewsletterSubmit} className="space-y-4">
+                  <div className="space-y-6">
                     <div>
                       <input
                         type="email"
                         value={newsletterEmail}
                         onChange={(e) => setNewsletterEmail(e.target.value)}
                         placeholder="Enter your email address"
-                        className="w-full px-4 py-3 bg-black/50 border border-yellow-400/30 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 text-white placeholder-gray-400 backdrop-blur-md"
-                        required
+                        className="w-full px-6 py-4 bg-white/70 border border-rose-200 rounded-2xl focus:ring-2 focus:ring-rose-400 focus:border-rose-400 text-gray-800 placeholder-gray-500 backdrop-blur-md text-lg"
                       />
                     </div>
                     <Button
-                      type="submit"
+                      onClick={handleNewsletterSubmit}
                       disabled={newsletterLoading}
-                      className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold py-3"
+                      className="w-full bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold py-4 text-lg shadow-xl transform hover:scale-105 transition-all"
                     >
-                      {newsletterLoading ? 'Subscribing...' : 'Subscribe Now'}
+                      {newsletterLoading ? 'Joining the magic...' : 'Join the Magic ✨'}
                     </Button>
-                  </form>
+                  </div>
 
                   {newsletterMessage && (
-                    <p className="mt-4 text-center text-sm text-yellow-400">
+                    <p className="mt-6 text-center text-rose-600 font-medium bg-rose-50 py-3 px-4 rounded-xl">
                       {newsletterMessage}
                     </p>
                   )}
+
+                  <div className="mt-8 p-6 bg-gradient-to-br from-rose-50 to-orange-50 rounded-2xl border border-rose-200">
+                    <p className="text-gray-600 text-sm text-center">
+                      🎉 Join over 10,000 event enthusiasts who never miss out on magical experiences!
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -687,18 +744,18 @@ const HomePage: React.FC = () => {
       </Tabs>
 
       {/* Footer */}
-      <footer className="relative z-20 bg-black/60 backdrop-blur-md border-t border-yellow-400/20 text-white py-12">
+      <footer className="relative z-20 bg-gradient-to-br from-rose-900 to-orange-900 text-white py-16">
         <div className="container mx-auto px-6">
           <div className="text-center">
-            <div className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4">be</div>
-            <h3 className="text-xl font-semibold mb-2 text-white">Boujee Events</h3>
-            <p className="text-gray-400 mb-6">Setting the new standard since 2020</p>
-            <div className="flex justify-center space-x-6 text-sm text-gray-500">
+            <div className="text-6xl font-bold bg-gradient-to-r from-rose-300 to-orange-300 bg-clip-text text-transparent mb-4">✨</div>
+            <h3 className="text-3xl font-bold mb-4 text-white">Boujee Events</h3>
+            <p className="text-rose-200 mb-8 text-lg">Creating magical moments since 2020</p>
+            <div className="flex justify-center items-center space-x-8 text-rose-300">
               <span>© 2024 Boujee Events</span>
               <span>•</span>
-              <span className="hover:text-yellow-400 cursor-pointer transition-colors">Privacy Policy</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Privacy Policy</span>
               <span>•</span>
-              <span className="hover:text-yellow-400 cursor-pointer transition-colors">Terms of Service</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Terms of Service</span>
             </div>
           </div>
         </div>
