@@ -10,15 +10,39 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { error } = await login(email, password);
-    if (error) return alert(error.message);
-    navigate('/admin'); // Redirect after login
+    const { data, error } = await login(email, password);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const user = data?.user || null;
+
+    if (!user) {
+      alert('Login success, but no user info found.');
+      return;
+    }
+
+    const role = user.user_metadata?.role;
+
+    if (role === 'admin') {
+      navigate('/admin');
+    } else if (role === 'organizer') {
+      navigate('/organizer');
+    } else if (role === 'member') {
+      navigate('/member');
+    } else {
+      navigate('/');
+    }
   };
 
   const handleMagic = async () => {
     const { error } = await magicLogin(email);
-    if (error) return alert(error.message);
-    alert('Check your email for the login link!');
+    if (error) {
+      alert(error.message);
+    } else {
+      alert('Check your email for the magic login link!');
+    }
   };
 
   return (
@@ -39,11 +63,16 @@ export default function LoginPage() {
           className="w-full mb-3 p-2 border rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
         />
         <button type="submit" className="w-full bg-black text-white py-2 rounded mb-2">
           Login with Password
         </button>
-        <button type="button" onClick={handleMagic} className="w-full text-blue-500 underline text-sm">
+        <button
+          type="button"
+          onClick={handleMagic}
+          className="w-full text-blue-500 underline text-sm"
+        >
           Or send me a magic link
         </button>
       </form>
