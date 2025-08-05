@@ -253,27 +253,33 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50 text-gray-900 relative overflow-hidden">
-      {/* Background Video/Image */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 text-gray-900 relative overflow-hidden">
+      {/* Background Video */}
       <div className="fixed inset-0 z-0">
-        <div 
-          className="w-full h-full bg-cover bg-center bg-fixed opacity-20"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop&crop=center')`
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-transparent to-rose-100/40"></div>
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover opacity-15"
+        >
+          <source src="https://cdn.coverr.co/videos/coverr-elegant-party-setup-6789/1080p.mp4" type="video/mp4" />
+          <source src="https://cdn.coverr.co/videos/coverr-luxury-party-with-golden-confetti-4735/1080p.mp4" type="video/mp4" />
+          <source src="https://assets.mixkit.co/videos/preview/mixkit-elegant-wedding-celebration-4069-large.mp4" type="video/mp4" />
+          {/* Fallback image if video fails */}
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-transparent to-amber-100/30"></div>
       </div>
 
       {/* Header */}
-      <header className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-rose-200/50 sticky top-0 shadow-lg">
+      <header className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-amber-200/50 sticky top-0 shadow-lg">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="text-4xl font-bold bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">✨</div>
+              <div className="text-4xl font-bold bg-gradient-to-r from-amber-500 to-yellow-600 bg-clip-text text-transparent">✨</div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent">Boujee Events</h1>
-                <p className="text-sm text-rose-500/80 font-medium">Creating magical moments</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent">Boujee Events</h1>
+                <p className="text-sm text-amber-600/80 font-medium">Creating magical moments</p>
               </div>
             </div>
             
@@ -281,13 +287,13 @@ const HomePage = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden md:flex border-rose-300 text-rose-600 hover:bg-rose-50 hover:border-rose-400"
+                className="hidden md:flex border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
               >
                 Admin Portal
               </Button>
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold shadow-lg"
+                className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold shadow-lg"
               >
                 Sign In
               </Button>
@@ -298,30 +304,30 @@ const HomePage = () => {
 
       {/* Main Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full relative z-30">
-        <div className="bg-white/60 backdrop-blur-md border-b border-rose-200/30">
+        <div className="bg-white/60 backdrop-blur-md border-b border-amber-200/30">
           <div className="container mx-auto px-6">
             <TabsList className="grid w-full max-w-lg mx-auto grid-cols-4 bg-white/70 p-1 rounded-xl shadow-md">
               <TabsTrigger 
                 value="events" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white text-gray-600 font-medium hover:text-amber-700 rounded-lg transition-all"
               >
                 🎪 Events
               </TabsTrigger>
               <TabsTrigger 
                 value="gallery" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white text-gray-600 font-medium hover:text-amber-700 rounded-lg transition-all"
               >
                 📸 Gallery
               </TabsTrigger>
               <TabsTrigger 
                 value="about" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white text-gray-600 font-medium hover:text-amber-700 rounded-lg transition-all"
               >
                 💫 About
               </TabsTrigger>
               <TabsTrigger 
                 value="contact" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-orange-500 data-[state=active]:text-white text-gray-600 font-medium hover:text-rose-600 rounded-lg transition-all"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white text-gray-600 font-medium hover:text-amber-700 rounded-lg transition-all"
               >
                 📞 Contact
               </TabsTrigger>
@@ -334,17 +340,17 @@ const HomePage = () => {
           <div className="container mx-auto px-6 py-12">
             {/* Hero Section */}
             <div className="text-center mb-16">
-              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-rose-600 via-orange-500 to-pink-600 bg-clip-text text-transparent mb-6 leading-tight">
+              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-700 bg-clip-text text-transparent mb-6 leading-tight">
                 Discover Magic
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
                 Step into a world of extraordinary experiences, where every moment is crafted to perfection
               </p>
               <div className="flex justify-center gap-4">
-                <Button className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold px-8 py-3 shadow-xl">
+                <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold px-8 py-3 shadow-xl">
                   Explore Events
                 </Button>
-                <Button variant="outline" className="border-rose-300 text-rose-600 hover:bg-rose-50 px-8 py-3">
+                <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50 px-8 py-3">
                   Watch Video
                 </Button>
               </div>
@@ -360,8 +366,8 @@ const HomePage = () => {
                     onClick={() => setSelectedCategory(category.name)}
                     className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[100px] h-[100px] rounded-3xl border-2 transition-all duration-300 transform hover:scale-105 ${
                       selectedCategory === category.name
-                        ? 'bg-gradient-to-br from-rose-500 to-orange-500 text-white border-rose-400 shadow-2xl scale-105'
-                        : 'bg-white/80 backdrop-blur-md text-gray-700 border-rose-200 hover:border-rose-400 hover:bg-white/90 shadow-lg'
+                        ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white border-amber-400 shadow-2xl scale-105'
+                        : 'bg-white/80 backdrop-blur-md text-gray-700 border-amber-200 hover:border-amber-400 hover:bg-white/90 shadow-lg'
                     }`}
                   >
                     <span className="text-2xl mb-2">{category.icon}</span>
@@ -383,7 +389,7 @@ const HomePage = () => {
             {/* Events Grid - Compact Masonry Layout with Mixed Content */}
             {loading ? (
               <div className="text-center py-20">
-                <div className="w-12 h-12 border-4 border-rose-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
                 <p className="text-gray-600 text-lg">Loading magical experiences...</p>
               </div>
             ) : (
@@ -425,7 +431,7 @@ const HomePage = () => {
                       return (
                         <div key={item.key} className="break-inside-avoid mb-4">
                           <div 
-                            className="group relative rounded-2xl overflow-hidden border border-rose-200/30 hover:border-rose-400/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
+                            className="group relative rounded-2xl overflow-hidden border border-amber-200/30 hover:border-amber-400/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-xl cursor-pointer"
                             style={{ height: `${randomHeight}px` }}
                           >
                             {/* Event Image with Overlay */}
@@ -517,7 +523,7 @@ const HomePage = () => {
                       return (
                         <div key={item.key} className="break-inside-avoid mb-4">
                           <div 
-                            className="group relative rounded-2xl overflow-hidden border border-rose-200/20 hover:border-rose-300/40 transition-all duration-500 hover:scale-[1.02] cursor-pointer"
+                            className="group relative rounded-2xl overflow-hidden border border-amber-200/20 hover:border-amber-300/40 transition-all duration-500 hover:scale-[1.02] cursor-pointer"
                             style={{ height: `${item.height}px` }}
                           >
                             <img
@@ -552,7 +558,7 @@ const HomePage = () => {
                 </p>
                 <Button 
                   onClick={() => setSelectedCategory('All')}
-                  className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold px-8 py-3 shadow-lg"
+                  className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold px-8 py-3 shadow-lg"
                 >
                   View All Events
                 </Button>
@@ -565,7 +571,7 @@ const HomePage = () => {
         <TabsContent value="gallery" className="mt-0 relative z-20">
           <div className="container mx-auto px-6 py-16">
             <div className="text-center mb-16">
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Event Gallery</h1>
+              <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Event Gallery</h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
                 Immerse yourself in the beauty and excitement of our unforgettable events
               </p>
@@ -587,7 +593,7 @@ const HomePage = () => {
                 "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=550&fit=crop"
               ].map((imageUrl, index) => (
                 <div key={index} className="break-inside-avoid mb-6">
-                  <div className="group relative overflow-hidden rounded-3xl border border-rose-200/50 hover:border-rose-400/50 transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-2xl">
+                  <div className="group relative overflow-hidden rounded-3xl border border-amber-200/50 hover:border-amber-400/50 transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-2xl">
                     <img
                       src={imageUrl}
                       alt={`Gallery ${index + 1}`}
@@ -611,15 +617,15 @@ const HomePage = () => {
           <div className="container mx-auto px-6 py-16">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <h1 className="text-6xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Our Story</h1>
+                <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Our Story</h1>
                 <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                   Creating magical experiences that bring people together and create lasting memories.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-16">
-                <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 border border-rose-200/50 shadow-xl">
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-6">Our Mission</h2>
+                <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 border border-amber-200/50 shadow-xl">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Our Mission</h2>
                   <p className="text-gray-600 mb-6 text-lg leading-relaxed">
                     Boujee Events was founded with a passion for creating extraordinary experiences that transcend the ordinary. 
                     We believe every celebration deserves to be magical, every gathering should spark joy, and every moment should be unforgettable.
@@ -629,12 +635,12 @@ const HomePage = () => {
                   </p>
                   
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-200 rounded-2xl p-6">
-                      <div className="text-4xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-2">500+</div>
+                    <div className="text-center bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6">
+                      <div className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-2">500+</div>
                       <div className="text-gray-600 font-medium">Magical Events</div>
                     </div>
-                    <div className="text-center bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-200 rounded-2xl p-6">
-                      <div className="text-4xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-2">50K+</div>
+                    <div className="text-center bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6">
+                      <div className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-2">50K+</div>
                       <div className="text-gray-600 font-medium">Happy Guests</div>
                     </div>
                   </div>
