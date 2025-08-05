@@ -11,6 +11,7 @@ import BookingPage from './pages/BookingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
+import AuthCallback from './pages/AuthCallback'; // Add this import
 
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -194,6 +195,7 @@ const AppLayout: React.FC = () => {
       
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} /> {/* Add OAuth callback route */}
       
       {/* Protected Dashboard Routes */}
       <Route path="/admin" element={
@@ -202,13 +204,31 @@ const AppLayout: React.FC = () => {
         </ProtectedRoute>
       } />
       
+      <Route path="/admin-dashboard" element={
+        <ProtectedRoute requiredRole="admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      
       <Route path="/organizer" element={
-        <ProtectedRoute requiredRole="organizer">
+        <ProtectedRoute requiredRole="organiser">
+          <OrganizerDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/organiser-dashboard" element={
+        <ProtectedRoute requiredRole="organiser">
           <OrganizerDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/member" element={
+        <ProtectedRoute requiredRole="member">
+          <MemberDashboard />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/member-dashboard" element={
         <ProtectedRoute requiredRole="member">
           <MemberDashboard />
         </ProtectedRoute>
