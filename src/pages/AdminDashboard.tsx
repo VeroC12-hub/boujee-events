@@ -5,6 +5,7 @@ import { useAnalytics } from '../hooks/useAnalytics';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import AdminOverview from '../components/admin/AdminOverview';
 import AdminEvents from '../components/admin/AdminEvents';
+import Logo from '../components/branding/Logo';
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
@@ -132,10 +133,7 @@ const AdminDashboard: React.FC = () => {
       `}>
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-border">
-          <div className="flex items-center">
-            <span className="text-2xl">🎫</span>
-            <span className="ml-2 text-xl font-bold text-primary">Boujee Events</span>
-          </div>
+          <Logo variant="light" size="medium" showTagline={false} />
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden text-gray-400 hover:text-white"
@@ -277,8 +275,9 @@ const AdminDashboard: React.FC = () => {
         {/* Footer */}
         <footer className="bg-card border-t border-border px-6 py-4">
           <div className="flex items-center justify-between text-sm text-gray-400">
-            <div>
-              Boujee Events Admin Dashboard v1.0 | Connected to Mock API
+            <div className="flex items-center gap-2">
+              <div className="text-amber-400 font-bold text-sm">be</div>
+              <span>Boujee Events Admin Dashboard v1.0 | Connected to Mock API</span>
             </div>
             <div>
               User: {authState.user.name} | 2025-08-03 03:52:31 UTC
