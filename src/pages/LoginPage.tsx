@@ -1,81 +1,62 @@
-import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+// src/pages/LoginPage.tsx
+import { useEffect } from "react";
+import { GoogleLogin, googleLogout, useGoogleLogin } from "@react-oauth/google";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import { getUserRole } from "@/lib/auth";
 
-export default function LoginPage() {
-  const { login, magicLogin } = useAuth();
+const LoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const { data, error } = await login(email, password);
-    if (error) {
-      alert(error.message);
-      return;
-    }
+  const login = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const userInfo = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: {
+            Authorization: `Bearer ${tokenResponse.access_token}`,
+          },
+        });
 
-    const user = data?.user || null;
+        const { email, sub: id, name, picture } = userInfo.data;
 
-    if (!user) {
-      alert('Login success, but no user info found.');
-      return;
-    }
+        // Store in Supabase
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: tokenResponse.access_token,
+        });
 
-    const role = user.user_metadata?.role;
+        if (error) throw error;
 
-    if (role === 'admin') {
-      navigate('/admin');
-    } else if (role === 'organizer') {
-      navigate('/organizer');
-    } else if (role === 'member') {
-      navigate('/member');
-    } else {
-      navigate('/');
-    }
-  };
+        const user = data.user;
+        const role = await getUserRole(user?.id);
 
-  const handleMagic = async () => {
-    const { error } = await magicLogin(email);
-    if (error) {
-      alert(error.message);
-    } else {
-      alert('Check your email for the magic login link!');
-    }
-  };
+        if (role === "admin") navigate("/admin-dashboard");
+        else if (role === "organiser") navigate("/organiser-dashboard");
+        else navigate("/member-dashboard");
+
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+    },
+    onError: () => {
+      console.log("Google login failed");
+    },
+  });
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100">
-      <form onSubmit={handleLogin} className="bg-white p-6 rounded-xl shadow-lg w-full max-w-sm">
-        <h1 className="text-xl font-bold mb-4">Login</h1>
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full mb-3 p-2 border rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full mb-3 p-2 border rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="w-full bg-black text-white py-2 rounded mb-2">
-          Login with Password
-        </button>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="p-8 bg-white rounded shadow-md">
+        <h2 className="text-2xl font-semibold mb-4">Login</h2>
         <button
-          type="button"
-          onClick={handleMagic}
-          className="w-full text-blue-500 underline text-sm"
+          onClick={() => login()}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
         >
-          Or send me a magic link
+          Login with Google
         </button>
-      </form>
+      </div>
     </div>
   );
-}
+};
+
+export default LoginPage;
