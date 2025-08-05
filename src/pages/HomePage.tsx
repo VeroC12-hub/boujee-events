@@ -261,7 +261,7 @@ const HomePage = () => {
           muted
           loop
           playsInline
-          className="w-full h-full object-cover opacity-30"
+          className="w-full h-full object-cover opacity-50"
           poster="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop"
         >
           <source src="https://assets.mixkit.co/videos/preview/mixkit-elegant-wedding-celebration-4069-large.mp4" type="video/mp4" />
