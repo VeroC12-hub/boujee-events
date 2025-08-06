@@ -1,11 +1,6 @@
-// =====================================================
-// LoginPage.tsx - COMPLETE REPLACEMENT - IMPORT ERRORS FIXED
-// Replace ENTIRE src/pages/LoginPage.tsx file with this code
-// =====================================================
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { signIn, signUp, getCurrentUser, getCurrentProfile } from "../lib/auth"; // Fixed import path
+import { getCurrentUser, getCurrentProfile, signIn, signUp } from "../lib/auth";
 import Logo from '../components/branding/Logo';
 
 const LoginPage: React.FC = () => {
@@ -140,12 +135,17 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const fillDemoCredentials = (email: string, password: string) => {
+    setFormData(prev => ({ ...prev, email, password }));
+    setError(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Logo variant="light" size="large" showTagline={true} />
+          <Logo variant="light" size="lg" showTagline={true} />
         </div>
 
         {/* Main Card */}
@@ -174,6 +174,27 @@ const LoginPage: React.FC = () => {
             </button>
           </div>
 
+          {/* Demo Credentials (only for login) */}
+          {isLogin && (
+            <div className="bg-blue-50/10 border border-blue-200/30 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-medium text-blue-300 mb-3">🧪 Demo Accounts</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => fillDemoCredentials('admin@nexacore-innovations.com', 'Admin123!')}
+                  className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
+                >
+                  <strong>Production Admin:</strong> admin@nexacore-innovations.com
+                </button>
+                <button
+                  onClick={() => fillDemoCredentials('admin@test.com', 'TestAdmin2025')}
+                  className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
+                >
+                  <strong>Test Admin:</strong> admin@test.com
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-6">
             {/* Sign Up Fields */}
@@ -188,7 +209,7 @@ const LoginPage: React.FC = () => {
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
                     placeholder="Enter your full name"
                     required={!isLogin}
                   />
@@ -203,7 +224,7 @@ const LoginPage: React.FC = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
                     placeholder="Your phone number"
                   />
                 </div>
@@ -216,10 +237,10 @@ const LoginPage: React.FC = () => {
                     name="role"
                     value={formData.role}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-yellow-400 transition-colors"
                   >
-                    <option value="member">Member (Attend Events)</option>
-                    <option value="organizer">Organizer (Create Events)</option>
+                    <option value="member" className="bg-gray-800">Member (Attend Events)</option>
+                    <option value="organizer" className="bg-gray-800">Organizer (Create Events)</option>
                   </select>
                 </div>
               </>
@@ -235,7 +256,7 @@ const LoginPage: React.FC = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
                 placeholder="Enter your email"
                 required
               />
@@ -250,7 +271,7 @@ const LoginPage: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
                 placeholder="Enter your password"
                 required
               />
