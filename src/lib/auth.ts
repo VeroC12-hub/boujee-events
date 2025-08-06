@@ -144,7 +144,7 @@ class AuthService {
 
         if (session?.user) {
           this.currentUser = session.user;
-          await this.loadUserProfile(session.user.id);
+          await this.loadUserProfileWithRetry(session.user.id);
         }
 
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -152,7 +152,7 @@ class AuthService {
           
           if (event === 'SIGNED_IN' && session?.user) {
             this.currentUser = session.user;
-            await this.loadUserProfile(session.user.id);
+            await this.loadUserProfileWithRetry(session.user.id);
           } else if (event === 'SIGNED_OUT') {
             this.currentUser = null;
             this.currentProfile = null;
@@ -206,6 +206,7 @@ class AuthService {
           return { user: null, error: 'Sign up failed - no user returned' };
         }
 
+        // Create profile using the safe method
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
@@ -219,6 +220,7 @@ class AuthService {
 
         if (profileError) {
           console.error('Failed to create user profile:', profileError);
+          // Don't fail the signup if profile creation fails
         }
 
         return { user: authData.user, error: null };
@@ -248,7 +250,10 @@ class AuthService {
           console.log('❌ Supabase auth failed, trying mock auth:', authError.message);
           // Fall through to mock auth
         } else if (authData.user) {
-          await this.loadUserProfile(authData.user.id);
+          console.log('✅ Supabase authentication successful');
+          
+          // Load profile with retry logic for RLS issues
+          await this.loadUserProfileWithRetry(authData.user.id, 5);
           
           if (this.currentProfile && this.currentProfile.status !== 'approved') {
             if (this.currentProfile.status === 'pending') {
@@ -341,30 +346,166 @@ class AuthService {
     });
   }
 
-  private async loadUserProfile(userId: string): Promise<void> {
+  // Enhanced loadUserProfile with multiple fallback strategies
+  private async loadUserProfileWithRetry(userId: string, maxRetries: number = 3): Promise<void> {
+    console.log(`🔍 Loading user profile for: ${userId} (max retries: ${maxRetries})`);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Attempt ${attempt}/${maxRetries}`);
+        
+        // Strategy 1: Direct query
+        if (attempt <= 2) {
+          await this.loadUserProfileDirect(userId);
+          if (this.currentProfile) {
+            console.log(`✅ Profile loaded successfully via direct query on attempt ${attempt}`);
+            return;
+          }
+        }
+        
+        // Strategy 2: Use helper function
+        if (attempt >= 2) {
+          await this.loadUserProfileViaFunction(userId);
+          if (this.currentProfile) {
+            console.log(`✅ Profile loaded successfully via function on attempt ${attempt}`);
+            return;
+          }
+        }
+        
+      } catch (error: any) {
+        console.warn(`Profile load attempt ${attempt} failed:`, error);
+        
+        // If it's an RLS recursion error, skip direct attempts and try functions
+        if (error?.code === '42P17' || error?.message?.includes('recursion')) {
+          console.log('🔄 RLS recursion detected, switching to function-based approach...');
+          try {
+            await this.loadUserProfileViaFunction(userId);
+            if (this.currentProfile) {
+              console.log(`✅ Profile loaded successfully via function after RLS error`);
+              return;
+            }
+          } catch (funcError) {
+            console.error('Function-based profile load also failed:', funcError);
+          }
+        }
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    console.error('❌ Failed to load profile after all retry attempts');
+    this.currentProfile = null;
+  }
+
+  // Direct profile loading method
+  private async loadUserProfileDirect(userId: string): Promise<void> {
     if (!supabase) {
       console.log('No Supabase client, skipping profile load');
       return;
     }
 
+    console.log('🔍 Attempting direct profile load...');
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Direct profile load failed:', error);
+      throw error;
+    }
+
+    if (data) {
+      this.currentProfile = data;
+      console.log('✅ Direct profile load successful:', data.role);
+    } else {
+      console.warn('No profile data returned from direct query');
+    }
+  }
+
+  // Function-based profile loading method (bypasses RLS)
+  private async loadUserProfileViaFunction(userId: string): Promise<void> {
+    if (!supabase) {
+      console.log('No Supabase client, skipping profile load');
+      return;
+    }
+
+    console.log('🔍 Attempting function-based profile load...');
+    
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+        .rpc('get_user_profile', { user_id: userId });
 
       if (error) {
-        console.error('Failed to load user profile:', error);
-        this.currentProfile = null;
-        return;
+        console.error('Function-based profile load failed:', error);
+        throw error;
       }
 
-      this.currentProfile = data;
+      if (data && data.length > 0) {
+        this.currentProfile = data[0];
+        console.log('✅ Function-based profile load successful:', data[0].role);
+      } else {
+        console.warn('No profile data returned from function');
+      }
     } catch (error) {
-      console.error('Load profile failed:', error);
-      this.currentProfile = null;
+      console.error('RPC call failed:', error);
+      throw error;
     }
+  }
+
+  // Helper function to check admin status safely
+  async isAdmin(): Promise<boolean> {
+    // First check loaded profile
+    if (this.currentProfile?.role === 'admin') {
+      return true;
+    }
+
+    // If no profile or not admin, try database check
+    if (this.currentUser && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('is_admin');
+        if (error) {
+          console.warn('Admin check failed:', error);
+          return false;
+        }
+        return data === true;
+      } catch (error) {
+        console.warn('Admin RPC call failed:', error);
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  // Get current user role safely
+  async getCurrentUserRole(): Promise<string> {
+    if (this.currentProfile?.role) {
+      return this.currentProfile.role;
+    }
+
+    if (this.currentUser && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('current_user_role');
+        if (error) {
+          console.warn('Role check failed:', error);
+          return 'member';
+        }
+        return data || 'member';
+      } catch (error) {
+        console.warn('Role RPC call failed:', error);
+        return 'member';
+      }
+    }
+
+    return 'member';
   }
 
   // State management
@@ -381,6 +522,7 @@ class AuthService {
   onAuthStateChange(callback: (state: AuthState) => void): () => void {
     this.callbacks.add(callback);
     
+    // Immediately call with current state
     callback({
       user: this.currentUser,
       profile: this.currentProfile,
@@ -407,11 +549,48 @@ class AuthService {
     return Boolean(this.currentUser && this.currentProfile);
   }
 
-  isAdmin(): boolean {
+  // Synchronous admin check (uses loaded profile only)
+  isAdminSync(): boolean {
     return this.currentProfile?.role === 'admin' && this.currentProfile?.status === 'approved';
+  }
+
+  // Force refresh profile
+  async refreshProfile(): Promise<void> {
+    if (this.currentUser) {
+      await this.loadUserProfileWithRetry(this.currentUser.id);
+      
+      // Update stored profile
+      if (this.currentProfile) {
+        localStorage.setItem('boujee_auth_profile', JSON.stringify(this.currentProfile));
+      }
+      
+      // Notify state change
+      this.notifyStateChange({
+        user: this.currentUser,
+        profile: this.currentProfile,
+        session: null,
+        loading: false,
+        error: null
+      });
+    }
+  }
+
+  // Debug helper
+  getDebugInfo(): any {
+    return {
+      hasSupabase: !!supabase,
+      hasUser: !!this.currentUser,
+      hasProfile: !!this.currentProfile,
+      userEmail: this.currentUser?.email,
+      userRole: this.currentProfile?.role,
+      userStatus: this.currentProfile?.status,
+      storedUserExists: !!localStorage.getItem('boujee_auth_user'),
+      storedProfileExists: !!localStorage.getItem('boujee_auth_profile')
+    };
   }
 }
 
+// Create singleton instance
 export const authService = AuthService.getInstance();
 
 // Export utility functions
@@ -420,3 +599,7 @@ export const getCurrentProfile = () => authService.getCurrentProfile();
 export const signIn = (data: SignInData) => authService.signIn(data);
 export const signUp = (data: SignUpData) => authService.signUp(data);
 export const signOut = () => authService.signOut();
+export const refreshProfile = () => authService.refreshProfile();
+export const isAdmin = () => authService.isAdmin();
+export const getCurrentUserRole = () => authService.getCurrentUserRole();
+export const getAuthDebugInfo = () => authService.getDebugInfo();
