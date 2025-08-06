@@ -1,52 +1,49 @@
-// =====================================================
-// LoadingSpinner Component - CREATE NEW FILE
-// Create this file: src/components/common/LoadingSpinner.tsx
-// =====================================================
-
+// src/components/common/LoadingSpinner.tsx - Create this file if it doesn't exist
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  size?: 'small' | 'medium' | 'large';
-  color?: string;
-  message?: string;
   fullScreen?: boolean;
+  message?: string;
+  size?: 'small' | 'medium' | 'large';
+  color?: 'primary' | 'white' | 'gray';
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  fullScreen = false, 
+  message = "Loading...",
   size = 'medium',
-  color = 'border-yellow-400',
-  message = 'Loading...',
-  fullScreen = false
+  color = 'primary'
 }) => {
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return 'w-4 h-4 border-2';
-      case 'large':
-        return 'w-12 h-12 border-4';
-      default:
-        return 'w-8 h-8 border-2';
-    }
+  const containerClass = fullScreen 
+    ? "min-h-screen bg-gray-900 flex items-center justify-center" 
+    : "flex items-center justify-center p-8";
+
+  const sizeClasses = {
+    small: 'w-4 h-4',
+    medium: 'w-8 h-8',
+    large: 'w-12 h-12'
   };
 
-  const spinner = (
-    <div className="flex items-center justify-center">
-      <div className={`${getSizeClasses()} ${color} border-t-transparent rounded-full animate-spin`}></div>
-      {message && <p className="text-white ml-4">{message}</p>}
+  const colorClasses = {
+    primary: 'border-yellow-400 border-t-transparent',
+    white: 'border-white border-t-transparent',
+    gray: 'border-gray-400 border-t-transparent'
+  };
+
+  return (
+    <div className={containerClass}>
+      <div className="text-center">
+        <div 
+          className={`${sizeClasses[size]} border-2 ${colorClasses[color]} rounded-full animate-spin mx-auto mb-4`}
+        />
+        {message && (
+          <p className={`${color === 'white' ? 'text-white' : 'text-gray-400'}`}>
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
-
-  if (fullScreen) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          {spinner}
-        </div>
-      </div>
-    );
-  }
-
-  return spinner;
 };
 
 export default LoadingSpinner;
