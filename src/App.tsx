@@ -1,27 +1,64 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// =====================================================
+// App.tsx - COMPLETE REPLACEMENT - BUILD ERRORS FIXED
+// Replace ENTIRE src/App.tsx file with this code
+// =====================================================
+
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useToast } from './hooks/useToast';
-import { ToastContainer } from './components/common/Toast';
 
 // Pages
 import HomePage from './pages/HomePage';
 import IndexPage from './pages/Index';
-import Login from './pages/LoginPage';
+import LoginPage from './pages/LoginPage';
 import BookingPage from './pages/BookingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
-import AuthCallback from './pages/AuthCallback'; // Add this import
+import AuthCallback from './pages/AuthCallback';
+import NotFound from './pages/NotFound';
 
-// Contexts
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AppProvider } from './contexts/AppContext';
+// Auth Service
+import { authService } from './lib/auth';
+
+// Types
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRole?: 'admin' | 'organizer' | 'member';
+}
+
+// Auth Hook
+const useAuth = () => {
+  const [authState, setAuthState] = React.useState({
+    user: null,
+    profile: null,
+    loading: true,
+    error: null
+  });
+
+  React.useEffect(() => {
+    const unsubscribe = authService.onAuthStateChange((state) => {
+      setAuthState(state);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  return {
+    state: {
+      user: authState.user,
+      profile: authState.profile,
+      isLoading: authState.loading,
+      isAuthenticated: Boolean(authState.user && authState.profile),
+      error: authState.error
+    },
+    signIn: authService.signIn.bind(authService),
+    signOut: authService.signOut.bind(authService),
+    signUp: authService.signUp.bind(authService)
+  };
+};
 
 // Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: string }> = ({ 
-  children, 
-  requiredRole 
-}) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const { state } = useAuth();
   
   if (state.isLoading) {
@@ -35,11 +72,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
     );
   }
   
-  if (!state.isAuthenticated || !state.user) {
+  if (!state.isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
-  if (requiredRole && state.user.role !== requiredRole) {
+  if (requiredRole && state.profile?.role !== requiredRole && state.profile?.role !== 'admin') {
     return <Navigate to="/login" replace />;
   }
   
@@ -86,23 +123,6 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Toast Provider Component
-const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { toasts, removeToast, success, error, warning, info } = useToast();
-
-  useEffect(() => {
-    // Make toast functions globally available
-    (window as Record<string, unknown>).toast = { success, error, warning, info };
-  }, [success, error, warning, info]);
-
-  return (
-    <div className="App">
-      {children}
-      <ToastContainer toasts={toasts} onClose={removeToast} />
-    </div>
-  );
-};
-
 // 404 Not Found Component
 const NotFoundPage: React.FC = () => {
   return (
@@ -128,7 +148,7 @@ const NotFoundPage: React.FC = () => {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-4">
-          2025-08-03 16:33:05 UTC | Boujee Events
+          2025-08-06 | Boujee Events
         </p>
       </div>
     </div>
@@ -137,6 +157,12 @@ const NotFoundPage: React.FC = () => {
 
 // Emergency Admin Login Component
 const EmergencyAdminLogin: React.FC = () => {
+  const handleEmergencyLogin = () => {
+    // For development only - create a fake admin session
+    localStorage.setItem('emergency_admin', 'true');
+    window.location.href = '/admin';
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full border border-white/20">
@@ -146,23 +172,7 @@ const EmergencyAdminLogin: React.FC = () => {
         </p>
         <div className="space-y-4">
           <button
-            onClick={() => {
-              // Emergency login as admin
-              const mockAuthState = {
-                isAuthenticated: true,
-                user: {
-                  id: 'admin-emergency',
-                  name: 'VeroC12-hub',
-                  email: 'admin@boujeeevents.com',
-                  role: 'admin',
-                  avatar: 'https://avatars.githubusercontent.com/u/VeroC12-hub?v=4',
-                  lastLogin: new Date().toISOString(),
-                  status: 'active'
-                }
-              };
-              localStorage.setItem('authState', JSON.stringify(mockAuthState));
-              window.location.href = '/admin';
-            }}
+            onClick={handleEmergencyLogin}
             className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors font-semibold"
           >
             🚨 Emergency Admin Login
@@ -175,7 +185,7 @@ const EmergencyAdminLogin: React.FC = () => {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-4 text-center">
-          2025-08-03 21:52:16 UTC | Emergency Access Route
+          2025-08-06 | Emergency Access Route
         </p>
       </div>
     </div>
@@ -186,7 +196,7 @@ const EmergencyAdminLogin: React.FC = () => {
 const AppLayout: React.FC = () => {
   return (
     <Routes>
-      {/* PUBLIC ROUTES - What customers see */}
+      {/* PUBLIC ROUTES */}
       <Route path="/" element={<HomePage />} />
       <Route path="/home" element={<HomePage />} />
       <Route path="/index" element={<IndexPage />} />
@@ -194,8 +204,8 @@ const AppLayout: React.FC = () => {
       <Route path="/book/:eventId" element={<BookingPage />} />
       
       {/* Auth Routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/auth/callback" element={<AuthCallback />} /> {/* Add OAuth callback route */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Protected Dashboard Routes */}
       <Route path="/admin" element={
@@ -211,13 +221,13 @@ const AppLayout: React.FC = () => {
       } />
       
       <Route path="/organizer" element={
-        <ProtectedRoute requiredRole="organiser">
+        <ProtectedRoute requiredRole="organizer">
           <OrganizerDashboard />
         </ProtectedRoute>
       } />
       
-      <Route path="/organiser-dashboard" element={
-        <ProtectedRoute requiredRole="organiser">
+      <Route path="/organizer-dashboard" element={
+        <ProtectedRoute requiredRole="organizer">
           <OrganizerDashboard />
         </ProtectedRoute>
       } />
@@ -247,15 +257,9 @@ const AppLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppProvider>
-          <Router>
-            <ToastProvider>
-              <AppLayout />
-            </ToastProvider>
-          </Router>
-        </AppProvider>
-      </AuthProvider>
+      <Router>
+        <AppLayout />
+      </Router>
     </ErrorBoundary>
   );
 };
