@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import useAnalytics from '../hooks/useAnalytics';
-import Logo from '../components/branding/Logo';
 
-// Safe loading component
+// Safe LoadingSpinner component (inline)
 const LoadingSpinner: React.FC<{ fullScreen?: boolean; message?: string }> = ({ 
   fullScreen = false, 
   message = "Loading..." 
@@ -23,28 +21,54 @@ const LoadingSpinner: React.FC<{ fullScreen?: boolean; message?: string }> = ({
   );
 };
 
-// Safe AdminOverview component
+// Safe Logo component (inline)
+const Logo: React.FC<{ variant?: string; size?: string; showTagline?: boolean }> = ({ 
+  variant = 'light', 
+  size = 'medium', 
+  showTagline = false 
+}) => {
+  return (
+    <div className="flex items-center space-x-3">
+      <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-lg">
+        <span className="font-bold text-black text-sm">be</span>
+      </div>
+      <div>
+        <h1 className="font-bold tracking-tight text-white text-lg">
+          Boujee Events
+        </h1>
+        {showTagline && (
+          <p className="text-xs text-gray-300 font-medium">Creating magical moments</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Mock useAnalytics hook (inline)
+const useAnalytics = () => {
+  const [loading, setLoading] = useState(false);
+  
+  return {
+    loading,
+    metrics: {
+      data: [
+        { id: 1, name: 'Total Revenue', value: 524300, change: 23.5, changeType: 'positive' },
+        { id: 2, name: 'Total Events', value: 47, change: 12.3, changeType: 'positive' },
+        { id: 3, name: 'Total Bookings', value: 1234, change: 8.7, changeType: 'positive' },
+        { id: 4, name: 'Average Rating', value: 4.8, change: 2.1, changeType: 'positive' }
+      ]
+    },
+    refetchAll: () => {
+      setLoading(true);
+      setTimeout(() => setLoading(false), 1000);
+    }
+  };
+};
+
+// Safe AdminOverview component (inline)
 const AdminOverview: React.FC = () => {
   const analytics = useAnalytics();
-
-  // Safe access to analytics data with fallbacks
   const metrics = analytics?.metrics?.data || [];
-  const isLoading = analytics?.loading || false;
-  const error = analytics?.error || null;
-
-  if (isLoading) {
-    return <LoadingSpinner message="Loading analytics..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-          <p className="text-red-400">Error loading analytics: {error}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -55,60 +79,27 @@ const AdminOverview: React.FC = () => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {metrics.length > 0 ? (
-          metrics.map((metric) => (
-            <div key={metric.id} className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-400">{metric.name}</h3>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  metric.changeType === 'positive' ? 'bg-green-500/20 text-green-400' :
-                  metric.changeType === 'negative' ? 'bg-red-500/20 text-red-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {metric.changeType === 'positive' ? '+' : ''}{metric.change}%
-                </span>
-              </div>
-              <div className="flex items-baseline">
-                <span className="text-2xl font-bold text-white">
-                  {typeof metric.value === 'number' 
-                    ? metric.value.toLocaleString() 
-                    : metric.value
-                  }
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">{metric.period}</p>
+        {metrics.map((metric: any) => (
+          <div key={metric.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-gray-400">{metric.name}</h3>
+              <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
+                +{metric.change}%
+              </span>
             </div>
-          ))
-        ) : (
-          // Fallback metrics
-          <>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Revenue</h3>
-              <span className="text-2xl font-bold text-white">€524,300</span>
-              <p className="text-xs text-gray-500 mt-2">vs last month</p>
+            <div className="flex items-baseline">
+              <span className="text-2xl font-bold text-white">
+                {typeof metric.value === 'number' ? metric.value.toLocaleString() : metric.value}
+              </span>
             </div>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Events</h3>
-              <span className="text-2xl font-bold text-white">47</span>
-              <p className="text-xs text-gray-500 mt-2">vs last month</p>
-            </div>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Bookings</h3>
-              <span className="text-2xl font-bold text-white">1,234</span>
-              <p className="text-xs text-gray-500 mt-2">vs last month</p>
-            </div>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-4">Average Rating</h3>
-              <span className="text-2xl font-bold text-white">4.8</span>
-              <p className="text-xs text-gray-500 mt-2">vs last month</p>
-            </div>
-          </>
-        )}
+            <p className="text-xs text-gray-500 mt-2">vs last month</p>
+          </div>
+        ))}
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
           <div className="space-y-3">
             <button className="w-full text-left p-3 bg-yellow-400/10 border border-yellow-400/30 rounded-lg hover:bg-yellow-400/20 transition-colors">
@@ -123,7 +114,7 @@ const AdminOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
           <div className="space-y-3 text-sm">
             <div className="flex items-center text-gray-300">
@@ -141,7 +132,7 @@ const AdminOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">System Status</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -163,7 +154,7 @@ const AdminOverview: React.FC = () => {
   );
 };
 
-// Safe AdminEvents component
+// Safe AdminEvents component (inline)
 const AdminEvents: React.FC = () => {
   return (
     <div className="p-6">
@@ -172,7 +163,7 @@ const AdminEvents: React.FC = () => {
         <p className="text-gray-400">Manage all events on your platform</p>
       </div>
 
-      <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-white">All Events</h3>
           <button className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors">
@@ -193,8 +184,8 @@ const AdminEvents: React.FC = () => {
   );
 };
 
+// Main AdminDashboard Component
 const AdminDashboard: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const analytics = useAnalytics();
@@ -207,18 +198,18 @@ const AdminDashboard: React.FC = () => {
     { id: 3, message: 'Payment processed', time: '10 minutes ago', type: 'success' }
   ]);
 
-  // Navigation items with safe badge access
+  // Safe navigation items with proper fallbacks
   const navigationItems = [
     {
       name: 'Overview',
       section: 'overview',
-      icon: '📊',
+      icon: '🏠',
       badge: null
     },
     {
       name: 'Analytics',
       section: 'analytics',
-      icon: '📈',
+      icon: '📊',
       badge: analytics?.metrics?.data?.length || 0
     },
     {
@@ -246,8 +237,7 @@ const AdminDashboard: React.FC = () => {
     if (analytics?.refetchAll) {
       const interval = setInterval(() => {
         analytics.refetchAll();
-      }, 30000); // Refresh every 30 seconds
-
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [analytics]);
@@ -279,7 +269,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Analytics Dashboard</h2>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
               <p className="text-gray-400">Advanced analytics features coming soon...</p>
             </div>
           </div>
@@ -288,7 +278,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">User Management</h2>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
               <p className="text-gray-400">User management features coming soon...</p>
             </div>
           </div>
@@ -297,7 +287,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
               <p className="text-gray-400">Settings panel coming soon...</p>
             </div>
           </div>
@@ -307,13 +297,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Loading check with proper fallbacks
+  // Safe user data with proper fallbacks
   if (!user || !profile) {
     return <LoadingSpinner fullScreen message="Loading dashboard..." />;
   }
 
   const userInfo = {
-    name: profile?.full_name || user?.email || 'Admin User',
+    name: profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Admin User',
     email: user?.email || 'admin@example.com',
     role: profile?.role || 'admin',
     avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'Admin')}&background=D4AF37&color=000`,
