@@ -1,5 +1,5 @@
 // =====================================================
-// AUTH SERVICE - COMPLETE REPLACEMENT
+// AUTH SERVICE - BUILD ERROR FIXED
 // Replace ENTIRE src/lib/auth.ts file with this code
 // =====================================================
 
@@ -307,24 +307,6 @@ class AuthService {
     }
   }
 
-  async changePassword(newPassword: string): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      return { error: null };
-
-    } catch (error) {
-      console.error('Password change failed:', error);
-      return { error: 'Failed to change password' };
-    }
-  }
-
   // =====================================================
   // ADMIN FUNCTIONS
   // =====================================================
@@ -355,47 +337,6 @@ class AuthService {
     }
   }
 
-  async rejectUser(userId: string, reason?: string): Promise<{ error: string | null }> {
-    try {
-      if (!this.isAdmin()) {
-        return { error: 'Unauthorized - Admin access required' };
-      }
-
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ 
-          status: 'rejected',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      // Add to approval queue with rejection reason
-      if (reason) {
-        await supabase
-          .from('approval_queue')
-          .insert({
-            request_type: 'user_registration',
-            requester_id: userId,
-            item_id: userId,
-            status: 'rejected',
-            reviewed_by: this.currentUser?.id,
-            review_notes: reason,
-            reviewed_at: new Date().toISOString()
-          });
-      }
-
-      return { error: null };
-
-    } catch (error) {
-      console.error('Reject user failed:', error);
-      return { error: 'Failed to reject user' };
-    }
-  }
-
   async getPendingUsers(): Promise<{ users: UserProfile[]; error: string | null }> {
     try {
       if (!this.isAdmin()) {
@@ -417,29 +358,6 @@ class AuthService {
     } catch (error) {
       console.error('Get pending users failed:', error);
       return { users: [], error: 'Failed to load pending users' };
-    }
-  }
-
-  async getAllUsers(): Promise<{ users: UserProfile[]; error: string | null }> {
-    try {
-      if (!this.isAdmin()) {
-        return { users: [], error: 'Unauthorized - Admin access required' };
-      }
-
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        return { users: [], error: error.message };
-      }
-
-      return { users: data || [], error: null };
-
-    } catch (error) {
-      console.error('Get all users failed:', error);
-      return { users: [], error: 'Failed to load users' };
     }
   }
 
@@ -519,46 +437,6 @@ class AuthService {
       this.callbacks.delete(callback);
     };
   }
-
-  // =====================================================
-  // PASSWORD RESET & RECOVERY
-  // =====================================================
-
-  async resetPassword(email: string): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      return { error: null };
-
-    } catch (error) {
-      console.error('Password reset failed:', error);
-      return { error: 'Failed to send password reset email' };
-    }
-  }
-
-  async updatePassword(newPassword: string): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      return { error: null };
-
-    } catch (error) {
-      console.error('Password update failed:', error);
-      return { error: 'Failed to update password' };
-    }
-  }
 }
 
 // =====================================================
@@ -566,24 +444,6 @@ class AuthService {
 // =====================================================
 
 export const authService = AuthService.getInstance();
-
-// React Hook for easy state management
-export function useAuthState() {
-  const [state, setState] = React.useState<AuthState>({
-    user: null,
-    profile: null,
-    session: null,
-    loading: true,
-    error: null
-  });
-
-  React.useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange(setState);
-    return unsubscribe;
-  }, []);
-
-  return state;
-}
 
 // =====================================================
 // CONVENIENCE FUNCTIONS
@@ -619,14 +479,4 @@ export const updateProfile = (updates: Partial<UserProfile>) => authService.upda
 // if (isAdmin()) {
 //   // Admin-only functionality
 // }
-//
-// // React component with state
-// const MyComponent = () => {
-//   const { user, profile, loading } = useAuthState();
-//   
-//   if (loading) return <div>Loading...</div>;
-//   if (!user) return <LoginForm />;
-//   
-//   return <Dashboard user={user} profile={profile} />;
-// };
 // =====================================================
