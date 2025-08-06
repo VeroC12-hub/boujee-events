@@ -20,9 +20,9 @@ interface ProtectedRouteProps {
 
 // Protected Route Component
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
-  const { state } = useAuth();
+  const { user, profile, loading } = useAuth();
   
-  if (state.loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -33,11 +33,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     );
   }
   
-  if (!state.user || !state.profile) {
+  if (!user || !profile) {
     return <Navigate to="/login" replace />;
   }
   
-  if (requiredRole && state.profile.role !== requiredRole && state.profile.role !== 'admin') {
+  if (requiredRole && profile.role !== requiredRole && profile.role !== 'admin') {
     return <Navigate to="/login" replace />;
   }
   
