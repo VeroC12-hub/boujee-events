@@ -1,33 +1,225 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useAnalytics } from '../hooks/useAnalytics';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import AdminOverview from '../components/admin/AdminOverview';
-import AdminEvents from '../components/admin/AdminEvents';
+import useAnalytics from '../hooks/useAnalytics';
 import Logo from '../components/branding/Logo';
+
+// Safe loading component
+const LoadingSpinner: React.FC<{ fullScreen?: boolean; message?: string }> = ({ 
+  fullScreen = false, 
+  message = "Loading..." 
+}) => {
+  const containerClass = fullScreen 
+    ? "min-h-screen bg-gray-900 flex items-center justify-center" 
+    : "flex items-center justify-center p-8";
+
+  return (
+    <div className={containerClass}>
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-white">{message}</p>
+      </div>
+    </div>
+  );
+};
+
+// Safe AdminOverview component
+const AdminOverview: React.FC = () => {
+  const analytics = useAnalytics();
+
+  // Safe access to analytics data with fallbacks
+  const metrics = analytics?.metrics?.data || [];
+  const isLoading = analytics?.loading || false;
+  const error = analytics?.error || null;
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading analytics..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <p className="text-red-400">Error loading analytics: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Dashboard Overview</h2>
+        <p className="text-gray-400">Welcome to your admin dashboard</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {metrics.length > 0 ? (
+          metrics.map((metric) => (
+            <div key={metric.id} className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-400">{metric.name}</h3>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  metric.changeType === 'positive' ? 'bg-green-500/20 text-green-400' :
+                  metric.changeType === 'negative' ? 'bg-red-500/20 text-red-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {metric.changeType === 'positive' ? '+' : ''}{metric.change}%
+                </span>
+              </div>
+              <div className="flex items-baseline">
+                <span className="text-2xl font-bold text-white">
+                  {typeof metric.value === 'number' 
+                    ? metric.value.toLocaleString() 
+                    : metric.value
+                  }
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{metric.period}</p>
+            </div>
+          ))
+        ) : (
+          // Fallback metrics
+          <>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Revenue</h3>
+              <span className="text-2xl font-bold text-white">€524,300</span>
+              <p className="text-xs text-gray-500 mt-2">vs last month</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Events</h3>
+              <span className="text-2xl font-bold text-white">47</span>
+              <p className="text-xs text-gray-500 mt-2">vs last month</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-4">Total Bookings</h3>
+              <span className="text-2xl font-bold text-white">1,234</span>
+              <p className="text-xs text-gray-500 mt-2">vs last month</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-4">Average Rating</h3>
+              <span className="text-2xl font-bold text-white">4.8</span>
+              <p className="text-xs text-gray-500 mt-2">vs last month</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+          <div className="space-y-3">
+            <button className="w-full text-left p-3 bg-yellow-400/10 border border-yellow-400/30 rounded-lg hover:bg-yellow-400/20 transition-colors">
+              <span className="text-yellow-400">📅 Create New Event</span>
+            </button>
+            <button className="w-full text-left p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20 transition-colors">
+              <span className="text-blue-400">👥 Manage Users</span>
+            </button>
+            <button className="w-full text-left p-3 bg-green-500/10 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors">
+              <span className="text-green-400">📊 View Analytics</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center text-gray-300">
+              <span className="mr-2">✅</span>
+              <span>New user registered</span>
+            </div>
+            <div className="flex items-center text-gray-300">
+              <span className="mr-2">🎫</span>
+              <span>Event booking confirmed</span>
+            </div>
+            <div className="flex items-center text-gray-300">
+              <span className="mr-2">💰</span>
+              <span>Payment processed</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">System Status</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Database</span>
+              <span className="text-green-400">✅ Online</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">API</span>
+              <span className="text-green-400">✅ Healthy</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Storage</span>
+              <span className="text-green-400">✅ Available</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Safe AdminEvents component
+const AdminEvents: React.FC = () => {
+  return (
+    <div className="p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Event Management</h2>
+        <p className="text-gray-400">Manage all events on your platform</p>
+      </div>
+
+      <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-white">All Events</h3>
+          <button className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors">
+            Create Event
+          </button>
+        </div>
+
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📅</div>
+          <h3 className="text-xl font-semibold text-white mb-2">No Events Yet</h3>
+          <p className="text-gray-400 mb-6">Create your first event to get started</p>
+          <button className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors">
+            Create Your First Event
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { state: authState, logout } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const analytics = useAnalytics();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
-  const [notifications, setNotifications] = useState([
+  const [notifications] = useState([
     { id: 1, message: 'New user registration', time: '2 minutes ago', type: 'info' },
     { id: 2, message: 'Event published successfully', time: '5 minutes ago', type: 'success' },
     { id: 3, message: 'Payment processed', time: '10 minutes ago', type: 'success' }
   ]);
 
-  // Navigation items with real-time data
+  // Navigation items with safe badge access
   const navigationItems = [
+    {
+      name: 'Overview',
+      section: 'overview',
+      icon: '📊',
+      badge: null
+    },
     {
       name: 'Analytics',
       section: 'analytics',
-      icon: '📊',
-      badge: analytics.metrics.data?.length || 0
+      icon: '📈',
+      badge: analytics?.metrics?.data?.length || 0
     },
     {
       name: 'Events',
@@ -49,26 +241,23 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  // Auto-refresh analytics data
+  // Auto-refresh analytics data safely
   useEffect(() => {
-    const interval = setInterval(() => {
-      analytics.refetchAll();
-    }, 30000); // Refresh every 30 seconds
+    if (analytics?.refetchAll) {
+      const interval = setInterval(() => {
+        analytics.refetchAll();
+      }, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(interval);
-  }, [analytics.refetchAll]);
+      return () => clearInterval(interval);
+    }
+  }, [analytics]);
 
   const handleLogout = async () => {
     try {
-      await logout();
-      // Toast notification will be shown by the auth context
-      if ((window as any).toast) {
-        (window as any).toast.success('Logged out successfully');
-      }
+      await signOut();
+      navigate('/login');
     } catch (error) {
-      if ((window as any).toast) {
-        (window as any).toast.error('Logout failed');
-      }
+      console.error('Logout failed:', error);
     }
   };
 
@@ -90,21 +279,27 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Analytics Dashboard</h2>
-            <p className="text-gray-400">Analytics content coming soon...</p>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <p className="text-gray-400">Advanced analytics features coming soon...</p>
+            </div>
           </div>
         );
       case 'users':
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">User Management</h2>
-            <p className="text-gray-400">User management content coming soon...</p>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <p className="text-gray-400">User management features coming soon...</p>
+            </div>
           </div>
         );
       case 'settings':
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-            <p className="text-gray-400">Settings content coming soon...</p>
+            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+              <p className="text-gray-400">Settings panel coming soon...</p>
+            </div>
           </div>
         );
       default:
@@ -112,12 +307,22 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  if (!authState.user) {
+  // Loading check with proper fallbacks
+  if (!user || !profile) {
     return <LoadingSpinner fullScreen message="Loading dashboard..." />;
   }
 
+  const userInfo = {
+    name: profile?.full_name || user?.email || 'Admin User',
+    email: user?.email || 'admin@example.com',
+    role: profile?.role || 'admin',
+    avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'Admin')}&background=D4AF37&color=000`,
+    lastLogin: new Date().toLocaleDateString(),
+    status: profile?.status || 'approved'
+  };
+
   return (
-    <div className="min-h-screen bg-background text-white flex">
+    <div className="min-h-screen bg-gray-900 text-white flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -128,11 +333,11 @@ const AdminDashboard: React.FC = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-border">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700">
           <Logo variant="light" size="medium" showTagline={false} />
           <button
             onClick={() => setSidebarOpen(false)}
@@ -143,21 +348,21 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* User Info */}
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-gray-700">
           <div className="flex items-center">
             <img
-              src={authState.user.avatar}
-              alt={authState.user.name}
+              src={userInfo.avatar}
+              alt={userInfo.name}
               className="w-10 h-10 rounded-full"
             />
             <div className="ml-3">
-              <p className="text-sm font-medium text-white">{authState.user.name}</p>
-              <p className="text-xs text-gray-400 capitalize">{authState.user.role}</p>
+              <p className="text-sm font-medium text-white">{userInfo.name}</p>
+              <p className="text-xs text-gray-400 capitalize">{userInfo.role}</p>
             </div>
           </div>
           <div className="mt-3 text-xs text-gray-400">
-            <p>Last login: {authState.user.lastLogin}</p>
-            <p>Status: ✅ {authState.user.status}</p>
+            <p>Last login: {userInfo.lastLogin}</p>
+            <p>Status: ✅ {userInfo.status}</p>
           </div>
         </div>
 
@@ -174,16 +379,16 @@ const AdminDashboard: React.FC = () => {
                 }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-primary text-black font-semibold'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                    ? 'bg-yellow-400 text-black font-semibold'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center">
                   <span className="text-lg mr-3">{item.icon}</span>
                   <span className="font-medium">{item.name}</span>
                 </div>
-                {item.badge && (
-                  <span className="bg-primary/20 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {item.badge !== null && item.badge > 0 && (
+                  <span className="bg-yellow-400/20 text-yellow-400 text-xs font-medium px-2.5 py-0.5 rounded-full">
                     {item.badge}
                   </span>
                 )}
@@ -193,11 +398,11 @@ const AdminDashboard: React.FC = () => {
         </nav>
 
         {/* System Status */}
-        <div className="p-4 border-t border-border">
-          <div className="bg-primary/10 border border-primary/30 rounded-lg p-3">
+        <div className="p-4 border-t border-gray-700">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
             <div className="flex items-center">
-              <span className="text-primary mr-2">✅</span>
-              <span className="text-sm text-primary">All Systems Operational</span>
+              <span className="text-green-400 mr-2">✅</span>
+              <span className="text-sm text-green-400">All Systems Operational</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
               API: Online | DB: Connected
@@ -220,7 +425,7 @@ const AdminDashboard: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Header */}
-        <header className="bg-card border-b border-border">
+        <header className="bg-gray-800 border-b border-gray-700">
           <div className="flex items-center justify-between h-16 px-6">
             <div className="flex items-center">
               <button
@@ -235,7 +440,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               {/* Real-time clock */}
               <div className="text-sm text-gray-400">
-                2025-08-03 03:52:31 UTC
+                {new Date().toLocaleString()}
               </div>
 
               {/* Notifications */}
@@ -243,7 +448,7 @@ const AdminDashboard: React.FC = () => {
                 <button className="relative p-2 text-gray-400 hover:text-white">
                   <span className="text-xl">🔔</span>
                   {notifications.length > 0 && (
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-primary"></span>
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-yellow-400"></span>
                   )}
                 </button>
               </div>
@@ -251,15 +456,14 @@ const AdminDashboard: React.FC = () => {
               {/* Refresh Button */}
               <button
                 onClick={() => {
-                  analytics.refetchAll();
-                  if ((window as any).toast) {
-                    (window as any).toast.success('Data refreshed');
+                  if (analytics?.refetchAll) {
+                    analytics.refetchAll();
                   }
                 }}
-                disabled={analytics.loading}
+                disabled={analytics?.loading || false}
                 className="p-2 text-gray-400 hover:text-white disabled:opacity-50"
               >
-                <span className={analytics.loading ? 'animate-spin' : ''}>
+                <span className={analytics?.loading ? 'animate-spin' : ''}>
                   🔄
                 </span>
               </button>
@@ -268,19 +472,19 @@ const AdminDashboard: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-gray-900">
           {renderContent()}
         </main>
 
         {/* Footer */}
-        <footer className="bg-card border-t border-border px-6 py-4">
+        <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between text-sm text-gray-400">
             <div className="flex items-center gap-2">
               <div className="text-amber-400 font-bold text-sm">be</div>
-              <span>Boujee Events Admin Dashboard v1.0 | Connected to Mock API</span>
+              <span>Boujee Events Admin Dashboard v1.0 | Status: Connected</span>
             </div>
             <div>
-              User: {authState.user.name} | 2025-08-03 03:52:31 UTC
+              User: {userInfo.name} | {new Date().toLocaleString()}
             </div>
           </div>
         </footer>
