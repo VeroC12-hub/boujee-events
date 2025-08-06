@@ -1,12 +1,14 @@
+// Updated src/pages/LoginPage.tsx - Production Ready
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, getCurrentProfile, signIn, signUp } from "../lib/auth";
+import { getCurrentUser, getCurrentProfile, signIn, signUp, supabase } from "../lib/auth";
 import Logo from '../components/branding/Logo';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock'>('checking');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,8 +18,32 @@ const LoginPage: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user is already logged in
+  // Check connection status on mount
   useEffect(() => {
+    const checkConnection = async () => {
+      if (supabase) {
+        try {
+          // Test connection with a simple query
+          const { error } = await supabase.from('user_profiles').select('count').limit(1);
+          if (error) {
+            console.warn('Supabase connection test failed:', error);
+            setConnectionStatus('mock');
+          } else {
+            console.log('✅ Supabase connection successful');
+            setConnectionStatus('connected');
+          }
+        } catch (error) {
+          console.warn('Supabase connection error:', error);
+          setConnectionStatus('mock');
+        }
+      } else {
+        setConnectionStatus('mock');
+      }
+    };
+
+    checkConnection();
+    
+    // Check if user is already logged in
     const checkUser = async () => {
       const user = getCurrentUser();
       const profile = getCurrentProfile();
@@ -72,13 +98,16 @@ const LoginPage: React.FC = () => {
       }
 
       if (user) {
-        // Get user profile to determine role
-        const profile = getCurrentProfile();
-        if (profile) {
-          redirectUserByRole(profile.role);
-        } else {
-          setError('Unable to load user profile. Please try again.');
-        }
+        console.log('✅ Login successful!');
+        // Small delay to allow profile to load
+        setTimeout(() => {
+          const profile = getCurrentProfile();
+          if (profile) {
+            redirectUserByRole(profile.role);
+          } else {
+            setError('Unable to load user profile. Please try again.');
+          }
+        }, 1000);
       }
     } catch (err) {
       console.error("Login failed:", err);
@@ -92,6 +121,11 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     if (!formData.email || !formData.password || !formData.fullName) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    if (connectionStatus === 'mock') {
+      setError('Signup requires database connection. Please configure Supabase environment variables.');
       return;
     }
 
@@ -125,7 +159,7 @@ const LoginPage: React.FC = () => {
         });
         
         // Show success message
-        alert('Account created successfully! Your account is pending approval. Please sign in once approved.');
+        alert('Account created successfully! Please check your email to verify your account, then wait for admin approval.');
       }
     } catch (err) {
       console.error("Signup failed:", err);
@@ -133,6 +167,15 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillProductionAdmin = () => {
+    setFormData(prev => ({ 
+      ...prev, 
+      email: 'admin@nexacore-innovations.com', 
+      password: '' 
+    }));
+    setError('Enter your admin password');
   };
 
   const fillDemoCredentials = (email: string, password: string) => {
@@ -146,6 +189,36 @@ const LoginPage: React.FC = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Logo variant="light" size="lg" showTagline={true} />
+        </div>
+
+        {/* Connection Status */}
+        <div className={`mb-6 p-4 rounded-lg border ${
+          connectionStatus === 'connected' 
+            ? 'bg-green-500/10 border-green-500/30 text-green-300'
+            : connectionStatus === 'mock'
+            ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+            : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+        }`}>
+          <div className="flex items-center justify-center space-x-2 text-sm">
+            {connectionStatus === 'checking' && (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                <span>Checking database connection...</span>
+              </>
+            )}
+            {connectionStatus === 'connected' && (
+              <>
+                <span>✅</span>
+                <span>Connected to Supabase Database</span>
+              </>
+            )}
+            {connectionStatus === 'mock' && (
+              <>
+                <span>⚠️</span>
+                <span>Using Development Mode (No Database)</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Main Card */}
@@ -169,28 +242,43 @@ const LoginPage: React.FC = () => {
                   ? 'bg-yellow-400 text-black' 
                   : 'text-white hover:bg-white/10'
               }`}
+              disabled={connectionStatus === 'mock'}
             >
-              Sign Up
+              Sign Up {connectionStatus === 'mock' ? '(Disabled)' : ''}
             </button>
           </div>
 
-          {/* Demo Credentials (only for login) */}
+          {/* Login Credentials Helper */}
           {isLogin && (
             <div className="bg-blue-50/10 border border-blue-200/30 rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-medium text-blue-300 mb-3">🧪 Demo Accounts</h3>
+              <h3 className="text-sm font-medium text-blue-300 mb-3">🔐 Admin Login</h3>
               <div className="space-y-2">
-                <button
-                  onClick={() => fillDemoCredentials('admin@nexacore-innovations.com', 'Admin123!')}
-                  className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
-                >
-                  <strong>Production Admin:</strong> admin@nexacore-innovations.com
-                </button>
-                <button
-                  onClick={() => fillDemoCredentials('admin@test.com', 'TestAdmin2025')}
-                  className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
-                >
-                  <strong>Test Admin:</strong> admin@test.com
-                </button>
+                {connectionStatus === 'connected' ? (
+                  <button
+                    onClick={fillProductionAdmin}
+                    className="w-full text-left text-xs bg-green-500/20 border border-green-400/30 rounded px-3 py-2 hover:bg-green-500/30 transition-colors text-green-300"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">🎯 Production Admin</div>
+                        <div className="opacity-80">admin@nexacore-innovations.com</div>
+                      </div>
+                      <span className="text-xs bg-green-400/20 px-2 py-1 rounded">LIVE</span>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => fillDemoCredentials('admin@test.com', 'TestAdmin2025')}
+                      className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
+                    >
+                      <strong>Demo Admin:</strong> admin@test.com / TestAdmin2025
+                    </button>
+                    <div className="text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded px-2 py-1.5">
+                      💡 Set up Supabase to use real accounts
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -198,7 +286,7 @@ const LoginPage: React.FC = () => {
           {/* Form */}
           <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-6">
             {/* Sign Up Fields */}
-            {!isLogin && (
+            {!isLogin && connectionStatus === 'connected' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -287,7 +375,7 @@ const LoginPage: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || connectionStatus === 'checking'}
               className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-bold py-3 px-4 rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -311,15 +399,22 @@ const LoginPage: React.FC = () => {
                 ← Back to Homepage
               </button>
               
-              {/* Emergency Admin Access for Development */}
-              <div className="pt-4">
-                <button
-                  onClick={() => navigate('/admin-emergency-login')}
-                  className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                >
-                  🔧 Emergency Admin Access
-                </button>
-              </div>
+              {/* Development Tools */}
+              {connectionStatus === 'mock' && (
+                <div className="pt-4 text-xs text-gray-500 space-y-2">
+                  <button
+                    onClick={() => navigate('/admin-emergency-login')}
+                    className="block mx-auto hover:text-gray-400 transition-colors"
+                  >
+                    🔧 Emergency Admin Access
+                  </button>
+                  <div className="text-center">
+                    <span className="bg-yellow-500/10 text-yellow-300 px-2 py-1 rounded text-xs">
+                      Development Mode - Configure Supabase for production
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -330,7 +425,8 @@ const LoginPage: React.FC = () => {
             {isLogin ? 'New to Boujee Events?' : 'Already have an account?'}
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-yellow-400 hover:text-yellow-300 ml-1 font-semibold"
+              disabled={connectionStatus === 'mock' && !isLogin}
+              className="text-yellow-400 hover:text-yellow-300 ml-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLogin ? 'Create Account' : 'Sign In'}
             </button>
