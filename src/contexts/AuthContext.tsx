@@ -1,37 +1,87 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../services/supabaseClient';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { authService, type AuthState, type SignInData, type SignUpData } from '../lib/auth';
 
-const AuthContext = createContext(null);
+interface AuthContextType {
+  state: AuthState;
+  login: (data: SignInData) => Promise<boolean>;
+  logout: () => Promise<void>;
+  register: (data: SignUpData) => Promise<boolean>;
+}
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    profile: null,
+    session: null,
+    loading: true,
+    error: null
+  });
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+    const unsubscribe = authService.onAuthStateChange((state) => {
+      console.log('🔄 Auth context state updated:', state.user?.email, state.profile?.role);
+      setAuthState(state);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const value = {
-    user,
-    loading,
-    login: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-    signup: (email, password) => supabase.auth.signUp({ email, password }),
-    magicLogin: (email) => supabase.auth.signInWithOtp({ email }),
-    logout: () => supabase.auth.signOut(),
+  const login = async (data: SignInData): Promise<boolean> => {
+    console.log('🔐 AuthContext login attempt:', data.email);
+    
+    setAuthState(prev => ({ ...prev, loading: true, error: null }));
+    
+    const { user, error } = await authService.signIn(data);
+    
+    if (error) {
+      console.log('❌ Login failed:', error);
+      setAuthState(prev => ({ ...prev, loading: false, error }));
+      return false;
+    }
+    
+    if (user) {
+      console.log('✅ Login successful, redirecting...');
+      return true;
+    }
+    
+    return false;
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const logout = async (): Promise<void> => {
+    await authService.signOut();
+  };
+
+  const register = async (data: SignUpData): Promise<boolean> => {
+    setAuthState(prev => ({ ...prev, loading: true, error: null }));
+    
+    const { user, error } = await authService.signUp(data);
+    
+    if (error) {
+      setAuthState(prev => ({ ...prev, loading: false, error }));
+      return false;
+    }
+    
+    return Boolean(user);
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      state: authState,
+      login,
+      logout,
+      register
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
