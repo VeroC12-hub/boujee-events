@@ -1,44 +1,52 @@
+// =====================================================
+// LoadingSpinner Component - CREATE NEW FILE
+// Create this file: src/components/common/LoadingSpinner.tsx
+// =====================================================
+
 import React from 'react';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'medium' | 'large';
+  color?: string;
   message?: string;
   fullScreen?: boolean;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  size = 'medium', 
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  size = 'medium',
+  color = 'border-yellow-400',
   message = 'Loading...',
-  fullScreen = false 
+  fullScreen = false
 }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12'
+  const getSizeClasses = () => {
+    switch (size) {
+      case 'small':
+        return 'w-4 h-4 border-2';
+      case 'large':
+        return 'w-12 h-12 border-4';
+      default:
+        return 'w-8 h-8 border-2';
+    }
   };
 
-  const containerClasses = fullScreen 
-    ? 'fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50'
-    : 'flex items-center justify-center p-8';
-
-  return (
-    <div className={containerClasses}>
-      <div className="text-center">
-        <div className="relative">
-          <div className={`${sizeClasses[size]} border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto`}></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs">⏳</span>
-          </div>
-        </div>
-        {message && (
-          <p className="mt-4 text-gray-600 text-sm">{message}</p>
-        )}
-        <p className="text-xs text-gray-400 mt-2">
-          EventHub | 2025-08-03 03:42:59 UTC
-        </p>
-      </div>
+  const spinner = (
+    <div className="flex items-center justify-center">
+      <div className={`${getSizeClasses()} ${color} border-t-transparent rounded-full animate-spin`}></div>
+      {message && <p className="text-white ml-4">{message}</p>}
     </div>
   );
+
+  if (fullScreen) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          {spinner}
+        </div>
+      </div>
+    );
+  }
+
+  return spinner;
 };
 
 export default LoadingSpinner;
