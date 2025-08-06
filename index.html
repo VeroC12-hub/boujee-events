@@ -67,12 +67,8 @@
     <meta name="msapplication-starturl" content="/" />
     <meta name="msapplication-navbutton-color" content="#F59E0B" />
     
-    <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <!-- REMOVED INVALID CSP AND SECURITY META TAGS - THESE MUST BE SET VIA HTTP HEADERS -->
+    <!-- Note: X-Frame-Options, CSP, and other security headers should be set server-side -->
     
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -139,95 +135,4 @@
         top: 0;
         left: 0;
         width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #F59E0B, #EAB308);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        transition: opacity 0.5s ease-out;
-      }
-      
-      .loading-logo {
-        font-size: 4rem;
-        font-weight: bold;
-        color: white;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        animation: pulse 2s infinite;
-      }
-      
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-      }
-      
-      .fade-out {
-        opacity: 0;
-        pointer-events: none;
-      }
-    </style>
-  </head>
-  
-  <body>
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="loading-screen">
-      <div class="loading-logo">be</div>
-    </div>
-    
-    <!-- Main App Container -->
-    <div id="root"></div>
-    
-    <!-- Loading Script -->
-    <script>
-      // Hide loading screen when app loads
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const loadingScreen = document.getElementById('loading-screen');
-          if (loadingScreen) {
-            loadingScreen.classList.add('fade-out');
-            setTimeout(function() {
-              loadingScreen.remove();
-            }, 500);
-          }
-        }, 1000); // Show for 1 second minimum
-      });
-      
-      // Fallback: Hide loading screen after 5 seconds maximum
-      setTimeout(function() {
-        const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
-          loadingScreen.classList.add('fade-out');
-          setTimeout(function() {
-            loadingScreen.remove();
-          }, 500);
-        }
-      }, 5000);
-      
-      // Performance monitoring
-      if ('performance' in window) {
-        window.addEventListener('load', function() {
-          setTimeout(function() {
-            const perfData = performance.getEntriesByType('navigation')[0];
-            console.log('Page Load Time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
-          }, 0);
-        });
-      }
-      
-      // Service Worker Registration (for PWA capabilities)
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-              console.log('SW registered: ', registration);
-            })
-            .catch(function(registrationError) {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
-    </script>
-    
-    <!-- Vite Dev Server Script (will be replaced in production) -->
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+        height
