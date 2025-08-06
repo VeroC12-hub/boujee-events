@@ -1,12 +1,6 @@
-// =====================================================
-// AuthCallback.tsx - COMPLETE REPLACEMENT - IMPORT ERRORS FIXED  
-// Replace ENTIRE src/pages/AuthCallback.tsx file with this code
-// =====================================================
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase"; // Fixed import path
-import { getCurrentProfile } from "../lib/auth"; // Fixed import path
+import { getCurrentUser, getCurrentProfile } from "../lib/auth";
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -16,42 +10,28 @@ const AuthCallback: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the session after OAuth redirect
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Wait a moment for the profile to be loaded
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (sessionError) {
-          console.error("Auth callback error:", sessionError);
-          setError("Authentication failed. Please try again.");
-          setTimeout(() => navigate("/login"), 3000);
-          return;
-        }
-
-        if (session?.user) {
-          // Wait a moment for the profile to be loaded
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Get user profile to determine role
-          const profile = getCurrentProfile();
-          
-          if (profile) {
-            // Redirect based on role
-            switch (profile.role) {
-              case 'admin':
-                navigate("/admin-dashboard");
-                break;
-              case 'organizer':
-                navigate("/organizer-dashboard");
-                break;
-              default:
-                navigate("/member-dashboard");
-            }
-          } else {
-            // Profile not loaded yet, redirect to login to try again
-            setError("Loading user profile...");
-            setTimeout(() => navigate("/login"), 2000);
+        // Get user profile to determine role
+        const user = getCurrentUser();
+        const profile = getCurrentProfile();
+        
+        if (user && profile) {
+          // Redirect based on role
+          switch (profile.role) {
+            case 'admin':
+              navigate("/admin-dashboard");
+              break;
+            case 'organizer':
+              navigate("/organizer-dashboard");
+              break;
+            default:
+              navigate("/member-dashboard");
           }
         } else {
-          setError("No user session found.");
+          // Profile not loaded yet, redirect to login to try again
+          setError("Loading user profile...");
           setTimeout(() => navigate("/login"), 2000);
         }
       } catch (err) {
