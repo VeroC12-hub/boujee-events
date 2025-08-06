@@ -1,10 +1,6 @@
-// =====================================================
-// App.tsx - COMPLETE REPLACEMENT - BUILD ERRORS FIXED
-// Replace ENTIRE src/App.tsx file with this code
-// =====================================================
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -15,10 +11,6 @@ import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
 import AuthCallback from './pages/AuthCallback';
-import NotFound from './pages/NotFound';
-
-// Auth Service
-import { authService } from './lib/auth';
 
 // Types
 interface ProtectedRouteProps {
@@ -26,42 +18,11 @@ interface ProtectedRouteProps {
   requiredRole?: 'admin' | 'organizer' | 'member';
 }
 
-// Auth Hook
-const useAuth = () => {
-  const [authState, setAuthState] = React.useState({
-    user: null,
-    profile: null,
-    loading: true,
-    error: null
-  });
-
-  React.useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((state) => {
-      setAuthState(state);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  return {
-    state: {
-      user: authState.user,
-      profile: authState.profile,
-      isLoading: authState.loading,
-      isAuthenticated: Boolean(authState.user && authState.profile),
-      error: authState.error
-    },
-    signIn: authService.signIn.bind(authService),
-    signOut: authService.signOut.bind(authService),
-    signUp: authService.signUp.bind(authService)
-  };
-};
-
 // Protected Route Component
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const { state } = useAuth();
   
-  if (state.isLoading) {
+  if (state.loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -72,11 +33,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     );
   }
   
-  if (!state.isAuthenticated) {
+  if (!state.user || !state.profile) {
     return <Navigate to="/login" replace />;
   }
   
-  if (requiredRole && state.profile?.role !== requiredRole && state.profile?.role !== 'admin') {
+  if (requiredRole && state.profile.role !== requiredRole && state.profile.role !== 'admin') {
     return <Navigate to="/login" replace />;
   }
   
@@ -192,74 +153,69 @@ const EmergencyAdminLogin: React.FC = () => {
   );
 };
 
-// Main App Layout with Navigation
-const AppLayout: React.FC = () => {
-  return (
-    <Routes>
-      {/* PUBLIC ROUTES */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/home" element={<HomePage />} />
-      <Route path="/index" element={<IndexPage />} />
-      <Route path="/events" element={<IndexPage />} />
-      <Route path="/book/:eventId" element={<BookingPage />} />
-      
-      {/* Auth Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      
-      {/* Protected Dashboard Routes */}
-      <Route path="/admin" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/admin-dashboard" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/organizer" element={
-        <ProtectedRoute requiredRole="organizer">
-          <OrganizerDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/organizer-dashboard" element={
-        <ProtectedRoute requiredRole="organizer">
-          <OrganizerDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/member" element={
-        <ProtectedRoute requiredRole="member">
-          <MemberDashboard />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/member-dashboard" element={
-        <ProtectedRoute requiredRole="member">
-          <MemberDashboard />
-        </ProtectedRoute>
-      } />
-
-      {/* Development/Emergency Admin Access - Remove in production */}
-      <Route path="/admin-emergency-login" element={<EmergencyAdminLogin />} />
-      
-      {/* 404 Not Found - Must be last */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-};
-
 // Main App Component
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <Router>
-        <AppLayout />
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* PUBLIC ROUTES */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/index" element={<IndexPage />} />
+            <Route path="/events" element={<IndexPage />} />
+            <Route path="/book/:eventId" element={<BookingPage />} />
+            
+            {/* Auth Routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            
+            {/* Protected Dashboard Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin-dashboard" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/organizer" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/organizer-dashboard" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/member" element={
+              <ProtectedRoute requiredRole="member">
+                <MemberDashboard />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/member-dashboard" element={
+              <ProtectedRoute requiredRole="member">
+                <MemberDashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* Development/Emergency Admin Access - Remove in production */}
+            <Route path="/admin-emergency-login" element={<EmergencyAdminLogin />} />
+            
+            {/* 404 Not Found - Must be last */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 };
