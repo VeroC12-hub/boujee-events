@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, getCurrentProfile, signIn, signUp, supabase } from "../lib/auth";
+import { getCurrentUser, getCurrentProfile, signIn, signUp } from "../lib/auth";
+import { isSupabaseConfigured } from "../lib/supabase";
 import Logo from '../components/branding/Logo';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
@@ -22,9 +23,18 @@ const LoginPage: React.FC = () => {
   // Check connection status on mount
   useEffect(() => {
     const checkConnection = async () => {
-      if (supabase) {
-        try {
-          // Test connection with a simple query
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('⚠️ Supabase environment variables not found');
+        setConnectionStatus('mock');
+        return;
+      }
+
+      // If configured, test the connection
+      try {
+        // You can import supabase here to test
+        const { supabase } = await import('../lib/supabase');
+        if (supabase) {
           const { error } = await supabase.from('user_profiles').select('count').limit(1);
           if (error) {
             console.warn('Supabase connection test failed:', error);
@@ -33,11 +43,11 @@ const LoginPage: React.FC = () => {
             console.log('✅ Supabase connection successful');
             setConnectionStatus('connected');
           }
-        } catch (error) {
-          console.warn('Supabase connection error:', error);
+        } else {
           setConnectionStatus('mock');
         }
-      } else {
+      } catch (error) {
+        console.warn('Supabase connection error:', error);
         setConnectionStatus('mock');
       }
     };
@@ -75,6 +85,8 @@ const LoginPage: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -149,6 +161,16 @@ const LoginPage: React.FC = () => {
 
       if (user) {
         setError('Registration successful! Please check your email to verify your account.');
+        // Clear form
+        setFormData({
+          email: '',
+          password: '',
+          fullName: '',
+          phone: '',
+          role: 'member'
+        });
+        // Switch to login tab
+        setIsLogin(true);
       }
     } catch (err) {
       console.error("Sign up failed:", err);
@@ -167,28 +189,34 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Connection Status */}
-        {connectionStatus !== 'connected' && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            connectionStatus === 'mock'
-              ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
-              : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-          }`}>
-            <div className="flex items-center justify-center space-x-2 text-sm">
-              {connectionStatus === 'checking' && (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
-                  <span>Checking database connection...</span>
-                </>
-              )}
-              {connectionStatus === 'mock' && (
-                <>
-                  <span>⚠️</span>
-                  <span>Configure Supabase in .env to use real accounts</span>
-                </>
-              )}
-            </div>
+        <div className={`mb-6 p-4 rounded-lg border ${
+          connectionStatus === 'connected' 
+            ? 'bg-green-500/10 border-green-500/30 text-green-300'
+            : connectionStatus === 'mock'
+            ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+            : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+        }`}>
+          <div className="flex items-center justify-center space-x-2 text-sm">
+            {connectionStatus === 'checking' && (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                <span>Checking database connection...</span>
+              </>
+            )}
+            {connectionStatus === 'connected' && (
+              <>
+                <span>✅</span>
+                <span>Connected to Supabase Database</span>
+              </>
+            )}
+            {connectionStatus === 'mock' && (
+              <>
+                <span>⚠️</span>
+                <span>Development Mode - Configure Supabase in Vercel</span>
+              </>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Main Card */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
@@ -219,7 +247,11 @@ const LoginPage: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm">
+            <div className={`mb-6 p-4 border rounded-lg text-sm ${
+              error.includes('successful') 
+                ? 'bg-green-500/10 border-green-500/30 text-green-300'
+                : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}>
               {error}
             </div>
           )}
