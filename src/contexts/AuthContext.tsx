@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { 
   authService, 
   getCurrentUser, 
@@ -22,6 +22,7 @@ interface AuthContextType extends AuthState {
   signUp: (data: SignUpData) => Promise<{ user: any; error: string | null }>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>; // Alias for signOut
+  login: (data: SignInData) => Promise<boolean>; // Add login method
   refreshProfile: () => Promise<void>;
   isAdmin: () => Promise<boolean>;
   isAdminSync: () => boolean;
@@ -46,6 +47,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  // Initialize with proper default state to prevent undefined errors
   const [state, setState] = useState<AuthState>({
     user: null,
     profile: null,
@@ -58,6 +60,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     console.log('🔧 AuthProvider: Setting up auth state listener');
     
+    // Ensure authService exists before using it
+    if (!authService) {
+      console.error('❌ AuthService not available');
+      setState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: 'Authentication service not available' 
+      }));
+      return;
+    }
+
     const unsubscribe = authService.onAuthStateChange((newState) => {
       console.log('📢 AuthProvider: State updated', {
         hasUser: !!newState.user,
@@ -68,12 +81,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: newState.error
       });
       
-      setState(newState);
+      // Ensure newState has all required properties
+      setState({
+        user: newState.user || null,
+        profile: newState.profile || null,
+        session: newState.session || null,
+        loading: newState.loading ?? false,
+        error: newState.error || null
+      });
     });
 
     return () => {
       console.log('🔧 AuthProvider: Cleaning up auth state listener');
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 
@@ -99,6 +121,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // Add login method that returns boolean for compatibility
+  const handleLogin = useCallback(async (data: SignInData): Promise<boolean> => {
+    const result = await handleSignIn(data);
+    return !result.error && !!result.user;
+  }, [handleSignIn]);
+
   const handleSignUp = useCallback(async (data: SignUpData) => {
     console.log('📝 AuthProvider: Sign up attempt');
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -121,30 +149,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    console.log('🚪 AuthProvider: Sign out');
+    console.log('👋 AuthProvider: Sign out');
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
       await authSignOut();
-      setState(prev => ({ ...prev, loading: false, error: null }));
+      setState({
+        user: null,
+        profile: null,
+        session: null,
+        loading: false,
+        error: null
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      throw error;
     }
   }, []);
 
   const handleRefreshProfile = useCallback(async () => {
-    console.log('🔄 AuthProvider: Refreshing profile');
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
     try {
       await refreshProfile();
-      setState(prev => ({ ...prev, loading: false, error: null }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Profile refresh failed';
-      setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      throw error;
+      console.error('Failed to refresh profile:', error);
     }
   }, []);
 
@@ -152,35 +179,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       return await isAdmin();
     } catch (error) {
-      console.warn('Admin check failed:', error);
+      console.error('Failed to check admin status:', error);
       return false;
     }
   }, []);
 
   const handleIsAdminSync = useCallback(() => {
-    return authService.isAdminSync();
-  }, []);
+    try {
+      return state.profile?.role === 'admin';
+    } catch (error) {
+      console.error('Failed to check admin status sync:', error);
+      return false;
+    }
+  }, [state.profile]);
 
   const handleGetCurrentUserRole = useCallback(async () => {
     try {
       return await getCurrentUserRole();
     } catch (error) {
-      console.warn('Role check failed:', error);
+      console.error('Failed to get user role:', error);
       return 'member';
     }
   }, []);
 
   const handleGetDebugInfo = useCallback(() => {
-    return {
-      ...getAuthDebugInfo(),
-      contextState: {
-        hasUser: !!state.user,
-        hasProfile: !!state.profile,
-        loading: state.loading,
-        error: state.error
-      }
-    };
-  }, [state]);
+    try {
+      return getAuthDebugInfo();
+    } catch (error) {
+      console.error('Failed to get debug info:', error);
+      return {};
+    }
+  }, []);
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
@@ -190,16 +219,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setState(prev => ({ ...prev, loading }));
   }, []);
 
-  // Context value
-  const value: AuthContextType = {
-    // State
+  const contextValue: AuthContextType = {
     ...state,
-    
-    // Actions
     signIn: handleSignIn,
     signUp: handleSignUp,
     signOut: handleSignOut,
     logout: handleSignOut, // Alias
+    login: handleLogin, // Add login method
     refreshProfile: handleRefreshProfile,
     isAdmin: handleIsAdmin,
     isAdminSync: handleIsAdminSync,
@@ -209,112 +235,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading
   };
 
-  // Debug logging in development
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🐛 AuthProvider Debug Info:', handleGetDebugInfo());
-    }
-  }, [state, handleGetDebugInfo]);
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-// Additional utility hooks
-export const useAuthUser = () => {
-  const { user } = useAuth();
-  return user;
-};
-
-export const useAuthProfile = () => {
-  const { profile } = useAuth();
-  return profile;
-};
-
-export const useAuthLoading = () => {
-  const { loading } = useAuth();
-  return loading;
-};
-
-export const useAuthError = () => {
-  const { error, clearError } = useAuth();
-  return { error, clearError };
-};
-
-export const useIsAdmin = () => {
-  const { isAdminSync } = useAuth();
-  return isAdminSync();
-};
-
-export const useUserRole = () => {
-  const { profile } = useAuth();
-  return profile?.role || 'member';
-};
-
-// Higher-order component for protected routes
-export const withAuth = <P extends object>(
-  WrappedComponent: React.ComponentType<P>,
-  requiredRole?: 'admin' | 'organizer' | 'member'
-) => {
-  const WithAuthComponent: React.FC<P> = (props) => {
-    const { user, profile, loading } = useAuth();
-    
-    if (loading) {
-      return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-    
-    if (!user || !profile) {
-      return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-            <p className="text-gray-300 mb-6">You need to be signed in to view this page.</p>
-            <button
-              onClick={() => window.location.href = '/login'}
-              className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-      );
-    }
-    
-    if (requiredRole && profile.role !== requiredRole && profile.role !== 'admin') {
-      return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-white mb-4">Insufficient Permissions</h1>
-            <p className="text-gray-300 mb-6">
-              You don't have the required permissions to access this page.
-            </p>
-            <button
-              onClick={() => window.history.back()}
-              className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-            >
-              Go Back
-            </button>
-          </div>
-        </div>
-      );
-    }
-    
-    return <WrappedComponent {...props} />;
-  };
-  
-  WithAuthComponent.displayName = `withAuth(${WrappedComponent.displayName || WrappedComponent.name})`;
-  
-  return WithAuthComponent;
-};
-
-export default AuthContext;
