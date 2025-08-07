@@ -14,10 +14,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole,
   fallback 
 }) => {
-  const { state } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   // Show loading spinner while checking authentication
-  if (state.isLoading) {
+  if (loading) {
     return (
       <LoadingSpinner 
         fullScreen 
@@ -27,12 +27,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Redirect to login if not authenticated
-  if (!state.isAuthenticated || !state.user) {
+  if (!user || !profile) {
     return <Login />;
   }
 
   // Check role-based access
-  if (requiredRole && state.user.role !== requiredRole) {
+  if (requiredRole && profile.role !== requiredRole) {
     if (fallback) {
       return <>{fallback}</>;
     }
@@ -47,8 +47,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           </p>
           <div className="bg-gray-100 p-4 rounded-lg mb-6">
             <p className="text-sm text-gray-700">
-              <strong>Current User:</strong> {state.user.name}<br />
-              <strong>Current Role:</strong> {state.user.role}<br />
+              <strong>Current User:</strong> {profile.full_name || user.email}<br />
+              <strong>Current Role:</strong> {profile.role}<br />
               <strong>Required Role:</strong> {requiredRole}
             </p>
           </div>

@@ -4,29 +4,29 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types/api';
 
 const Login: React.FC = () => {
-  const { login, state } = useAuth();
+  const { signIn, user, loading, error } = useAuth();
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: ''
   });
-  const [error, setError] = useState<string>('');
+  const [localError, setLocalError] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
 
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
       return;
     }
 
     console.log('🔐 Submitting login form...', { email: formData.email });
     
-    const success = await login(formData);
-    if (!success) {
-      setError('Invalid email or password. Please check your credentials.');
-      console.log('❌ Login failed');
+    const result = await signIn(formData);
+    if (result.error) {
+      setLocalError(result.error);
+      console.log('❌ Login failed:', result.error);
     } else {
       console.log('✅ Login successful, should redirect to dashboard');
     }
@@ -35,7 +35,7 @@ const Login: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError(''); // Clear error when user starts typing
+    if (localError) setLocalError(''); // Clear error when user starts typing
   };
 
   // FIXED: Use correct demo credentials that match credentials.ts
@@ -44,7 +44,7 @@ const Login: React.FC = () => {
       email: 'admin@test.com',
       password: 'TestAdmin2025'
     });
-    setError('');
+    setLocalError('');
   };
 
   return (
@@ -89,15 +89,15 @@ const Login: React.FC = () => {
         <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-8 border border-white border-opacity-20">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Message */}
-            {error && (
+            {(localError || error) && (
               <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3 flex items-center">
                 <span className="text-red-300 mr-2">⚠️</span>
-                <span className="text-red-200 text-sm">{error}</span>
+                <span className="text-red-200 text-sm">{localError || error}</span>
               </div>
             )}
 
             {/* Success indicator */}
-            {state.isAuthenticated && (
+            {user && (
               <div className="bg-green-500 bg-opacity-20 border border-green-500 rounded-lg p-3 flex items-center">
                 <span className="text-green-300 mr-2">✅</span>
                 <span className="text-green-200 text-sm">Login successful! Redirecting...</span>
@@ -154,10 +154,10 @@ const Login: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={state.isLoading}
+              disabled={loading}
               className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {state.isLoading ? (
+              {loading ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span>
                   Signing in...
