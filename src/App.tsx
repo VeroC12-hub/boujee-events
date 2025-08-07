@@ -179,56 +179,7 @@ const NotFoundPage: React.FC = () => {
   );
 };
 
-// Emergency Admin Login Component
-const EmergencyAdminLogin: React.FC = () => {
-  const handleEmergencyLogin = () => {
-    // For development only - create a fake admin session
-    localStorage.setItem('emergency_admin', 'true');
-    window.location.href = '/admin';
-  };
-
-  const handleClearStorage = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = '/login';
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full border border-white/20">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Admin Emergency Access</h2>
-        <p className="text-gray-300 mb-6 text-center text-sm">
-          Emergency admin access for development. Remove this route in production.
-        </p>
-        <div className="space-y-4">
-          <button
-            onClick={handleEmergencyLogin}
-            className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors font-semibold"
-          >
-            🚨 Emergency Admin Login
-          </button>
-          <button
-            onClick={handleClearStorage}
-            className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors"
-          >
-            🧹 Clear All Storage
-          </button>
-          <button
-            onClick={() => window.location.href = '/'}
-            className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            🏠 Go to Homepage
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mt-4 text-center">
-          2025-08-07 | Emergency Access Route
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Main App Component with Auth Context Wrapper - FIXED
+// Main App Component with Auth Context Wrapper - PRODUCTION READY
 const AppContent: React.FC = () => {
   return (
     <Routes>
@@ -279,9 +230,6 @@ const AppContent: React.FC = () => {
           <MemberDashboard />
         </ProtectedRoute>
       } />
-
-      {/* Development/Emergency Admin Access - Remove in production */}
-      <Route path="/admin-emergency-login" element={<EmergencyAdminLogin />} />
       
       {/* 404 Not Found - Must be last */}
       <Route path="*" element={<NotFoundPage />} />
