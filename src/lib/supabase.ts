@@ -10,7 +10,7 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
   : null;
 
 // Export a function to check if Supabase is configured
-export const isSupabaseConfigured = () => {
+export const isSupabaseConfigured = (): boolean => {
   return !!(supabaseUrl && supabaseAnonKey);
 };
 
