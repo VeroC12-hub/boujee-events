@@ -1,14 +1,15 @@
-// Updated src/pages/LoginPage.tsx - Production Ready
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser, getCurrentProfile, signIn, signUp, supabase } from "../lib/auth";
 import Logo from '../components/branding/Logo';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock'>('checking');
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -117,7 +118,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password || !formData.fullName) {
       setError('Please fill in all required fields');
@@ -125,7 +126,7 @@ const LoginPage: React.FC = () => {
     }
 
     if (connectionStatus === 'mock') {
-      setError('Signup requires database connection. Please configure Supabase environment variables.');
+      setError('Sign up is disabled in development mode. Please configure Supabase.');
       return;
     }
 
@@ -133,7 +134,7 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     try {
-      const { user, error: signupError } = await signUp({
+      const { user, error: signUpError } = await signUp({
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
@@ -141,46 +142,20 @@ const LoginPage: React.FC = () => {
         role: formData.role
       });
 
-      if (signupError) {
-        setError(signupError);
+      if (signUpError) {
+        setError(signUpError);
         return;
       }
 
       if (user) {
-        // Show success message and switch to login
-        setError(null);
-        setIsLogin(true);
-        setFormData({
-          email: formData.email, // Keep email for convenience
-          password: '',
-          fullName: '',
-          phone: '',
-          role: 'member'
-        });
-        
-        // Show success message
-        alert('Account created successfully! Please check your email to verify your account, then wait for admin approval.');
+        setError('Registration successful! Please check your email to verify your account.');
       }
     } catch (err) {
-      console.error("Signup failed:", err);
-      setError('Signup failed. Please try again.');
+      console.error("Sign up failed:", err);
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillProductionAdmin = () => {
-    setFormData(prev => ({ 
-      ...prev, 
-      email: 'admin@nexacore-innovations.com', 
-      password: '' 
-    }));
-    setError('Enter your admin password');
-  };
-
-  const fillDemoCredentials = (email: string, password: string) => {
-    setFormData(prev => ({ ...prev, email, password }));
-    setError(null);
   };
 
   return (
@@ -192,34 +167,28 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Connection Status */}
-        <div className={`mb-6 p-4 rounded-lg border ${
-          connectionStatus === 'connected' 
-            ? 'bg-green-500/10 border-green-500/30 text-green-300'
-            : connectionStatus === 'mock'
-            ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
-            : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-        }`}>
-          <div className="flex items-center justify-center space-x-2 text-sm">
-            {connectionStatus === 'checking' && (
-              <>
-                <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
-                <span>Checking database connection...</span>
-              </>
-            )}
-            {connectionStatus === 'connected' && (
-              <>
-                <span>✅</span>
-                <span>Connected to Supabase Database</span>
-              </>
-            )}
-            {connectionStatus === 'mock' && (
-              <>
-                <span>⚠️</span>
-                <span>Using Development Mode (No Database)</span>
-              </>
-            )}
+        {connectionStatus !== 'connected' && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            connectionStatus === 'mock'
+              ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+              : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+          }`}>
+            <div className="flex items-center justify-center space-x-2 text-sm">
+              {connectionStatus === 'checking' && (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                  <span>Checking database connection...</span>
+                </>
+              )}
+              {connectionStatus === 'mock' && (
+                <>
+                  <span>⚠️</span>
+                  <span>Configure Supabase in .env to use real accounts</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Card */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
@@ -248,189 +217,198 @@ const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Login Credentials Helper */}
-          {isLogin && (
-            <div className="bg-blue-50/10 border border-blue-200/30 rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-medium text-blue-300 mb-3">🔐 Admin Login</h3>
-              <div className="space-y-2">
-                {connectionStatus === 'connected' ? (
-                  <button
-                    onClick={fillProductionAdmin}
-                    className="w-full text-left text-xs bg-green-500/20 border border-green-400/30 rounded px-3 py-2 hover:bg-green-500/30 transition-colors text-green-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">🎯 Production Admin</div>
-                        <div className="opacity-80">admin@nexacore-innovations.com</div>
-                      </div>
-                      <span className="text-xs bg-green-400/20 px-2 py-1 rounded">LIVE</span>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => fillDemoCredentials('admin@test.com', 'TestAdmin2025')}
-                      className="w-full text-left text-xs bg-white/10 border border-blue-200/30 rounded px-2 py-1.5 hover:bg-blue-50/20 transition-colors text-white"
-                    >
-                      <strong>Demo Admin:</strong> admin@test.com / TestAdmin2025
-                    </button>
-                    <div className="text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded px-2 py-1.5">
-                      💡 Set up Supabase to use real accounts
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm">
+              {error}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-6">
-            {/* Sign Up Fields */}
-            {!isLogin && connectionStatus === 'connected' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
-                    placeholder="Enter your full name"
-                    required={!isLogin}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
-                    placeholder="Your phone number"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Account Type *
-                  </label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-yellow-400 transition-colors"
-                  >
-                    <option value="member" className="bg-gray-800">Member (Attend Events)</option>
-                    <option value="organizer" className="bg-gray-800">Organizer (Create Events)</option>
-                  </select>
-                </div>
-              </>
-            )}
-
-            {/* Common Fields */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Password *
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
-                <p className="text-red-200 text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || connectionStatus === 'checking'}
-              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-bold py-3 px-4 rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin mr-2"></div>
-                  {isLogin ? 'Signing In...' : 'Creating Account...'}
-                </span>
-              ) : (
-                isLogin ? 'Sign In' : 'Create Account'
-              )}
-            </button>
-          </form>
-
-          {/* Additional Options */}
-          <div className="mt-8 pt-6 border-t border-white/20">
-            <div className="text-center space-y-4">
-              <button
-                onClick={() => navigate('/')}
-                className="text-gray-400 hover:text-white transition-colors text-sm"
-              >
-                ← Back to Homepage
-              </button>
-              
-              {/* Development Tools */}
-              {connectionStatus === 'mock' && (
-                <div className="pt-4 text-xs text-gray-500 space-y-2">
-                  <button
-                    onClick={() => navigate('/admin-emergency-login')}
-                    className="block mx-auto hover:text-gray-400 transition-colors"
-                  >
-                    🔧 Emergency Admin Access
-                  </button>
-                  <div className="text-center">
-                    <span className="bg-yellow-500/10 text-yellow-300 px-2 py-1 rounded text-xs">
-                      Development Mode - Configure Supabase for production
-                    </span>
+          {/* Login Form */}
+          {isLogin ? (
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* Email Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
                   </div>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    placeholder="Enter your email"
+                    required
+                  />
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
 
-        {/* Info Card */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-400 text-sm">
-            {isLogin ? 'New to Boujee Events?' : 'Already have an account?'}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              disabled={connectionStatus === 'mock' && !isLogin}
-              className="text-yellow-400 hover:text-yellow-300 ml-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLogin ? 'Create Account' : 'Sign In'}
-            </button>
-          </p>
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Password *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="block w-full pl-10 pr-12 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-yellow-400 text-black py-3 px-4 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+                    Signing In...
+                  </div>
+                ) : (
+                  'Sign In'
+                )}
+              </button>
+            </form>
+          ) : (
+            /* Sign Up Form */
+            <form onSubmit={handleSignUp} className="space-y-6">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Password *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="block w-full pr-12 px-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    placeholder="Create a password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Phone (Optional)
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Account Type *
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  required
+                >
+                  <option value="member">Event Attendee</option>
+                  <option value="organizer">Event Organizer</option>
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading || connectionStatus === 'mock'}
+                className="w-full bg-yellow-400 text-black py-3 px-4 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+                    Creating Account...
+                  </div>
+                ) : (
+                  'Create Account'
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
