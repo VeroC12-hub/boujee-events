@@ -184,6 +184,184 @@ const AdminEvents: React.FC = () => {
   );
 };
 
+// Safe AdminMediaManagement component (inline)
+const AdminMediaManagement: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'upload' | 'homepage' | 'events'>('overview');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (files: File[]) => {
+    setIsUploading(true);
+    try {
+      // TODO: Implement actual upload to Google Drive
+      console.log('Uploading files:', files);
+      setUploadedFiles(prev => [...prev, ...files]);
+      
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'overview', name: 'Overview', icon: '📊' },
+    { id: 'upload', name: 'Upload Media', icon: '📁' },
+    { id: 'homepage', name: 'Homepage Media', icon: '🏠' },
+    { id: 'events', name: 'Event Media', icon: '🎪' },
+  ];
+
+  return (
+    <div className="p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Media Management</h2>
+        <p className="text-gray-400">Manage all media files and Google Drive integration</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="border-b border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-yellow-400 text-yellow-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700">
+        {activeTab === 'overview' && (
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm">Total Files</p>
+                    <p className="text-2xl font-bold text-white">0</p>
+                  </div>
+                  <div className="text-2xl">📄</div>
+                </div>
+              </div>
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm">Storage Used</p>
+                    <p className="text-2xl font-bold text-white">0 MB</p>
+                  </div>
+                  <div className="text-2xl">💾</div>
+                </div>
+              </div>
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm">Google Drive</p>
+                    <p className="text-lg font-semibold text-yellow-400">Not Connected</p>
+                  </div>
+                  <div className="text-2xl">🔗</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setActiveTab('upload')}
+                  className="p-4 bg-yellow-400/10 border border-yellow-400/30 rounded-lg hover:bg-yellow-400/20 transition-colors text-left"
+                >
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">📁</span>
+                    <div>
+                      <p className="text-yellow-400 font-semibold">Upload Media</p>
+                      <p className="text-gray-400 text-sm">Add images and videos</p>
+                    </div>
+                  </div>
+                </button>
+                <button className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20 transition-colors text-left">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">🔗</span>
+                    <div>
+                      <p className="text-blue-400 font-semibold">Connect Google Drive</p>
+                      <p className="text-gray-400 text-sm">Enable cloud storage</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'upload' && (
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Upload Media Files</h3>
+            
+            {/* Import the MediaUpload component here */}
+            <div className="bg-gray-700 rounded-lg p-6">
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">📁</div>
+                <h4 className="text-lg font-semibold text-white mb-2">Media Upload Component</h4>
+                <p className="text-gray-400 mb-4">
+                  Drag & drop media files or click to browse
+                </p>
+                <button 
+                  onClick={() => console.log('Open file picker')}
+                  className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+                >
+                  Choose Files
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'homepage' && (
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Homepage Media</h3>
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">🏠</div>
+              <p className="text-gray-400 mb-4">
+                Manage homepage background videos, hero images, and gallery content
+              </p>
+              <button className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors">
+                Add Homepage Media
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'events' && (
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Event Media</h3>
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">🎪</div>
+              <p className="text-gray-400 mb-4">
+                Organize media files by event with automatic folder creation
+              </p>
+              <button className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors">
+                View Event Media
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Main AdminDashboard Component
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -216,6 +394,12 @@ const AdminDashboard: React.FC = () => {
       name: 'Events',
       section: 'events',
       icon: '📅',
+      badge: null
+    },
+    {
+      name: 'Media',
+      section: 'media',
+      icon: '🎬',
       badge: null
     },
     {
@@ -255,6 +439,7 @@ const AdminDashboard: React.FC = () => {
     switch (activeSection) {
       case 'analytics': return 'Analytics Dashboard';
       case 'events': return 'Event Management';
+      case 'media': return 'Media Management';
       case 'users': return 'User Management';
       case 'settings': return 'Settings';
       default: return 'Admin Dashboard';
@@ -274,6 +459,8 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         );
+      case 'media':
+        return <AdminMediaManagement />;
       case 'users':
         return (
           <div className="p-6">
