@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types/api';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 const Login: React.FC = () => {
   const authContext = useAuth();
@@ -57,15 +58,6 @@ const Login: React.FC = () => {
     if (localError) setLocalError(''); // Clear error when user starts typing
   };
 
-  // FIXED: Use correct demo credentials that match credentials.ts
-  const fillDemoCredentials = () => {
-    setFormData({
-      email: 'admin@test.com',
-      password: 'TestAdmin2025'
-    });
-    setLocalError('');
-  };
-
   const displayError = localError || error;
 
   return (
@@ -73,113 +65,104 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Header */}
         <div className="text-center">
-          <div className="mx-auto h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4">
-            <span className="text-3xl">🎫</span>
+          <div className="mx-auto h-20 w-20 bg-yellow-400 rounded-full flex items-center justify-center mb-4">
+            <span className="text-black text-2xl font-bold">be</span>
           </div>
-          <h2 className="text-3xl font-bold text-white">EventHub Admin</h2>
-          <p className="mt-2 text-gray-300">Sign in to your admin dashboard</p>
-          <p className="text-sm text-gray-400 mt-1">Current time: {new Date().toLocaleString()} UTC</p>
-        </div>
-
-        {/* Demo Credentials Notice - FIXED */}
-        <div className="bg-blue-800 bg-opacity-50 border border-blue-600 rounded-lg p-4">
-          <div className="flex items-center">
-            <span className="text-blue-300 mr-2">ℹ️</span>
-            <div>
-              <h3 className="text-sm font-medium text-blue-200">Demo Credentials</h3>
-              <p className="text-xs text-blue-300 mt-1">
-                <strong>Admin:</strong> admin@test.com | TestAdmin2025
-              </p>
-              <p className="text-xs text-blue-300">
-                <strong>Organizer:</strong> organizer@test.com | TestOrganizer2025
-              </p>
-              <p className="text-xs text-blue-300">
-                <strong>Member:</strong> member@test.com | TestMember2025
-              </p>
-              <button
-                onClick={fillDemoCredentials}
-                className="text-xs text-blue-200 hover:text-white underline mt-1"
-              >
-                Click to fill admin credentials
-              </button>
-            </div>
-          </div>
+          <h2 className="text-3xl font-bold text-white">Boujee Events</h2>
+          <p className="mt-2 text-gray-300">Creating magical moments</p>
         </div>
 
         {/* Login Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          {displayError && (
+            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
+              {displayError}
+            </div>
+          )}
+
           <div className="space-y-4">
+            {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
+              <label htmlFor="email" className="sr-only">
+                Email address
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-white bg-opacity-20 border border-gray-300 border-opacity-30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                placeholder="Enter your email"
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Email address"
+                />
+              </div>
             </div>
 
+            {/* Password Input with Toggle */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="password" className="sr-only">
                 Password
               </label>
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white bg-opacity-20 border border-gray-300 border-opacity-30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent pr-10"
-                  placeholder="Enter your password"
+                  className="block w-full pl-10 pr-12 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition-colors"
                 >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Error Message */}
-          {displayError && (
-            <div className="bg-red-800 bg-opacity-50 border border-red-600 rounded-lg p-3">
-              <div className="flex items-center">
-                <span className="text-red-300 mr-2">⚠️</span>
-                <span className="text-red-200 text-sm">{displayError}</span>
-              </div>
-            </div>
-          )}
-
           {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-black bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 transition-all duration-200 ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {loading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
-                Signing in...
-              </div>
-            ) : (
-              'Sign In'
-            )}
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-medium rounded-lg text-black bg-yellow-400 hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </div>
+
+          {/* Forgot Password Link */}
+          <div className="text-center">
+            <a
+              href="#"
+              className="text-yellow-400 hover:text-yellow-300 text-sm transition-colors"
+            >
+              Forgot your password?
+            </a>
+          </div>
         </form>
       </div>
     </div>
