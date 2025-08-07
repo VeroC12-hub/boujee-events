@@ -1,41 +1,60 @@
-// src/components/auth/Login.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types/api';
 
 const Login: React.FC = () => {
-  const { login, state } = useAuth();
+  const authContext = useAuth();
+  
+  // Add safety check for authContext
+  if (!authContext) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="text-white text-center">
+          <h2>Authentication Error</h2>
+          <p>Please refresh the page and try again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { login, loading = false, error } = authContext;
+  
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: ''
   });
-  const [error, setError] = useState<string>('');
+  const [localError, setLocalError] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
 
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
       return;
     }
 
     console.log('🔐 Submitting login form...', { email: formData.email });
     
-    const success = await login(formData);
-    if (!success) {
-      setError('Invalid email or password. Please check your credentials.');
-      console.log('❌ Login failed');
-    } else {
-      console.log('✅ Login successful, should redirect to dashboard');
+    try {
+      const success = await login(formData);
+      if (!success) {
+        setLocalError('Invalid email or password. Please check your credentials.');
+        console.log('❌ Login failed');
+      } else {
+        console.log('✅ Login successful, should redirect to dashboard');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLocalError('An error occurred during login. Please try again.');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError(''); // Clear error when user starts typing
+    if (localError) setLocalError(''); // Clear error when user starts typing
   };
 
   // FIXED: Use correct demo credentials that match credentials.ts
@@ -44,8 +63,10 @@ const Login: React.FC = () => {
       email: 'admin@test.com',
       password: 'TestAdmin2025'
     });
-    setError('');
+    setLocalError('');
   };
+
+  const displayError = localError || error;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
@@ -86,108 +107,80 @@ const Login: React.FC = () => {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-8 border border-white border-opacity-20">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3 flex items-center">
-                <span className="text-red-300 mr-2">⚠️</span>
-                <span className="text-red-200 text-sm">{error}</span>
-              </div>
-            )}
-
-            {/* Success indicator */}
-            {state.isAuthenticated && (
-              <div className="bg-green-500 bg-opacity-20 border border-green-500 rounded-lg p-3 flex items-center">
-                <span className="text-green-300 mr-2">✅</span>
-                <span className="text-green-200 text-sm">Login successful! Redirecting...</span>
-              </div>
-            )}
-
-            {/* Email Field */}
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email Address
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">📧</span>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-10 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your email"
-                />
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 bg-white bg-opacity-20 border border-gray-300 border-opacity-30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                placeholder="Enter your email"
+              />
             </div>
 
-            {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Password
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">🔒</span>
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-12 py-3 bg-white bg-opacity-10 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-white bg-opacity-20 border border-gray-300 border-opacity-30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent pr-10"
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-white"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
             </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={state.isLoading}
-              className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {state.isLoading ? (
-                <>
-                  <span className="animate-spin mr-2">⏳</span>
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  <span className="mr-2">🚀</span>
-                  Sign In
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Additional Info */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-400">
-              🔐 Secure admin access only
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Protected by EventHub Security
-            </p>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-xs text-gray-400">
-            EventHub Admin Dashboard v1.0 | {new Date().toLocaleString()} UTC
-          </p>
-        </div>
+          {/* Error Message */}
+          {displayError && (
+            <div className="bg-red-800 bg-opacity-50 border border-red-600 rounded-lg p-3">
+              <div className="flex items-center">
+                <span className="text-red-300 mr-2">⚠️</span>
+                <span className="text-red-200 text-sm">{displayError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-black bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 transition-all duration-200 ${
+              loading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
+                Signing in...
+              </div>
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
       </div>
     </div>
   );
