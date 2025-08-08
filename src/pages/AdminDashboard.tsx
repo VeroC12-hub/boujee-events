@@ -370,7 +370,7 @@ const AdminAnalytics: React.FC = () => {
   );
 };
 
-// Real Events Management with Supabase
+// Real Events Management with Supabase (UPDATED WITH CORRECT COLUMN NAMES)
 const AdminEvents: React.FC = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -378,8 +378,8 @@ const AdminEvents: React.FC = () => {
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
-    date: '',
-    time: '',
+    event_date: '',  // Updated field name
+    event_time: '',  // Updated field name
     venue: '',
     capacity: '',
     price: '',
@@ -426,8 +426,8 @@ const AdminEvents: React.FC = () => {
         .insert([{
           title: newEvent.title,
           description: newEvent.description,
-          date: newEvent.date,
-          time: newEvent.time,
+          event_date: newEvent.event_date,  // Updated field name
+          event_time: newEvent.event_time,  // Updated field name
           venue: newEvent.venue,
           capacity: parseInt(newEvent.capacity),
           price: parseFloat(newEvent.price),
@@ -446,8 +446,8 @@ const AdminEvents: React.FC = () => {
       setNewEvent({
         title: '',
         description: '',
-        date: '',
-        time: '',
+        event_date: '',
+        event_time: '',
         venue: '',
         capacity: '',
         price: '',
@@ -555,8 +555,8 @@ const AdminEvents: React.FC = () => {
                   <label className="block text-white font-medium mb-2">Date</label>
                   <input
                     type="date"
-                    value={newEvent.date}
-                    onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
+                    value={newEvent.event_date}
+                    onChange={(e) => setNewEvent({...newEvent, event_date: e.target.value})}
                     className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
                     required
                   />
@@ -565,8 +565,8 @@ const AdminEvents: React.FC = () => {
                   <label className="block text-white font-medium mb-2">Time</label>
                   <input
                     type="time"
-                    value={newEvent.time}
-                    onChange={(e) => setNewEvent({...newEvent, time: e.target.value})}
+                    value={newEvent.event_time}
+                    onChange={(e) => setNewEvent({...newEvent, event_time: e.target.value})}
                     className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
                     required
                   />
@@ -667,7 +667,7 @@ const AdminEvents: React.FC = () => {
                 <div className="space-y-2 text-sm text-gray-400 mb-4">
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2" />
-                    {event.date} at {event.time}
+                    {event.event_date} at {event.event_time}
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2" />
@@ -931,8 +931,7 @@ const AdminUserManagement: React.FC = () => {
                       <select
                         value={user.role || 'member'}
                         onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
-                        className={`px-2 py-1 rounded-full text-xs font-medium border-0 ${getRoleColor(user.role)}`}
-                        style={{ background: 'transparent' }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium bg-transparent border ${getRoleColor(user.role)} cursor-pointer`}
                       >
                         <option value="member">Member</option>
                         <option value="organizer">Organizer</option>
@@ -943,8 +942,7 @@ const AdminUserManagement: React.FC = () => {
                       <select
                         value={user.status || 'approved'}
                         onChange={(e) => handleUpdateUserStatus(user.id, e.target.value)}
-                        className={`px-2 py-1 rounded-full text-xs font-medium border-0 ${getStatusColor(user.status)}`}
-                        style={{ background: 'transparent' }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium bg-transparent border ${getStatusColor(user.status)} cursor-pointer`}
                       >
                         <option value="approved">Approved</option>
                         <option value="pending">Pending</option>
