@@ -1,7 +1,4 @@
-// =====================================================
-// GOOGLE DRIVE API SERVICE - COMPLETE
-// Save as: src/services/googleDriveService.ts
-// =====================================================
+import { GoogleAuth } from 'google-auth-library';
 
 interface DriveFile {
   id: string;
@@ -9,7 +6,6 @@ interface DriveFile {
   mimeType: string;
   size?: string;
   createdTime: string;
-  modifiedTime: string;
   webViewLink: string;
   webContentLink?: string;
   thumbnailLink?: string;
@@ -31,151 +27,179 @@ interface UploadProgress {
 }
 
 class GoogleDriveService {
-  private apiKey: string;
-  private mainFolderId: string; // "Boujee Events Hub" folder
-  private eventsFolderId: string | null = null;
-  private archiveFolderId: string | null = null;
+  private static instance: GoogleDriveService;
+  private gapi: any = null;
+  private isInitialized = false;
+  private accessToken: string | null = null;
+  private mainFolderId: string | null = null;
 
-  constructor() {
-    this.apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
-    this.mainFolderId = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID;
-    
-    if (!this.apiKey || !this.mainFolderId) {
-      throw new Error('Google Drive API credentials not configured');
+  private constructor() {}
+
+  static getInstance(): GoogleDriveService {
+    if (!GoogleDriveService.instance) {
+      GoogleDriveService.instance = new GoogleDriveService();
     }
+    return GoogleDriveService.instance;
   }
 
-  // =====================================================
-  // INITIALIZATION & SETUP
-  // =====================================================
+  async initialize(): Promise<boolean> {
+    if (this.isInitialized) return true;
 
-  async initialize(): Promise<void> {
     try {
-      // Check if main folder structure exists
-      await this.ensureMainFolderStructure();
-    } catch (error) {
-      console.error('Failed to initialize Google Drive service:', error);
-      throw new Error('Google Drive initialization failed');
-    }
-  }
-
-  private async ensureMainFolderStructure(): Promise<void> {
-    // Check if Events and Archives folders exist
-    const subfolders = await this.listFolderContents(this.mainFolderId);
-    
-    const eventsFolder = subfolders.find(f => f.name === 'Events' && f.mimeType === 'application/vnd.google-apps.folder');
-    const archiveFolder = subfolders.find(f => f.name === 'Archives' && f.mimeType === 'application/vnd.google-apps.folder');
-
-    if (!eventsFolder) {
-      const created = await this.createFolder('Events', this.mainFolderId);
-      this.eventsFolderId = created.id;
-    } else {
-      this.eventsFolderId = eventsFolder.id;
-    }
-
-    if (!archiveFolder) {
-      const created = await this.createFolder('Archives', this.mainFolderId);
-      this.archiveFolderId = created.id;
-    } else {
-      this.archiveFolderId = archiveFolder.id;
-    }
-  }
-
-  // =====================================================
-  // EVENT FOLDER MANAGEMENT
-  // =====================================================
-
-  async createEventFolder(eventName: string, eventId: string): Promise<EventFolder> {
-    try {
-      if (!this.eventsFolderId) {
-        await this.ensureMainFolderStructure();
+      // Load Google API
+      await this.loadGoogleAPI();
+      
+      // Initialize with environment variables
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
+      
+      if (!clientId || !apiKey) {
+        console.warn('Google Drive API credentials not configured');
+        return false;
       }
 
-      // Sanitize event name for folder
-      const sanitizedName = this.sanitizeFolderName(eventName);
-      const folderName = `${sanitizedName} (${eventId.slice(0, 8)})`;
+      await this.gapi.load('auth2:client:picker', async () => {
+        await this.gapi.client.init({
+          apiKey: apiKey,
+          clientId: clientId,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+          scope: 'https://www.googleapis.com/auth/drive.file'
+        });
 
-      // Create main event folder
-      const eventFolder = await this.createFolder(folderName, this.eventsFolderId!);
+        this.isInitialized = true;
+        console.log('✅ Google Drive API initialized');
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to initialize Google Drive API:', error);
+      return false;
+    }
+  }
+
+  private async loadGoogleAPI(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (window.gapi) {
+        this.gapi = window.gapi;
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => {
+        this.gapi = window.gapi;
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async authenticate(): Promise<boolean> {
+    if (!this.isInitialized) {
+      const initialized = await this.initialize();
+      if (!initialized) return false;
+    }
+
+    try {
+      const authInstance = this.gapi.auth2.getAuthInstance();
+      const user = await authInstance.signIn();
+      
+      if (user.isSignedIn()) {
+        this.accessToken = user.getAuthResponse().access_token;
+        console.log('✅ Google Drive authentication successful');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Google Drive authentication failed:', error);
+      return false;
+    }
+  }
+
+  async createEventFolder(eventName: string, eventId: string): Promise<EventFolder> {
+    if (!this.accessToken) {
+      const authenticated = await this.authenticate();
+      if (!authenticated) throw new Error('Authentication required');
+    }
+
+    try {
+      // Get or create main "Boujee Events" folder
+      if (!this.mainFolderId) {
+        this.mainFolderId = await this.getOrCreateMainFolder();
+      }
+
+      // Create event folder
+      const eventFolderName = `${eventName} (${eventId})`;
+      const eventFolder = await this.createFolder(eventFolderName, this.mainFolderId);
       
       // Create Photos and Videos subfolders
       const photosFolder = await this.createFolder('Photos', eventFolder.id);
       const videosFolder = await this.createFolder('Videos', eventFolder.id);
 
-      // Make folders publicly viewable (important for sharing)
-      await this.makeFolderPublic(eventFolder.id);
-      await this.makeFolderPublic(photosFolder.id);
-      await this.makeFolderPublic(videosFolder.id);
-
       return {
         eventFolderId: eventFolder.id,
         photosFolderId: photosFolder.id,
         videosFolderId: videosFolder.id,
-        eventFolderUrl: `https://drive.google.com/drive/folders/${eventFolder.id}`,
-        photosUrl: `https://drive.google.com/drive/folders/${photosFolder.id}`,
-        videosUrl: `https://drive.google.com/drive/folders/${videosFolder.id}`
+        eventFolderUrl: eventFolder.webViewLink,
+        photosUrl: photosFolder.webViewLink,
+        videosUrl: videosFolder.webViewLink
       };
     } catch (error) {
-      console.error('Failed to create event folder:', error);
-      throw new Error(`Failed to create folder for event: ${eventName}`);
+      console.error('❌ Failed to create event folder:', error);
+      throw error;
     }
   }
 
-  private async createFolder(name: string, parentId: string): Promise<DriveFile> {
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: name,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [parentId]
-      })
+  private async getOrCreateMainFolder(): Promise<string> {
+    const folderName = 'Boujee Events Hub';
+    
+    // Search for existing folder
+    const response = await this.gapi.client.drive.files.list({
+      q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)'
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to create folder: ${response.statusText}`);
+    if (response.result.files && response.result.files.length > 0) {
+      return response.result.files[0].id;
     }
 
-    return await response.json();
+    // Create new folder
+    const folder = await this.createFolder(folderName, null);
+    return folder.id;
   }
 
-  private async makeFolderPublic(folderId: string): Promise<void> {
-    try {
-      await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?key=${this.apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          role: 'reader',
-          type: 'anyone'
-        })
-      });
-    } catch (error) {
-      console.warn('Failed to make folder public:', error);
-      // Don't throw - this is not critical
-    }
-  }
+  private async createFolder(name: string, parentId: string | null): Promise<DriveFile> {
+    const metadata = {
+      name: name,
+      mimeType: 'application/vnd.google-apps.folder',
+      ...(parentId && { parents: [parentId] })
+    };
 
-  // =====================================================
-  // MEDIA UPLOAD & MANAGEMENT
-  // =====================================================
+    const response = await this.gapi.client.drive.files.create({
+      resource: metadata,
+      fields: 'id, name, webViewLink'
+    });
+
+    return response.result;
+  }
 
   async uploadFile(
     file: File, 
     folderId: string, 
     onProgress?: (progress: UploadProgress) => void
   ): Promise<DriveFile> {
-    try {
-      // Determine correct folder based on file type
-      const targetFolderId = await this.determineTargetFolder(file, folderId);
-      
-      // Create multipart upload
+    if (!this.accessToken) {
+      const authenticated = await this.authenticate();
+      if (!authenticated) throw new Error('Authentication required');
+    }
+
+    return new Promise((resolve, reject) => {
       const metadata = {
         name: file.name,
-        parents: [targetFolderId]
+        parents: [folderId]
       };
 
       const form = new FormData();
@@ -184,286 +208,112 @@ class GoogleDriveService {
 
       const xhr = new XMLHttpRequest();
       
-      return new Promise((resolve, reject) => {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (onProgress && e.lengthComputable) {
-            const progress: UploadProgress = {
-              loaded: e.loaded,
-              total: e.total,
-              percentage: Math.round((e.loaded / e.total) * 100)
-            };
-            onProgress(progress);
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            const result = JSON.parse(xhr.responseText);
-            resolve(result);
-          } else {
-            reject(new Error(`Upload failed: ${xhr.statusText}`));
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Upload failed: Network error'));
-        });
-
-        xhr.open('POST', `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&key=${this.apiKey}`);
-        xhr.send(form);
-      });
-    } catch (error) {
-      console.error('File upload failed:', error);
-      throw new Error(`Failed to upload ${file.name}`);
-    }
-  }
-
-  private async determineTargetFolder(file: File, eventFolderId: string): Promise<string> {
-    // Get subfolders of the event folder
-    const subfolders = await this.listFolderContents(eventFolderId);
-    
-    const photosFolder = subfolders.find(f => f.name === 'Photos');
-    const videosFolder = subfolders.find(f => f.name === 'Videos');
-
-    if (file.type.startsWith('image/')) {
-      return photosFolder?.id || eventFolderId;
-    } else if (file.type.startsWith('video/')) {
-      return videosFolder?.id || eventFolderId;
-    } else {
-      return eventFolderId; // Default to main event folder
-    }
-  }
-
-  async uploadMultipleFiles(
-    files: File[], 
-    folderId: string,
-    onProgress?: (progress: UploadProgress) => void,
-    onFileComplete?: (fileName: string, result: DriveFile) => void
-  ): Promise<DriveFile[]> {
-    const results: DriveFile[] = [];
-    let totalUploaded = 0;
-
-    for (const file of files) {
-      try {
-        const result = await this.uploadFile(file, folderId, (fileProgress) => {
-          if (onProgress) {
-            const overallProgress: UploadProgress = {
-              loaded: totalUploaded + fileProgress.loaded,
-              total: files.reduce((sum, f) => sum + f.size, 0),
-              percentage: Math.round(((totalUploaded + fileProgress.loaded) / files.reduce((sum, f) => sum + f.size, 0)) * 100)
-            };
-            onProgress(overallProgress);
-          }
-        });
-
-        results.push(result);
-        totalUploaded += file.size;
-        
-        if (onFileComplete) {
-          onFileComplete(file.name, result);
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress({
+            loaded: e.loaded,
+            total: e.total,
+            percentage: (e.loaded / e.total) * 100
+          });
         }
-      } catch (error) {
-        console.error(`Failed to upload ${file.name}:`, error);
-        throw error;
-      }
-    }
+      });
 
-    return results;
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const result = JSON.parse(xhr.responseText);
+          resolve(result);
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
+
+      xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+      xhr.setRequestHeader('Authorization', `Bearer ${this.accessToken}`);
+      xhr.send(form);
+    });
   }
 
-  // =====================================================
-  // FOLDER & FILE BROWSING
-  // =====================================================
+  async getEventMedia(eventFolderId: string): Promise<{ photos: DriveFile[], videos: DriveFile[] }> {
+    if (!this.accessToken) {
+      const authenticated = await this.authenticate();
+      if (!authenticated) throw new Error('Authentication required');
+    }
 
-  async listFolderContents(folderId: string): Promise<DriveFile[]> {
     try {
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?` +
-        `q='${folderId}'+in+parents&` +
-        `key=${this.apiKey}&` +
-        `fields=files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)&` +
-        `orderBy=name`
-      );
+      // Get all files in event folder
+      const response = await this.gapi.client.drive.files.list({
+        q: `'${eventFolderId}' in parents and trashed=false`,
+        fields: 'files(id, name, mimeType, size, createdTime, webViewLink, webContentLink, thumbnailLink)',
+        orderBy: 'createdTime desc'
+      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to list folder contents: ${response.statusText}`);
-      }
+      const files = response.result.files || [];
+      const photos = files.filter((file: DriveFile) => file.mimeType.startsWith('image/'));
+      const videos = files.filter((file: DriveFile) => file.mimeType.startsWith('video/'));
 
-      const data = await response.json();
-      return data.files || [];
+      return { photos, videos };
     } catch (error) {
-      console.error('Failed to list folder contents:', error);
+      console.error('❌ Failed to get event media:', error);
       throw error;
     }
   }
 
-  async getEventMedia(eventFolderId: string): Promise<{photos: DriveFile[], videos: DriveFile[]}> {
+  async deleteFile(fileId: string): Promise<boolean> {
+    if (!this.accessToken) {
+      const authenticated = await this.authenticate();
+      if (!authenticated) throw new Error('Authentication required');
+    }
+
     try {
-      const contents = await this.listFolderContents(eventFolderId);
+      await this.gapi.client.drive.files.delete({
+        fileId: fileId
+      });
       
-      const photosFolder = contents.find(f => f.name === 'Photos' && f.mimeType === 'application/vnd.google-apps.folder');
-      const videosFolder = contents.find(f => f.name === 'Videos' && f.mimeType === 'application/vnd.google-apps.folder');
+      console.log('✅ File deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to delete file:', error);
+      return false;
+    }
+  }
 
-      const photos = photosFolder ? await this.listFolderContents(photosFolder.id) : [];
-      const videos = videosFolder ? await this.listFolderContents(videosFolder.id) : [];
+  async getStorageQuota(): Promise<{ used: number, total: number }> {
+    if (!this.accessToken) {
+      const authenticated = await this.authenticate();
+      if (!authenticated) throw new Error('Authentication required');
+    }
 
+    try {
+      const response = await this.gapi.client.drive.about.get({
+        fields: 'storageQuota'
+      });
+
+      const quota = response.result.storageQuota;
       return {
-        photos: photos.filter(f => f.mimeType.startsWith('image/')),
-        videos: videos.filter(f => f.mimeType.startsWith('video/'))
+        used: parseInt(quota.usage || '0'),
+        total: parseInt(quota.limit || '15000000000') // 15GB default
       };
     } catch (error) {
-      console.error('Failed to get event media:', error);
-      return { photos: [], videos: [] };
+      console.error('❌ Failed to get storage quota:', error);
+      return { used: 0, total: 15000000000 };
     }
   }
 
-  // =====================================================
-  // FILE OPERATIONS
-  // =====================================================
-
-  async deleteFile(fileId: string): Promise<void> {
-    try {
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?key=${this.apiKey}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete file: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('Failed to delete file:', error);
-      throw error;
-    }
+  isAuthenticated(): boolean {
+    return !!this.accessToken;
   }
 
-  async getFileInfo(fileId: string): Promise<DriveFile> {
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}?` +
-        `key=${this.apiKey}&` +
-        `fields=id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to get file info: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to get file info:', error);
-      throw error;
-    }
-  }
-
-  // =====================================================
-  // ARCHIVE & CLEANUP
-  // =====================================================
-
-  async archiveEventFolder(eventFolderId: string): Promise<void> {
-    try {
-      if (!this.archiveFolderId) {
-        await this.ensureMainFolderStructure();
-      }
-
-      // Move folder to archives
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${eventFolderId}?key=${this.apiKey}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          parents: [this.archiveFolderId]
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to archive event folder: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('Failed to archive event folder:', error);
-      throw error;
-    }
-  }
-
-  // =====================================================
-  // UTILITY FUNCTIONS
-  // =====================================================
-
-  private sanitizeFolderName(name: string): string {
-    // Remove or replace invalid characters for Google Drive folder names
-    return name
-      .replace(/[<>:"/\\|?*]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 100); // Limit length
-  }
-
-  getPublicUrl(fileId: string): string {
-    return `https://drive.google.com/file/d/${fileId}/view`;
-  }
-
-  getThumbnailUrl(fileId: string, size: number = 400): string {
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=s${size}`;
-  }
-
-  getDirectDownloadUrl(fileId: string): string {
-    return `https://drive.google.com/uc?export=download&id=${fileId}`;
-  }
-
-  // =====================================================
-  // ERROR HANDLING & VALIDATION
-  // =====================================================
-
-  validateApiKey(): boolean {
-    return Boolean(this.apiKey && this.apiKey.length > 10);
-  }
-
-  validateFolderId(): boolean {
-    return Boolean(this.mainFolderId && this.mainFolderId.length > 10);
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${this.mainFolderId}?key=${this.apiKey}`);
-      return response.ok;
-    } catch {
-      return false;
+  async signOut(): Promise<void> {
+    if (this.gapi && this.gapi.auth2) {
+      const authInstance = this.gapi.auth2.getAuthInstance();
+      await authInstance.signOut();
+      this.accessToken = null;
+      console.log('✅ Google Drive signed out');
     }
   }
 }
 
-// =====================================================
-// EXPORT & SINGLETON PATTERN
-// =====================================================
-
-let instance: GoogleDriveService | null = null;
-
-export const createGoogleDriveService = (): GoogleDriveService => {
-  if (!instance) {
-    instance = new GoogleDriveService();
-  }
-  return instance;
-};
-
-export const googleDriveService = createGoogleDriveService();
-
-// Type exports
+export const googleDriveService = GoogleDriveService.getInstance();
 export type { DriveFile, EventFolder, UploadProgress };
-
-// =====================================================
-// USAGE EXAMPLE:
-// 
-// import { googleDriveService } from '../services/googleDriveService';
-// 
-// // Initialize service
-// await googleDriveService.initialize();
-// 
-// // Create event folder
-// const eventFolder = await googleDriveService.createEventFolder('Summer Party 2025', 'event-uuid');
-// 
-// // Upload files
-// const uploadedFile = await googleDriveService.uploadFile(file, eventFolder.eventFolderId);
-// 
-// // Get event media
-// const media = await googleDriveService.getEventMedia(eventFolder.eventFolderId);
-// =====================================================
