@@ -1,15 +1,15 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { HomePage } from './pages/HomePage';
-import { IndexPage } from './pages/IndexPage';
-import { BookingPage } from './pages/BookingPage';
-import { LoginPage } from './pages/LoginPage';
-import { AuthCallback } from './components/AuthCallback';
+import HomePage from './pages/HomePage';
+import IndexPage from './pages/Index';
+import BookingPage from './pages/BookingPage';
+import LoginPage from './pages/LoginPage';
+import AuthCallback from './pages/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { OrganizerDashboard } from './pages/OrganizerDashboard';
-import { MemberDashboard } from './pages/MemberDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import OrganizerDashboard from './pages/OrganizerDashboard';
+import MemberDashboard from './pages/MemberDashboard';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
