@@ -10,15 +10,16 @@ function LoginPage() {
     password: ''
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, loading, signIn } = useAuth();
+  const { user, profile, signIn } = useAuth();
 
   const from = location.state?.from?.pathname || '/';
 
-  // Redirect if already logged in
   useEffect(() => {
+    // Only redirect if user is truly authenticated
     if (user && profile) {
       switch (profile.role) {
         case 'admin':
@@ -39,16 +40,22 @@ function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields');
+      setIsLoading(false);
       return;
     }
 
     try {
+      console.log('Attempting login with:', formData.email);
       await signIn(formData.email, formData.password);
+      // Navigation handled by useEffect
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password');
+      setIsLoading(false);
     }
   };
 
@@ -60,12 +67,13 @@ function LoginPage() {
     if (error) setError('');
   };
 
-  if (loading) {
+  // Don't show login form if already authenticated
+  if (user && profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-          <p>Loading...</p>
+          <p>Redirecting to dashboard...</p>
         </div>
       </div>
     );
@@ -100,7 +108,6 @@ function LoginPage() {
             <p className="text-gray-400">Sign in to access your dashboard</p>
           </div>
 
-          {/* Test Credentials */}
           <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
             <h3 className="text-sm font-semibold text-blue-400 mb-2">Test Credentials:</h3>
             <div className="text-xs text-gray-300 space-y-1">
@@ -126,7 +133,8 @@ function LoginPage() {
                 value={formData.email}
                 onChange={handleInputChange}
                 required
-                className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                disabled={isLoading}
+                className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 disabled:opacity-50"
               />
             </div>
 
@@ -139,12 +147,14 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                disabled={isLoading}
+                className="w-full pl-12 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                disabled={isLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-50"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -152,10 +162,10 @@ function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full bg-yellow-400 text-black py-3 px-6 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (
+              {isLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
                   Signing In...
