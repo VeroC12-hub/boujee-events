@@ -1,9 +1,7 @@
-// src/lib/auth.ts
 import { createClient } from '@supabase/supabase-js';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-// TYPE DEFINITIONS
 export interface UserProfile {
   id: string;
   email: string;
@@ -38,7 +36,6 @@ export interface SignInData {
   password: string;
 }
 
-// Mock users for development/fallback
 const MOCK_USERS = {
   'admin@nexacore-innovations.com': {
     password: 'NexaCore2024!',
@@ -90,7 +87,6 @@ const MOCK_USERS = {
   }
 };
 
-// AUTH SERVICE CLASS
 class AuthService {
   private static instance: AuthService;
   private currentUser: User | null = null;
@@ -123,7 +119,6 @@ class AuthService {
 
   private async initializeSupabase(): Promise<void> {
     try {
-      // Get initial session
       const { data: { session }, error } = await supabase!.auth.getSession();
       
       if (error) {
@@ -136,7 +131,6 @@ class AuthService {
         await this.loadUserProfile(session.user);
       }
 
-      // Listen for auth changes
       supabase!.auth.onAuthStateChange(async (event, session) => {
         console.log('🔄 Auth state changed:', event);
         
@@ -163,27 +157,15 @@ class AuthService {
   }
 
   private initializeMockAuth(): void {
-    // Try to restore session from localStorage
-    const storedUser = localStorage.getItem('boujee_auth_user');
-    const storedProfile = localStorage.getItem('boujee_auth_profile');
-    
-    if (storedUser && storedProfile) {
-      try {
-        this.currentUser = JSON.parse(storedUser);
-        this.currentProfile = JSON.parse(storedProfile);
-        console.log('✅ Restored mock session from localStorage');
-      } catch (error) {
-        console.warn('Failed to restore mock session:', error);
-        this.clearStorage();
-      }
-    }
+    // Don't auto-restore session - require login
+    console.log('Mock authentication ready - login required');
+    this.clearStorage();
   }
 
   private async loadUserProfile(user: User): Promise<void> {
     if (!supabase) return;
 
     try {
-      // Try to load profile from database
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -192,13 +174,11 @@ class AuthService {
 
       if (error) {
         console.warn('Failed to load user profile from database:', error);
-        // Create fallback profile
         this.currentProfile = this.createFallbackProfile(user);
       } else if (data) {
         this.currentProfile = data;
       }
 
-      // Store in localStorage for persistence
       if (this.currentProfile) {
         localStorage.setItem('boujee_auth_user', JSON.stringify(user));
         localStorage.setItem('boujee_auth_profile', JSON.stringify(this.currentProfile));
@@ -211,14 +191,12 @@ class AuthService {
   }
 
   private createFallbackProfile(user: User): UserProfile {
-    // Check if user exists in mock data
     const mockUser = MOCK_USERS[user.email as keyof typeof MOCK_USERS];
     
     if (mockUser) {
       return { ...mockUser.profile, id: user.id };
     }
 
-    // Create generic profile
     return {
       id: user.id,
       email: user.email || '',
@@ -236,7 +214,7 @@ class AuthService {
     if (!isSupabaseConfigured() || !supabase) {
       return { 
         user: null, 
-        error: 'Sign up requires Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables in Vercel.' 
+        error: 'Sign up requires Supabase configuration.' 
       };
     }
 
@@ -260,7 +238,6 @@ class AuthService {
         return { user: null, error: 'Sign up failed - no user returned' };
       }
 
-      // Try to create profile in database
       try {
         const { error: profileError } = await supabase
           .from('user_profiles')
@@ -291,6 +268,9 @@ class AuthService {
   async signIn(data: SignInData): Promise<{ user: any; error: string | null }> {
     console.log('🔐 Sign in attempt:', data.email);
     
+    // Clear any existing session first
+    this.clearStorage();
+    
     // Try Supabase first if configured
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -299,25 +279,22 @@ class AuthService {
           password: data.password,
         });
 
-        if (authError) {
-          console.log('❌ Supabase auth failed, trying mock auth:', authError.message);
-          // Fall through to mock auth
-        } else if (authData.user) {
+        if (!authError && authData.user) {
           console.log('✅ Supabase authentication successful');
           this.currentUser = authData.user;
           this.currentSession = authData.session;
           await this.loadUserProfile(authData.user);
           
-          // Check profile status
           if (this.currentProfile && this.currentProfile.status !== 'approved') {
             if (this.currentProfile.status === 'pending') {
-              return { user: authData.user, error: 'Your account is pending approval. Please wait for admin approval.' };
+              return { user: authData.user, error: 'Your account is pending approval.' };
             } else {
               await this.signOut();
-              return { user: null, error: `Your account has been ${this.currentProfile.status}. Please contact support.` };
+              return { user: null, error: `Your account has been ${this.currentProfile.status}.` };
             }
           }
 
+          this.notifyStateChange();
           return { user: authData.user, error: null };
         }
       } catch (error) {
@@ -325,37 +302,37 @@ class AuthService {
       }
     }
 
-    // Mock authentication fallback
+    // Mock authentication fallback with password validation
     console.log('🧪 Trying mock authentication...');
     const mockUser = MOCK_USERS[data.email as keyof typeof MOCK_USERS];
     
-    if (mockUser && mockUser.password === data.password) {
-      console.log('✅ Mock authentication successful');
-      
-      const user = {
-        id: mockUser.profile.id,
-        email: mockUser.profile.email,
-        user_metadata: {
-          full_name: mockUser.profile.full_name
-        },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: mockUser.profile.created_at
-      };
-
-      this.currentUser = user;
-      this.currentProfile = mockUser.profile;
-
-      // Store in localStorage
-      localStorage.setItem('boujee_auth_user', JSON.stringify(user));
-      localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
-
-      this.notifyStateChange();
-      return { user, error: null };
+    // Check both email and password
+    if (!mockUser || mockUser.password !== data.password) {
+      console.log('❌ Invalid credentials');
+      return { user: null, error: 'Invalid email or password' };
     }
 
-    console.log('❌ Authentication failed');
-    return { user: null, error: 'Invalid email or password' };
+    console.log('✅ Mock authentication successful');
+    
+    const user = {
+      id: mockUser.profile.id,
+      email: mockUser.profile.email,
+      user_metadata: {
+        full_name: mockUser.profile.full_name
+      },
+      app_metadata: {},
+      aud: 'authenticated',
+      created_at: mockUser.profile.created_at
+    };
+
+    this.currentUser = user;
+    this.currentProfile = mockUser.profile;
+
+    localStorage.setItem('boujee_auth_user', JSON.stringify(user));
+    localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
+
+    this.notifyStateChange();
+    return { user, error: null };
   }
 
   async signOut(): Promise<void> {
@@ -382,6 +359,7 @@ class AuthService {
   private clearStorage(): void {
     localStorage.removeItem('boujee_auth_user');
     localStorage.removeItem('boujee_auth_profile');
+    sessionStorage.clear();
   }
 
   private notifyStateChange(): void {
@@ -405,7 +383,6 @@ class AuthService {
   onAuthStateChange(callback: (state: AuthState) => void): () => void {
     this.callbacks.add(callback);
     
-    // Immediately call with current state
     callback({
       user: this.currentUser,
       profile: this.currentProfile,
@@ -465,10 +442,8 @@ class AuthService {
   }
 }
 
-// Create singleton instance
 export const authService = AuthService.getInstance();
 
-// Export utility functions
 export const getCurrentUser = () => authService.getCurrentUser();
 export const getCurrentProfile = () => authService.getCurrentProfile();
 export const getCurrentSession = () => authService.getCurrentSession();
