@@ -1,11 +1,11 @@
 import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
-import Login from './Login';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'organizer' | 'user';
+  requiredRole?: 'admin' | 'organizer' | 'member';
   fallback?: React.ReactNode;
 }
 
@@ -15,6 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   fallback 
 }) => {
   const authContext = useAuth();
+  const location = useLocation();
 
   // Safety check for auth context
   if (!authContext) {
@@ -51,7 +52,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Redirect to login if not authenticated
   if (!user || !profile) {
-    return <Login />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Check role-based access
