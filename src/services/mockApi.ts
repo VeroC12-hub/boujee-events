@@ -11,8 +11,6 @@ import {
   AnalyticsMetric,
   ActivityLog,
   EventPerformance,
-  LoginRequest,
-  LoginResponse,
   PlatformSettings,
   NotificationSettings,
   SecuritySettings
@@ -157,10 +155,6 @@ let mockEvents: Event[] = [
   }
 ];
 
-// User Authentication Storage
-let currentUser: User | null = null;
-let authToken: string | null = null;
-
 class MockApiService {
   private baseUrl = '/api/v1';
   
@@ -176,43 +170,10 @@ class MockApiService {
     };
   }
 
-  // Authentication Methods
-  async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
-    const user = mockUsers.find(u => u.email === credentials.email);
-    
-    if (!user || credentials.password !== 'password123') {
-      return this.apiResponse(null as any, false, 'Invalid email or password');
-    }
-
-    const token = `mock_token_${Date.now()}`;
-    const refreshToken = `mock_refresh_${Date.now()}`;
-    
-    currentUser = user;
-    authToken = token;
-    
-    // Update last login
-    user.lastLogin = new Date().toISOString().replace('T', ' ').split('.')[0];
-    
-    return this.apiResponse({
-      user,
-      token,
-      refreshToken,
-      expiresIn: 3600
-    });
-  }
-
-  async logout(): Promise<ApiResponse<null>> {
-    currentUser = null;
-    authToken = null;
-    return this.apiResponse(null, true, 'Logged out successfully');
-  }
-
-  async getCurrentUser(): Promise<ApiResponse<User>> {
-    if (!currentUser) {
-      return this.apiResponse(null as any, false, 'Not authenticated');
-    }
-    return this.apiResponse(currentUser);
-  }
+  // =========================================
+  // AUTHENTICATION METHODS REMOVED! 
+  // Use AuthContext instead for all auth
+  // =========================================
 
   // User Management Methods
   async getUsers(params?: PaginationParams): Promise<ApiResponse<PaginatedResponse<User>>> {
@@ -344,8 +305,8 @@ class MockApiService {
     const newEvent: Event = {
       id: (mockEvents.length + 1).toString(),
       ...eventData,
-      organizer: currentUser?.name || 'Unknown',
-      organizerId: currentUser?.id || '1',
+      organizer: 'Event Organizer', // Static since no auth context here
+      organizerId: '1',
       attendees: 0,
       status: 'draft',
       image: eventData.image || 'https://via.placeholder.com/400x300/3B82F6/FFFFFF?text=Event',
@@ -496,7 +457,6 @@ class MockApiService {
   }
 
   async updatePlatformSettings(settings: Partial<PlatformSettings>): Promise<ApiResponse<PlatformSettings>> {
-    // In a real implementation, this would update the database
     const updatedSettings: PlatformSettings = {
       siteName: 'EventHub',
       siteDescription: 'The premier event management platform',
