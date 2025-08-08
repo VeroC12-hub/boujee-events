@@ -1,259 +1,143 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  role: string;
-  status: string;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../lib/auth';
+import type { User, Session } from '@supabase/supabase-js';
+import type { UserProfile } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
-  profile: Profile | null;
+  profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData?: any) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// Mock users for development fallback
-const MOCK_USERS = {
-  'admin@test.com': {
-    password: 'TestAdmin2025',
-    profile: {
-      id: 'test-admin',
-      email: 'admin@test.com',
-      full_name: 'Test Administrator',
-      role: 'admin',
-      status: 'approved',
-      avatar_url: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  },
-  'organizer@test.com': {
-    password: 'TestOrganizer2025',
-    profile: {
-      id: 'test-organizer',
-      email: 'organizer@test.com',
-      full_name: 'Test Organizer',
-      role: 'organizer',
-      status: 'approved',
-      avatar_url: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  },
-  'member@test.com': {
-    password: 'TestMember2025',
-    profile: {
-      id: 'test-member',
-      email: 'member@test.com',
-      full_name: 'Test Member',
-      role: 'member',
-      status: 'approved',
-      avatar_url: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  }
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initAuth = async () => {
-      try {
-        // Try to restore from localStorage first
-        const storedUser = localStorage.getItem('boujee_auth_user');
-        const storedProfile = localStorage.getItem('boujee_auth_profile');
-        
-        if (storedUser && storedProfile && mounted) {
-          const parsedUser = JSON.parse(storedUser);
-          const parsedProfile = JSON.parse(storedProfile);
-          setUser(parsedUser);
-          setProfile(parsedProfile);
-          setLoading(false);
-          return;
-        }
-
-        // Try Supabase if available
-        if (supabase && mounted) {
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.user && mounted) {
-            setSession(session);
-            setUser(session.user);
-            
-            // Try to fetch profile
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (profileData && mounted) {
-              setProfile(profileData);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Auth init error:', error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
+    // Clear any stored sessions first
+    const clearOldSessions = () => {
+      localStorage.removeItem('boujee_auth_user');
+      localStorage.removeItem('boujee_auth_profile');
     };
+    
+    clearOldSessions();
+    checkSession();
 
-    initAuth();
-
-    // Supabase auth listener
-    let authListener: any = null;
-    if (supabase) {
-      authListener = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (!mounted) return;
-        
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profileData) {
-            setProfile(profileData);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-          setSession(null);
-          localStorage.removeItem('boujee_auth_user');
-          localStorage.removeItem('boujee_auth_profile');
-        }
-        
-        setLoading(false);
-      });
-    }
+    const unsubscribe = authService.onAuthStateChange((state) => {
+      setUser(state.user);
+      setProfile(state.profile);
+      setSession(state.session);
+      setError(state.error);
+    });
 
     return () => {
-      mounted = false;
-      if (authListener?.data?.subscription) {
-        authListener.data.subscription.unsubscribe();
-      }
+      unsubscribe();
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    
+  const checkSession = async () => {
     try {
-      // Try Supabase first
-      if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (!error && data.user) {
-          setLoading(false);
-          return; // Success - auth listener will handle the rest
-        }
-      }
-
-      // Fallback to mock auth
-      const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
-      
-      if (mockUser && mockUser.password === password) {
-        const user = {
-          id: mockUser.profile.id,
-          email: mockUser.profile.email,
-          user_metadata: { full_name: mockUser.profile.full_name },
-          app_metadata: {},
-          aud: 'authenticated',
-          created_at: mockUser.profile.created_at
-        } as User;
-
-        setUser(user);
-        setProfile(mockUser.profile);
-
-        localStorage.setItem('boujee_auth_user', JSON.stringify(user));
-        localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
-        
-        setLoading(false);
-        return;
-      }
-
-      throw new Error('Invalid email or password');
-    } catch (error) {
+      setLoading(true);
+      // Don't auto-restore session
+      setUser(null);
+      setProfile(null);
+      setSession(null);
       setLoading(false);
-      throw error;
+    } catch (error) {
+      console.error('Session check failed:', error);
+      setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, userData?: any) => {
-    if (!supabase) {
-      throw new Error('Sign up requires Supabase configuration');
+  const signIn = async (email: string, password: string) => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const result = await authService.signIn({ email, password });
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      if (!result.user) {
+        throw new Error('Login failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
     }
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: userData }
-    });
-    
-    if (error) throw error;
+  };
+
+  const signUp = async (email: string, password: string, fullName: string) => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const result = await authService.signUp({ 
+        email, 
+        password, 
+        fullName,
+        role: 'member'
+      });
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Sign up failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      setLoading(true);
+      await authService.signOut();
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      localStorage.removeItem('boujee_auth_user');
+      localStorage.removeItem('boujee_auth_profile');
+    } catch (err: any) {
+      setError(err.message || 'Sign out failed');
+    } finally {
+      setLoading(false);
     }
-    
-    setUser(null);
-    setProfile(null);
-    setSession(null);
-    localStorage.removeItem('boujee_auth_user');
-    localStorage.removeItem('boujee_auth_profile');
   };
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const value = {
+    user,
+    profile,
+    session,
+    loading,
+    error,
+    signIn,
+    signUp,
+    signOut
+  };
 
-export function useAuth() {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
