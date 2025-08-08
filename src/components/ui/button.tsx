@@ -1,5 +1,5 @@
 // src/components/ui/button.tsx
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -39,8 +39,6 @@ export const Button: React.FC<ButtonProps> = ({
 };
 
 // src/components/ui/badge.tsx
-import React from 'react';
-
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'secondary' | 'destructive' | 'outline';
 }
@@ -66,7 +64,6 @@ export const Badge: React.FC<BadgeProps> = ({
 };
 
 // src/components/ui/tabs.tsx
-import React, { createContext, useContext } from 'react';
 
 const TabsContext = createContext<{
   value: string;
