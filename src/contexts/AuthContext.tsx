@@ -21,6 +21,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userData?: any) => Promise<void>;
   signOut: () => Promise<void>;
+  // Compatibility methods
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 // Mock users for development/fallback
@@ -290,7 +293,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signUp,
-    signOut
+    signOut,
+    // Compatibility aliases
+    login: signIn,
+    logout: signOut
   };
 
   return (

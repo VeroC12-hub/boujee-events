@@ -17,15 +17,28 @@ function LoginPage() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, profile } = useAuth();
 
   const from = location.state?.from?.pathname || '/';
 
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true });
+    if (user && profile) {
+      // Role-based redirects
+      switch (profile.role) {
+        case 'admin':
+          navigate('/admin-dashboard', { replace: true });
+          break;
+        case 'organizer':
+          navigate('/organizer-dashboard', { replace: true });
+          break;
+        case 'member':
+          navigate('/member-dashboard', { replace: true });
+          break;
+        default:
+          navigate(from, { replace: true });
+      }
     }
-  }, [user, navigate, from]);
+  }, [user, profile, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +48,7 @@ function LoginPage() {
     try {
       if (isLogin) {
         await signIn(formData.email, formData.password);
+        // Note: role-based redirect handled in useEffect above
       } else {
         await signUp(formData.email, formData.password, {
           full_name: formData.fullName,
