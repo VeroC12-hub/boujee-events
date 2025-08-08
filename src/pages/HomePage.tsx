@@ -17,7 +17,7 @@ const HomePage = () => {
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Sample events data (same as before)
+  // Sample events data
   const sampleEvents = [
     {
       id: 1,
@@ -35,32 +35,22 @@ const HomePage = () => {
       tags: ["VIP", "Luxury", "Exclusive"],
       basePrice: 2500,
       organizerId: "admin"
-    },
-    // ... (keep your other events)
+    }
   ];
 
   useEffect(() => {
     setEvents(sampleEvents);
   }, []);
 
-  // FIXED: Add proper navigation handlers
-  const handleSignIn = () => {
+  // Navigation handlers
+  const handleSignUp = () => {
     navigate('/login');
-  };
-
-  const handleAdminPortal = () => {
-    if (user && profile?.role === 'admin') {
-      navigate('/admin-dashboard');
-    } else {
-      navigate('/login');
-    }
   };
 
   const handleBookEvent = (eventId) => {
     if (user) {
       navigate(`/book/${eventId}`);
     } else {
-      // Redirect to login with return URL
       navigate('/login', { state: { returnTo: `/book/${eventId}` } });
     }
   };
@@ -90,30 +80,35 @@ const HomePage = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-amber-100/20"></div>
       </div>
 
-      {/* FIXED Header with working buttons */}
+      {/* UPDATED Header - Only Sign Up button, Real Logo */}
       <header className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-amber-200/50 sticky top-0 shadow-lg">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
+            {/* Logo Section - Use your real logo */}
             <div className="flex items-center space-x-4 cursor-pointer" onClick={() => navigate('/')}>
-              <div className="text-4xl">✨</div>
-              <Logo variant="primary" size="large" showTagline={true} />
+              <img
+                src="/favicon.svg"
+                alt="Boujee Events Logo"
+                className="h-12 w-12"
+                onError={(e) => {
+                  // Fallback to PNG favicon if SVG fails
+                  e.currentTarget.src = '/favicon-32x32.png';
+                }}
+              />
+              <div className="hidden md:block">
+                <h1 className="text-xl font-bold text-amber-700">Boujee Events</h1>
+                <p className="text-sm text-amber-600">Creating magical moments</p>
+              </div>
             </div>
             
+            {/* ONLY Sign Up Button */}
             <div className="flex items-center gap-4">
               <Button
-                variant="outline"
                 size="sm"
-                className="hidden md:flex border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
-                onClick={handleAdminPortal}
+                className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold shadow-lg px-6"
+                onClick={handleSignUp}
               >
-                {user && profile?.role === 'admin' ? 'Admin Dashboard' : 'Admin Portal'}
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold shadow-lg"
-                onClick={handleSignIn}
-              >
-                {user ? `Welcome ${profile?.full_name || user.email?.split('@')[0]}` : 'Sign In'}
+                Sign Up
               </Button>
             </div>
           </div>
@@ -136,123 +131,116 @@ const HomePage = () => {
         {/* Events Tab */}
         <TabsContent value="events" className="mt-0 relative z-20">
           <div className="container mx-auto px-6 py-12">
-            {/* Hero Section with WORKING buttons */}
+            {/* Hero Section */}
             <div className="text-center mb-16">
               <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-700 bg-clip-text text-transparent mb-6 leading-tight">
                 Discover Magic
               </h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
-                Step into a world of extraordinary experiences, where every moment is crafted to perfection
+              <p className="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto leading-relaxed">
+                Immerse yourself in extraordinary luxury experiences, exclusive festivals, and VIP events that create unforgettable memories
               </p>
-              <div className="flex justify-center gap-4">
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
                 <Button 
-                  className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold px-8 py-3 shadow-xl"
+                  size="lg" 
+                  className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold px-8 py-4 text-lg shadow-xl transform hover:scale-105 transition-all duration-200"
                   onClick={handleExploreEvents}
                 >
-                  Explore Events
+                  🎫 Explore Premium Events
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-amber-300 text-amber-700 hover:bg-amber-50 px-8 py-3"
-                  onClick={() => document.getElementById('bg-video')?.play()}
+                  size="lg" 
+                  className="border-2 border-amber-400 text-amber-700 hover:bg-amber-50 px-8 py-4 text-lg font-semibold transform hover:scale-105 transition-all duration-200"
+                  onClick={() => setActiveTab('about')}
                 >
-                  Watch Video
+                  ✨ Learn More
                 </Button>
               </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="mb-12">
-              <h3 className="text-2xl font-bold text-center mb-8 text-gray-800">Browse by Category</h3>
-              <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide justify-center">
-                {[
-                  { name: 'All', icon: '🌟' },
-                  { name: 'Festival', icon: '🎪' },
-                  { name: 'Luxury Experience', icon: '✨' },
-                  { name: 'Party', icon: '🎉' },
-                  { name: 'Corporate', icon: '🏢' },
-                  { name: 'Music', icon: '🎵' }
-                ].map((category) => (
-                  <button
-                    key={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[100px] h-[100px] rounded-3xl border-2 transition-all duration-300 transform hover:scale-105 ${
-                      selectedCategory === category.name
-                        ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white border-amber-400 shadow-2xl scale-105'
-                        : 'bg-white/80 backdrop-blur-md text-gray-700 border-amber-200 hover:border-amber-400 hover:bg-white/90 shadow-lg'
-                    }`}
-                  >
-                    <span className="text-2xl mb-2">{category.icon}</span>
-                    <span className="text-sm font-semibold text-center leading-tight px-2">
-                      {category.name === 'Luxury Experience' ? 'Luxury' : category.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
+            {/* Event Categories */}
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {['All', 'Festival', 'Conference', 'Concert', 'Gala'].map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`
+                    ${selectedCategory === category 
+                      ? 'bg-amber-500 text-white shadow-lg' 
+                      : 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                    }
+                    px-6 py-2 rounded-full font-medium transition-all duration-200
+                  `}
+                >
+                  {category}
+                </Button>
+              ))}
             </div>
 
-            {/* Events Grid with WORKING book buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredEvents.map((event) => (
+            {/* Featured Events Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredEvents.slice(0, 6).map((event) => (
                 <div 
-                  key={event.id}
-                  className="group relative rounded-2xl overflow-hidden border border-amber-200/30 hover:border-amber-400/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl"
+                  key={event.id} 
+                  className="group bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 border border-amber-200/50"
                 >
-                  <img
-                    src={event.image}
-                    alt={event.title}
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10"></div>
-                  
-                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                    {event.price}
+                  <div className="relative">
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-amber-500 text-white font-semibold">
+                        {event.type}
+                      </Badge>
+                    </div>
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
+                        <Heart className="h-4 w-4 text-amber-600" />
+                      </button>
+                      <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
+                        <Share2 className="h-4 w-4 text-amber-600" />
+                      </button>
+                    </div>
                   </div>
                   
-                  {event.featured && (
-                    <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                      <Star size={10} className="fill-current" />
-                      Featured
-                    </div>
-                  )}
-
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <Badge className="bg-white/20 backdrop-blur-sm text-white border-white/30 text-xs mb-2">
-                      {event.type}
-                    </Badge>
-
-                    <h3 className="text-lg font-bold mb-2 line-clamp-2 text-white drop-shadow-lg">
+                  <div className="p-6">
+                    <h3 className="font-bold text-xl mb-3 text-gray-900 group-hover:text-amber-700 transition-colors">
                       {event.title}
                     </h3>
                     
-                    <div className="flex items-center gap-3 text-white/90 text-sm mb-3">
-                      <div className="flex items-center gap-1">
-                        <Calendar size={12} />
-                        <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2 text-amber-500" />
+                        <span className="text-sm font-medium">{new Date(event.date).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin size={12} />
-                        <span className="truncate">{event.location.split(',')[0]}</span>
+                      <div className="flex items-center text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2 text-amber-500" />
+                        <span className="text-sm">{event.location}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Users className="h-4 w-4 mr-2 text-amber-500" />
+                        <span className="text-sm">{event.ticketsSold}/{event.maxCapacity} attending</span>
                       </div>
                     </div>
 
-                    {/* WORKING Book Now button */}
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <Button
+                    <p className="text-gray-700 text-sm mb-4 line-clamp-2">
+                      {event.description}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-amber-600">
+                        {event.price}
+                      </div>
+                      <Button 
+                        className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-semibold"
                         onClick={() => handleBookEvent(event.id)}
-                        size="sm"
-                        className="flex-1 bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white font-semibold text-xs py-2 border-0"
                       >
                         Book Now
-                      </Button>
-                      <Button
-                        onClick={() => alert(`Shared event: ${event.title}`)}
-                        size="sm"
-                        variant="outline"
-                        className="border-white/50 text-white hover:bg-white/20 backdrop-blur-sm px-3"
-                      >
-                        <Share2 size={14} />
                       </Button>
                     </div>
                   </div>
@@ -262,62 +250,114 @@ const HomePage = () => {
           </div>
         </TabsContent>
 
-        {/* Other tabs remain the same... */}
+        {/* Gallery Tab */}
         <TabsContent value="gallery" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-16">
-            <div className="text-center mb-16">
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Event Gallery</h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                Immerse yourself in the beauty and excitement of our unforgettable events
+          <div className="container mx-auto px-6 py-12">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-amber-700 mb-4">Event Gallery</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Experience the magic through our curated collection of unforgettable moments
               </p>
             </div>
-            {/* Gallery content... */}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1,2,3,4,5,6].map((i) => (
+                <div key={i} className="group relative overflow-hidden rounded-xl shadow-lg">
+                  <img
+                    src={`https://images.unsplash.com/photo-${1500000000000 + i}?w=600&h=400&fit=crop`}
+                    alt={`Gallery ${i}`}
+                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-4 left-4 text-white">
+                      <p className="font-semibold">Event Highlight {i}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
+        {/* About Tab */}
         <TabsContent value="about" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-16">
-            <div className="text-center mb-16">
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Our Story</h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Creating magical experiences that bring people together and create lasting memories.
+          <div className="container mx-auto px-6 py-12">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-4xl font-bold text-amber-700 mb-6">About Boujee Events</h2>
+              <p className="text-xl text-gray-700 mb-8 leading-relaxed">
+                We specialize in creating extraordinary luxury experiences that transcend ordinary events. 
+                From exclusive festivals to intimate VIP gatherings, every moment is crafted to perfection.
               </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+                <div className="text-center">
+                  <div className="text-4xl mb-4">🎭</div>
+                  <h3 className="text-xl font-semibold mb-2">Luxury Events</h3>
+                  <p className="text-gray-600">Premium experiences designed for the most discerning guests</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-4xl mb-4">🌟</div>
+                  <h3 className="text-xl font-semibold mb-2">VIP Treatment</h3>
+                  <p className="text-gray-600">Exclusive access and personalized service at every event</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-4xl mb-4">🎪</div>
+                  <h3 className="text-xl font-semibold mb-2">Memorable Moments</h3>
+                  <p className="text-gray-600">Creating unforgettable experiences that last a lifetime</p>
+                </div>
+              </div>
             </div>
-            {/* About content... */}
           </div>
         </TabsContent>
 
+        {/* Contact Tab */}
         <TabsContent value="contact" className="mt-0 relative z-20">
-          <div className="container mx-auto px-6 py-16">
-            <div className="text-center mb-16">
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-600 to-yellow-700 bg-clip-text text-transparent mb-6">Let's Create Magic</h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Ready to turn your vision into an unforgettable experience? We'd love to hear from you.
+          <div className="container mx-auto px-6 py-12">
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-4xl font-bold text-amber-700 mb-6">Get In Touch</h2>
+              <p className="text-gray-600 mb-8">
+                Ready to create your next unforgettable experience? We'd love to hear from you.
               </p>
+              
+              <div className="space-y-6">
+                <div className="flex items-center justify-center space-x-4">
+                  <Mail className="h-5 w-5 text-amber-500" />
+                  <span>hello@boujeeevents.com</span>
+                </div>
+                <div className="flex items-center justify-center space-x-4">
+                  <Phone className="h-5 w-5 text-amber-500" />
+                  <span>+1 (555) 123-4567</span>
+                </div>
+                <div className="flex items-center justify-center space-x-4">
+                  <MessageCircle className="h-5 w-5 text-amber-500" />
+                  <span>Live Chat Available 24/7</span>
+                </div>
+              </div>
+
+              {/* Newsletter Signup */}
+              <div className="mt-12 p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-amber-200/50">
+                <h3 className="text-xl font-semibold mb-4">Stay Updated</h3>
+                <p className="text-gray-600 mb-4">Get notified about exclusive events and early-bird offers</p>
+                <div className="flex gap-3">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <Button 
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                    disabled={newsletterLoading}
+                  >
+                    {newsletterLoading ? 'Subscribing...' : 'Subscribe'}
+                  </Button>
+                </div>
+              </div>
             </div>
-            {/* Contact content... */}
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Footer */}
-      <footer className="relative z-20 bg-gradient-to-br from-amber-900 to-yellow-800 text-white py-16">
-        <div className="container mx-auto px-6">
-          <div className="text-center">
-            <div className="flex justify-center mb-4">
-              <Logo variant="light" size="xlarge" showTagline={false} />
-            </div>
-            <p className="text-amber-200 mb-8 text-lg">Creating magical moments since 2020</p>
-            <div className="flex justify-center items-center space-x-8 text-amber-300">
-              <span>© 2024 Boujee Events</span>
-              <span>•</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Privacy Policy</span>
-              <span>•</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Terms of Service</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
