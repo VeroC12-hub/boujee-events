@@ -1,50 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    fullName: '',
-    phone: ''
+    password: ''
   });
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, signUp, user } = useAuth();
+  const { user, profile, loading, signIn } = useAuth();
 
   const from = location.state?.from?.pathname || '/';
 
+  // Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true });
+    if (user && profile) {
+      switch (profile.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'organizer':
+          navigate('/organizer');
+          break;
+        case 'member':
+          navigate('/member');
+          break;
+        default:
+          navigate('/');
+      }
     }
-  }, [user, navigate, from]);
+  }, [user, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
     try {
-      if (isLogin) {
-        await signIn(formData.email, formData.password);
-      } else {
-        await signUp(formData.email, formData.password, {
-          full_name: formData.fullName,
-          phone: formData.phone
-        });
-      }
+      await signIn(formData.email, formData.password);
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      setError(err.message || 'Login failed');
     }
   };
 
@@ -53,18 +57,28 @@ function LoginPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    if (error) setError('');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
-      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-yellow-400/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Back to Home Button */}
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 group"
@@ -73,9 +87,7 @@ function LoginPage() {
           <span className="text-sm font-medium">Back to Home</span>
         </button>
 
-        {/* Login/Signup Card */}
         <div className="bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-700/50 p-8">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-3 mb-4">
               <div className="text-3xl font-bold text-yellow-400">be</div>
@@ -84,82 +96,27 @@ function LoginPage() {
                 <p className="text-xs text-gray-400">Setting the new standard</p>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
-            </h2>
-            <p className="text-gray-400">
-              {isLogin 
-                ? 'Sign in to access your dashboard' 
-                : 'Join us for exclusive events'
-              }
-            </p>
+            <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
+            <p className="text-gray-400">Sign in to access your dashboard</p>
           </div>
 
-          {/* Toggle Login/Signup */}
-          <div className="flex bg-gray-700/50 rounded-lg p-1 mb-6">
-            <button
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                isLogin 
-                  ? 'bg-yellow-400 text-black' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                !isLogin 
-                  ? 'bg-yellow-400 text-black' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Sign Up
-            </button>
+          {/* Test Credentials */}
+          <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-400 mb-2">Test Credentials:</h3>
+            <div className="text-xs text-gray-300 space-y-1">
+              <div><strong>Admin:</strong> admin@test.com / TestAdmin2025</div>
+              <div><strong>Organizer:</strong> organizer@test.com / TestOrganizer2025</div>
+              <div><strong>Member:</strong> member@test.com / TestMember2025</div>
+            </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6">
               <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name - Only for signup */}
-            {!isLogin && (
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="fullName"
-                  placeholder="Full Name"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  required={!isLogin}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
-                />
-              </div>
-            )}
-
-            {/* Phone - Only for signup */}
-            {!isLogin && (
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="Phone Number"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
-                />
-              </div>
-            )}
-
-            {/* Email */}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -173,7 +130,6 @@ function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -183,7 +139,6 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
-                minLength={6}
                 className="w-full pl-12 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
               />
               <button
@@ -195,7 +150,6 @@ function LoginPage() {
               </button>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -204,24 +158,17 @@ function LoginPage() {
               {loading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
-                  {isLogin ? 'Signing In...' : 'Creating Account...'}
+                  Signing In...
                 </div>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                'Sign In'
               )}
             </button>
           </form>
 
-          {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-yellow-400 hover:text-yellow-300 font-medium"
-              >
-                {isLogin ? 'Sign up' : 'Sign in'}
-              </button>
+              Having trouble? Contact support for assistance.
             </p>
           </div>
         </div>
