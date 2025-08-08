@@ -6,7 +6,7 @@ import IndexPage from './pages/Index';
 import BookingPage from './pages/BookingPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallback from './pages/AuthCallback';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import MemberDashboard from './pages/MemberDashboard';
