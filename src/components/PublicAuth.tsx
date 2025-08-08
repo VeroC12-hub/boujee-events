@@ -3,7 +3,7 @@ import {
   Mail, Lock, User, Eye, EyeOff, Crown, Star, Shield, 
   Check, AlertCircle, Sparkles, Gift, Users, Calendar
 } from 'lucide-react';
-import { usePublicUser } from '../contexts/PublicUserContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PublicAuthProps {
   onClose?: () => void;
@@ -16,7 +16,7 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
   onSuccess,
   initialMode = 'login' 
 }) => {
-  const { login, register, isLoading } = usePublicUser();
+  const { signIn, signUp, loading } = useAuth();
   const [mode, setMode] = useState(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -52,13 +52,11 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
 
     try {
       if (mode === 'login') {
-        await login(formData.email, formData.password);
+        await signIn(formData.email, formData.password);
         setSuccess('Login successful! Welcome back.');
       } else {
-        await register({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
+        await signUp(formData.email, formData.password, {
+          full_name: formData.name
         });
         setSuccess('Account created successfully! Welcome to Boujee Events.');
       }
@@ -75,13 +73,13 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
   const handleDemoLogin = async () => {
     setFormData({
       ...formData,
-      email: 'alexandra@example.com',
-      password: 'password123'
+      email: 'admin@test.com',
+      password: 'TestAdmin2025'
     });
     
     setTimeout(async () => {
       try {
-        await login('alexandra@example.com', 'password123');
+        await signIn('admin@test.com', 'TestAdmin2025');
         setSuccess('Demo login successful!');
         setTimeout(() => {
           onSuccess?.();
@@ -153,11 +151,11 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
                 <span className="text-sm font-medium text-primary">Try Demo Account</span>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Experience the platform with Alexandra Chen's premium account
+                Experience the platform with a test admin account
               </p>
               <button
                 onClick={handleDemoLogin}
-                disabled={isLoading}
+                disabled={loading}
                 className="w-full px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50 text-sm"
               >
                 Use Demo Account
@@ -281,10 +279,10 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={loading}
               className="w-full bg-primary text-black py-3 rounded-lg font-semibold hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {loading ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                   {mode === 'login' ? 'Signing In...' : 'Creating Account...'}

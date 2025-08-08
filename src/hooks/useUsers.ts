@@ -1,46 +1,86 @@
 import { useCallback } from 'react';
-import { mockApi } from '../services/mockApi';
 import { User, CreateUserRequest, UpdateUserRequest, PaginationParams } from '../types/api';
-import { usePaginatedApi, useMutation, useApi } from './useApi';
 
-// Hook for paginated users list
+// Mock implementations without external mockApi dependency
+const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'VeroC12-hub',
+    email: 'veroc12@example.com',
+    phone: '+1-555-0123',
+    role: 'admin',
+    status: 'active',
+    avatar: 'https://via.placeholder.com/100x100/8B5CF6/FFFFFF?text=V',
+    joinDate: '2025-01-15',
+    lastLogin: '2025-08-03 03:30:30',
+    eventsCreated: 8,
+    eventsAttended: 12,
+    totalSpent: 1250,
+    verified: true
+  }
+];
+
+// Simple hooks without complex API integration
 export function useUsers(params?: PaginationParams) {
-  return usePaginatedApi(
-    (paginationParams) => mockApi.getUsers(paginationParams),
-    params
-  );
+  return {
+    data: mockUsers,
+    pagination: {
+      total: mockUsers.length,
+      page: 1,
+      limit: 10,
+      totalPages: 1
+    },
+    loading: false,
+    error: null,
+    changePage: () => {},
+    changeLimit: () => {},
+    sort: () => {},
+    refetch: () => {}
+  };
 }
 
-// Hook for single user
 export function useUser(id: string) {
-  return useApi(
-    () => mockApi.getUserById(id),
-    [id]
-  );
+  return {
+    data: mockUsers.find(u => u.id === id) || null,
+    loading: false,
+    error: null,
+    refetch: () => {}
+  };
 }
 
-// Hook for creating user
 export function useCreateUser() {
-  return useMutation<User, CreateUserRequest>(
-    (userData) => mockApi.createUser(userData)
-  );
+  return {
+    mutate: async (userData: CreateUserRequest) => {
+      console.log('Create user:', userData);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Hook for updating user
 export function useUpdateUser() {
-  return useMutation<User, { id: string; updates: UpdateUserRequest }>(
-    ({ id, updates }) => mockApi.updateUser(id, updates)
-  );
+  return {
+    mutate: async ({ id, updates }: { id: string; updates: UpdateUserRequest }) => {
+      console.log('Update user:', id, updates);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Hook for deleting user
 export function useDeleteUser() {
-  return useMutation<null, string>(
-    (id) => mockApi.deleteUser(id)
-  );
+  return {
+    mutate: async (id: string) => {
+      console.log('Delete user:', id);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Combined users management hook
 export function useUserManagement() {
   const users = useUsers();
   const createUser = useCreateUser();
@@ -72,24 +112,20 @@ export function useUserManagement() {
   }, [deleteUser.mutate, users.refetch]);
 
   return {
-    // Data and states
     users: users.data,
     pagination: users.pagination,
     loading: users.loading,
     error: users.error,
     
-    // Actions
     createUser: handleCreateUser,
     updateUser: handleUpdateUser,
     deleteUser: handleDeleteUser,
     
-    // Pagination
     changePage: users.changePage,
     changeLimit: users.changeLimit,
     sort: users.sort,
     refetch: users.refetch,
     
-    // Mutation states
     createLoading: createUser.loading,
     updateLoading: updateUser.loading,
     deleteLoading: deleteUser.loading,

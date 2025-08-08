@@ -1,46 +1,89 @@
 import { useCallback } from 'react';
-import { mockApi } from '../services/mockApi';
 import { Event, CreateEventRequest, UpdateEventRequest, PaginationParams } from '../types/api';
-import { usePaginatedApi, useMutation, useApi } from './useApi';
 
-// Hook for paginated events list
+// Mock implementations without external mockApi dependency
+const mockEvents: Event[] = [
+  {
+    id: '1',
+    title: 'Tech Conference 2025',
+    description: 'Join industry leaders for cutting-edge technology discussions and networking.',
+    date: '2025-08-15',
+    time: '09:00',
+    location: 'San Francisco Convention Center',
+    organizer: 'VeroC12-hub',
+    organizerId: '1',
+    attendees: 234,
+    maxAttendees: 500,
+    status: 'published',
+    category: 'Technology',
+    price: 199,
+    image: 'https://via.placeholder.com/400x300/3B82F6/FFFFFF?text=Tech+Conference',
+    createdAt: '2025-07-01T10:00:00Z',
+    updatedAt: '2025-08-03T03:30:30Z'
+  }
+];
+
+// Simple hooks without complex API integration
 export function useEvents(params?: PaginationParams) {
-  return usePaginatedApi(
-    (paginationParams) => mockApi.getEvents(paginationParams),
-    params
-  );
+  return {
+    data: mockEvents,
+    pagination: {
+      total: mockEvents.length,
+      page: 1,
+      limit: 10,
+      totalPages: 1
+    },
+    loading: false,
+    error: null,
+    changePage: () => {},
+    changeLimit: () => {},
+    sort: () => {},
+    refetch: () => {}
+  };
 }
 
-// Hook for single event
 export function useEvent(id: string) {
-  return useApi(
-    () => mockApi.getEventById(id),
-    [id]
-  );
+  return {
+    data: mockEvents.find(e => e.id === id) || null,
+    loading: false,
+    error: null,
+    refetch: () => {}
+  };
 }
 
-// Hook for creating event
 export function useCreateEvent() {
-  return useMutation<Event, CreateEventRequest>(
-    (eventData) => mockApi.createEvent(eventData)
-  );
+  return {
+    mutate: async (eventData: CreateEventRequest) => {
+      console.log('Create event:', eventData);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Hook for updating event
 export function useUpdateEvent() {
-  return useMutation<Event, { id: string; updates: UpdateEventRequest }>(
-    ({ id, updates }) => mockApi.updateEvent(id, updates)
-  );
+  return {
+    mutate: async ({ id, updates }: { id: string; updates: UpdateEventRequest }) => {
+      console.log('Update event:', id, updates);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Hook for deleting event
 export function useDeleteEvent() {
-  return useMutation<null, string>(
-    (id) => mockApi.deleteEvent(id)
-  );
+  return {
+    mutate: async (id: string) => {
+      console.log('Delete event:', id);
+      return true;
+    },
+    loading: false,
+    error: null
+  };
 }
 
-// Combined events management hook
 export function useEventManagement() {
   const events = useEvents();
   const createEvent = useCreateEvent();
@@ -72,24 +115,20 @@ export function useEventManagement() {
   }, [deleteEvent.mutate, events.refetch]);
 
   return {
-    // Data and states
     events: events.data,
     pagination: events.pagination,
     loading: events.loading,
     error: events.error,
     
-    // Actions
     createEvent: handleCreateEvent,
     updateEvent: handleUpdateEvent,
     deleteEvent: handleDeleteEvent,
     
-    // Pagination
     changePage: events.changePage,
     changeLimit: events.changeLimit,
     sort: events.sort,
     refetch: events.refetch,
     
-    // Mutation states
     createLoading: createEvent.loading,
     updateLoading: updateEvent.loading,
     deleteLoading: deleteEvent.loading,
