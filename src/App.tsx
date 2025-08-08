@@ -80,71 +80,64 @@ const NotFoundPage: React.FC = () => {
   );
 };
 
-// Main App Component with Auth Context Wrapper
-const AppContent: React.FC = () => {
-  return (
-    <Routes>
-      {/* PUBLIC ROUTES - Only these are accessible without login */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/home" element={<HomePage />} />
-      <Route path="/index" element={<IndexPage />} />
-      <Route path="/events" element={<IndexPage />} />
-      <Route path="/book/:eventId" element={<BookingPage />} />
-      
-      {/* Auth Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      
-      {/* PROTECTED ROUTES - Only accessible after login with proper role */}
-      <Route path="/admin" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/admin-dashboard" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/organizer" element={
-        <ProtectedRoute requiredRole="organizer">
-          <OrganizerDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/organizer-dashboard" element={
-        <ProtectedRoute requiredRole="organizer">
-          <OrganizerDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/member" element={
-        <ProtectedRoute requiredRole="member">
-          <MemberDashboard />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/member-dashboard" element={
-        <ProtectedRoute requiredRole="member">
-          <MemberDashboard />
-        </ProtectedRoute>
-      } />
-      
-      {/* 404 Not Found - Must be last */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-};
-
 // Main App Component
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <AppContent />
+          <Routes>
+            {/* PUBLIC ROUTES */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/index" element={<IndexPage />} />
+            <Route path="/events" element={<IndexPage />} />
+            <Route path="/book/:eventId" element={<BookingPage />} />
+            
+            {/* AUTH ROUTES */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            
+            {/* PROTECTED ROUTES */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin-dashboard" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/organizer" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/organizer-dashboard" element={
+              <ProtectedRoute requiredRole="organizer">
+                <OrganizerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/member" element={
+              <ProtectedRoute requiredRole="member">
+                <MemberDashboard />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/member-dashboard" element={
+              <ProtectedRoute requiredRole="member">
+                <MemberDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* 404 ROUTE */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
         </AuthProvider>
       </Router>
     </ErrorBoundary>
