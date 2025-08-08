@@ -23,21 +23,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-// Mock users for development/fallback
+// Mock users for development fallback
 const MOCK_USERS = {
-  'admin@nexacore-innovations.com': {
-    password: 'NexaCore2024!',
-    profile: {
-      id: 'admin-nexacore',
-      email: 'admin@nexacore-innovations.com',
-      full_name: 'Nexacore Admin',
-      role: 'admin',
-      status: 'approved',
-      avatar_url: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  },
   'admin@test.com': {
     password: 'TestAdmin2025',
     profile: {
@@ -87,175 +74,150 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    if (!supabase) {
-      return null;
+  useEffect(() => {
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        // Try to restore from localStorage first
+        const storedUser = localStorage.getItem('boujee_auth_user');
+        const storedProfile = localStorage.getItem('boujee_auth_profile');
+        
+        if (storedUser && storedProfile && mounted) {
+          const parsedUser = JSON.parse(storedUser);
+          const parsedProfile = JSON.parse(storedProfile);
+          setUser(parsedUser);
+          setProfile(parsedProfile);
+          setLoading(false);
+          return;
+        }
+
+        // Try Supabase if available
+        if (supabase && mounted) {
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user && mounted) {
+            setSession(session);
+            setUser(session.user);
+            
+            // Try to fetch profile
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileData && mounted) {
+              setProfile(profileData);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Auth init error:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Supabase auth listener
+    let authListener: any = null;
+    if (supabase) {
+      authListener = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!mounted) return;
+        
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileData) {
+            setProfile(profileData);
+          }
+        } else {
+          setUser(null);
+          setProfile(null);
+          setSession(null);
+          localStorage.removeItem('boujee_auth_user');
+          localStorage.removeItem('boujee_auth_profile');
+        }
+        
+        setLoading(false);
+      });
     }
+
+    return () => {
+      mounted = false;
+      if (authListener?.data?.subscription) {
+        authListener.data.subscription.unsubscribe();
+      }
+    };
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Try Supabase first
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return null;
+        if (!error && data.user) {
+          setLoading(false);
+          return; // Success - auth listener will handle the rest
+        }
       }
 
-      return data;
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      return null;
-    }
-  };
-
-  // Function to restore mock session from localStorage
-  const restoreMockSession = () => {
-    try {
-      const storedUser = localStorage.getItem('boujee_auth_user');
-      const storedProfile = localStorage.getItem('boujee_auth_profile');
+      // Fallback to mock auth
+      const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
       
-      if (storedUser && storedProfile) {
-        const user = JSON.parse(storedUser);
-        const profile = JSON.parse(storedProfile);
-        
-        setUser(user);
-        setProfile(profile);
-        console.log('✅ Restored mock session for:', user.email);
-        return true;
-      }
-    } catch (error) {
-      console.warn('Failed to restore mock session:', error);
-      localStorage.removeItem('boujee_auth_user');
-      localStorage.removeItem('boujee_auth_profile');
-    }
-    return false;
-  };
+      if (mockUser && mockUser.password === password) {
+        const user = {
+          id: mockUser.profile.id,
+          email: mockUser.profile.email,
+          user_metadata: { full_name: mockUser.profile.full_name },
+          app_metadata: {},
+          aud: 'authenticated',
+          created_at: mockUser.profile.created_at
+        } as User;
 
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      if (!supabase) {
-        console.log('Supabase not configured, checking for mock session');
-        restoreMockSession();
+        setUser(user);
+        setProfile(mockUser.profile);
+
+        localStorage.setItem('boujee_auth_user', JSON.stringify(user));
+        localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
+        
         setLoading(false);
         return;
       }
 
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-        } else if (session) {
-          setSession(session);
-          setUser(session.user);
-          
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
-        } else {
-          // No supabase session, try to restore mock session
-          restoreMockSession();
-        }
-      } catch (error) {
-        console.error('Error during session check:', error);
-        // Fallback to mock session on error
-        restoreMockSession();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    // Listen for auth changes only if supabase is configured
-    if (!supabase) {
-      return;
+      throw new Error('Invalid email or password');
+    } catch (error) {
+      setLoading(false);
+      throw error;
     }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    // Try Supabase first if configured
-    if (supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (!error) {
-          return; // Success - supabase will handle auth state change
-        }
-        
-        console.log('Supabase auth failed, trying mock auth:', error.message);
-      } catch (error) {
-        console.error('Supabase auth error:', error);
-      }
-    }
-
-    // Mock authentication fallback
-    console.log('🧪 Trying mock authentication for:', email);
-    const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
-    
-    if (mockUser && mockUser.password === password) {
-      console.log('✅ Mock authentication successful');
-      
-      // Create mock user object
-      const user = {
-        id: mockUser.profile.id,
-        email: mockUser.profile.email,
-        user_metadata: {
-          full_name: mockUser.profile.full_name
-        },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: mockUser.profile.created_at
-      } as User;
-
-      setUser(user);
-      setProfile(mockUser.profile);
-
-      // Store in localStorage for persistence
-      localStorage.setItem('boujee_auth_user', JSON.stringify(user));
-      localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
-      
-      return;
-    }
-
-    throw new Error('Invalid email or password');
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
     if (!supabase) {
-      throw new Error('Authentication service not available. Supabase is not configured.');
+      throw new Error('Sign up requires Supabase configuration');
     }
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: userData
-      }
+      options: { data: userData }
     });
     
     if (error) throw error;
@@ -263,38 +225,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     if (supabase) {
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('Supabase sign out error:', error);
-        }
-      } catch (error) {
-        console.error('Sign out failed:', error);
-      }
+      await supabase.auth.signOut();
     }
     
-    // Clear both supabase and mock auth
     setUser(null);
     setProfile(null);
     setSession(null);
-    
-    // Clear localStorage
     localStorage.removeItem('boujee_auth_user');
     localStorage.removeItem('boujee_auth_profile');
   };
 
-  const value = {
-    user,
-    profile,
-    session,
-    loading,
-    signIn,
-    signUp,
-    signOut
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      session,
+      loading,
+      signIn,
+      signUp,
+      signOut
+    }}>
       {children}
     </AuthContext.Provider>
   );
