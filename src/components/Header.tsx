@@ -56,14 +56,20 @@ export function Header({ showBackButton, onBackToHome, user }: HeaderProps) {
                 onClick={() => handleNavigation('/')}
                 className="flex items-center space-x-4"
               >
+                {/* Use your real logo */}
                 <img
-                  src="/be-logo.png"
+                  src="/favicon.svg"
                   alt="Boujee Events Logo"
-                  className="h-12 w-auto logo-glow"
+                  className="h-12 w-12 logo-glow"
                   onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const textLogo = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (textLogo) textLogo.style.display = 'block';
+                    // Fallback to PNG favicon if SVG fails
+                    e.currentTarget.src = '/favicon-32x32.png';
+                    if (e.currentTarget.src.includes('favicon-32x32.png')) {
+                      // If PNG also fails, show text logo
+                      e.currentTarget.style.display = 'none';
+                      const textLogo = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (textLogo) textLogo.style.display = 'block';
+                    }
                   }}
                 />
                 <div className="text-3xl font-bold text-yellow-400 logo-glow" style={{ display: 'none' }}>be</div>
@@ -100,58 +106,51 @@ export function Header({ showBackButton, onBackToHome, user }: HeaderProps) {
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
 
-            {/* Search & Notifications - Only on home page */}
-            {location.pathname === '/' && !showBackButton && (
-              <>
-                <button className="p-2 text-gray-400 hover:text-yellow-400 transition-colors hidden md:flex">
-                  <Search className="h-5 w-5" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-yellow-400 transition-colors hidden md:flex">
-                  <Bell className="h-5 w-5" />
-                </button>
-              </>
+            {/* Only show Sign Up for non-authenticated users on public pages */}
+            {!currentUser && !isAdminRoute && (
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors"
+              >
+                Sign Up
+              </button>
             )}
 
-            {/* Auth Buttons */}
-            {currentUser ? (
+            {/* User Menu - Only for authenticated users */}
+            {currentUser && (
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex items-center space-x-2 p-2 text-gray-300 hover:text-white transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
-                    <User className="h-4 w-4 text-black" />
-                  </div>
-                  <span className="hidden md:block text-white font-medium">
-                    {currentUser.email?.split('@')[0] || 'User'}
+                  <User className="h-5 w-5" />
+                  <span className="hidden md:block text-sm font-medium">
+                    {currentUser.email?.split('@')[0]}
                   </span>
                 </button>
 
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                     <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors"
+                      onClick={() => {
+                        navigate('/dashboard');
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
                       Sign Out
                     </button>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => handleNavigation('/login')}
-                  className="text-white hover:text-yellow-400 transition-colors font-medium"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => handleNavigation('/login')}
-                  className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-                >
-                  Get Started
-                </button>
               </div>
             )}
           </div>
@@ -159,35 +158,30 @@ export function Header({ showBackButton, onBackToHome, user }: HeaderProps) {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden mt-4 pb-4 border-t border-gray-700">
-            <div className="flex flex-col space-y-3 mt-4">
+          <div className="lg:hidden mt-4 bg-gray-800/95 rounded-lg p-4">
+            <nav className="space-y-2">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-white hover:text-yellow-400 transition-colors py-2"
+                  className="block py-2 text-white hover:text-yellow-400 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
                 </a>
               ))}
               {!currentUser && (
-                <>
-                  <button
-                    onClick={() => handleNavigation('/login')}
-                    className="text-left text-white hover:text-yellow-400 transition-colors py-2"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={() => handleNavigation('/login')}
-                    className="text-left bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors w-fit"
-                  >
-                    Get Started
-                  </button>
-                </>
+                <button
+                  onClick={() => {
+                    navigate('/login');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left py-2 text-yellow-400 font-semibold"
+                >
+                  Sign Up
+                </button>
               )}
-            </div>
+            </nav>
           </div>
         )}
       </div>
