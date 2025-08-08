@@ -860,6 +860,63 @@ const AdminUserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      
+      if (!supabase) {
+        // Mock users for development
+        const mockUsers = [
+          {
+            id: 'admin-1',
+            full_name: 'Test Administrator',
+            email: 'admin@test.com',
+            role: 'admin',
+            status: 'approved',
+            created_at: new Date().toISOString(),
+            bookings: [],
+            totalSpent: 15000,
+            eventsAttended: 5,
+            lastLogin: new Date().toLocaleDateString()
+          },
+          {
+            id: 'org-1',
+            full_name: 'Event Organizer',
+            email: 'organizer@test.com',
+            role: 'organizer',
+            status: 'approved',
+            created_at: new Date(Date.now() - 86400000).toISOString(),
+            bookings: [],
+            totalSpent: 8500,
+            eventsAttended: 3,
+            lastLogin: new Date(Date.now() - 86400000).toLocaleDateString()
+          },
+          {
+            id: 'member-1',
+            full_name: 'Premium Member',
+            email: 'member@test.com',
+            role: 'member',
+            status: 'approved',
+            created_at: new Date(Date.now() - 172800000).toISOString(),
+            bookings: [],
+            totalSpent: 3500,
+            eventsAttended: 2,
+            lastLogin: new Date(Date.now() - 172800000).toLocaleDateString()
+          },
+          {
+            id: 'member-2',
+            full_name: 'VIP Guest',
+            email: 'vip@test.com',
+            role: 'member',
+            status: 'approved',
+            created_at: new Date(Date.now() - 259200000).toISOString(),
+            bookings: [],
+            totalSpent: 12000,
+            eventsAttended: 8,
+            lastLogin: new Date(Date.now() - 259200000).toLocaleDateString()
+          }
+        ];
+        setUsers(mockUsers);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -880,6 +937,8 @@ const AdminUserManagement: React.FC = () => {
       setUsers(usersWithStats);
     } catch (error) {
       console.error('Error fetching users:', error);
+      // Set empty array on error
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -891,6 +950,15 @@ const AdminUserManagement: React.FC = () => {
 
   const handleUpdateUserRole = async (userId: string, newRole: string) => {
     try {
+      if (!supabase) {
+        // Mock role update for development
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, role: newRole } : user
+        ));
+        alert('User role updated successfully! (Mock mode)');
+        return;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({ role: newRole })
@@ -911,6 +979,15 @@ const AdminUserManagement: React.FC = () => {
 
   const handleUpdateUserStatus = async (userId: string, newStatus: string) => {
     try {
+      if (!supabase) {
+        // Mock status update for development
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, status: newStatus } : user
+        ));
+        alert('User status updated successfully! (Mock mode)');
+        return;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({ status: newStatus })
