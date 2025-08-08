@@ -1,158 +1,299 @@
-// src/components/media/MediaUpload.tsx
 import React, { useState, useCallback } from 'react';
-import { Upload, X, Image, Video, File, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, X, FileImage, FileVideo, AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
+import { googleDriveService, type UploadProgress } from '../../services/googleDriveService';
+import { mediaService } from '../../services/mediaService';
 
 interface MediaUploadProps {
-  onFilesSelected: (files: File[]) => void;
-  acceptedTypes?: string[];
-  multiple?: boolean;
+  eventId?: string;
+  eventName?: string;
+  onUploadComplete?: (files: UploadedFile[]) => void;
   maxFiles?: number;
   maxFileSize?: number; // in MB
+  acceptedTypes?: string[];
   className?: string;
 }
 
-interface FileWithPreview extends File {
-  preview?: string;
-  uploadProgress?: number;
-  uploadStatus?: 'pending' | 'uploading' | 'success' | 'error';
+interface UploadedFile {
+  id: string;
+  name: string;
+  driveFileId: string;
+  mediaFileId?: string;
+  type: 'image' | 'video';
+  size: number;
+  status: 'uploading' | 'processing' | 'completed' | 'error';
+  progress: number;
   error?: string;
+  webViewLink?: string;
+  thumbnailLink?: string;
 }
 
-const MediaUpload: React.FC<MediaUploadProps> = ({
-  onFilesSelected,
-  acceptedTypes = ['image/*', 'video/*'],
-  multiple = true,
+export default function MediaUpload({
+  eventId,
+  eventName = 'Untitled Event',
+  onUploadComplete,
   maxFiles = 10,
-  maxFileSize = 100, // 100MB default
+  maxFileSize = 100,
+  acceptedTypes = ['image/*', 'video/*'],
   className = ''
-}) => {
+}: MediaUploadProps) {
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [eventFolder, setEventFolder] = useState<any>(null);
 
-  const validateFile = (file: File): string | null => {
-    // Check file size
-    if (file.size > maxFileSize * 1024 * 1024) {
-      return `File ${file.name} is too large. Maximum size is ${maxFileSize}MB.`;
-    }
-
-    // Check file type
-    const isValidType = acceptedTypes.some(type => {
-      if (type.endsWith('/*')) {
-        return file.type.startsWith(type.slice(0, -1));
+  const initializeGoogleDrive = useCallback(async () => {
+    if (isInitialized) return true;
+    
+    try {
+      const initialized = await googleDriveService.initialize();
+      if (initialized) {
+        setIsInitialized(true);
+        console.log('✅ Google Drive initialized for media upload');
       }
-      return file.type === type;
-    });
-
-    if (!isValidType) {
-      return `File ${file.name} is not a supported format.`;
+      return initialized;
+    } catch (error) {
+      console.error('❌ Failed to initialize Google Drive:', error);
+      return false;
     }
-
-    return null;
-  };
-
-  const createFilePreview = (file: File): string | null => {
-    if (file.type.startsWith('image/')) {
-      return URL.createObjectURL(file);
-    }
-    return null;
-  };
-
-  const handleFiles = useCallback((files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    const newErrors: string[] = [];
-    const validFiles: FileWithPreview[] = [];
-
-    // Check total file count
-    if (selectedFiles.length + fileArray.length > maxFiles) {
-      newErrors.push(`Cannot upload more than ${maxFiles} files at once.`);
-      setErrors(newErrors);
-      return;
-    }
-
-    fileArray.forEach(file => {
-      const error = validateFile(file);
-      if (error) {
-        newErrors.push(error);
-      } else {
-        const fileWithPreview: FileWithPreview = Object.assign(file, {
-          preview: createFilePreview(file),
-          uploadProgress: 0,
-          uploadStatus: 'pending' as const
-        });
-        validFiles.push(fileWithPreview);
-      }
-    });
-
-    if (newErrors.length > 0) {
-      setErrors(prev => [...prev, ...newErrors]);
-    }
-
-    if (validFiles.length > 0) {
-      setSelectedFiles(prev => [...prev, ...validFiles]);
-      onFilesSelected(validFiles);
-    }
-  }, [selectedFiles.length, maxFiles, maxFileSize, acceptedTypes, onFilesSelected]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  }, []);
+  }, [isInitialized]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragOver(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFiles(files);
-    }
-  }, [handleFiles]);
-
-  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFiles(files);
-    }
-    // Reset input value to allow selecting the same file again
-    e.target.value = '';
-  }, [handleFiles]);
-
-  const removeFile = useCallback((index: number) => {
-    setSelectedFiles(prev => {
-      const file = prev[index];
-      if (file.preview) {
-        URL.revokeObjectURL(file.preview);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
   }, []);
 
-  const clearAllFiles = useCallback(() => {
-    selectedFiles.forEach(file => {
-      if (file.preview) {
-        URL.revokeObjectURL(file.preview);
-      }
-    });
-    setSelectedFiles([]);
-    setErrors([]);
-  }, [selectedFiles]);
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      handleFiles(selectedFiles);
+    }
+  }, []);
 
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith('image/')) return <Image className="w-5 h-5" />;
-    if (file.type.startsWith('video/')) return <Video className="w-5 h-5" />;
-    return <File className="w-5 h-5" />;
+  const handleFiles = useCallback(async (fileList: File[]) => {
+    if (files.length + fileList.length > maxFiles) {
+      alert(`Maximum ${maxFiles} files allowed`);
+      return;
+    }
+
+    const validFiles = fileList.filter(file => {
+      const isValidType = acceptedTypes.some(type => {
+        if (type.includes('*')) {
+          return file.type.startsWith(type.replace('*', ''));
+        }
+        return file.type === type;
+      });
+      
+      const isValidSize = file.size <= maxFileSize * 1024 * 1024;
+      
+      if (!isValidType) {
+        alert(`File ${file.name} is not a supported type`);
+        return false;
+      }
+      
+      if (!isValidSize) {
+        alert(`File ${file.name} exceeds ${maxFileSize}MB limit`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setIsUploading(true);
+
+    try {
+      // Initialize Google Drive
+      const initialized = await initializeGoogleDrive();
+      if (!initialized) {
+        alert('Google Drive not available. Please check your configuration.');
+        setIsUploading(false);
+        return;
+      }
+
+      // Authenticate if needed
+      const authenticated = await googleDriveService.authenticate();
+      if (!authenticated) {
+        alert('Google Drive authentication failed. Please try again.');
+        setIsUploading(false);
+        return;
+      }
+
+      // Create event folder if needed
+      let folder = eventFolder;
+      if (!folder && eventId) {
+        try {
+          folder = await googleDriveService.createEventFolder(eventName, eventId);
+          setEventFolder(folder);
+          console.log('📁 Created event folder:', folder);
+        } catch (error) {
+          console.error('❌ Failed to create event folder:', error);
+          alert('Failed to create event folder in Google Drive.');
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Create initial file entries
+      const newFiles: UploadedFile[] = validFiles.map(file => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        driveFileId: '',
+        type: file.type.startsWith('image/') ? 'image' : 'video',
+        size: file.size,
+        status: 'uploading',
+        progress: 0
+      }));
+
+      setFiles(prev => [...prev, ...newFiles]);
+
+      // Upload files
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        const fileEntry = newFiles[i];
+
+        try {
+          // Determine target folder
+          let targetFolderId: string;
+          
+          if (folder) {
+            targetFolderId = fileEntry.type === 'image' 
+              ? folder.photosFolderId 
+              : folder.videosFolderId;
+          } else {
+            throw new Error('Event folder required for uploads');
+          }
+
+          // Upload to Google Drive
+          const driveFile = await googleDriveService.uploadFile(
+            file,
+            targetFolderId,
+            (progress: UploadProgress) => {
+              setFiles(prev => prev.map(f => 
+                f.id === fileEntry.id 
+                  ? { ...f, progress: progress.percentage }
+                  : f
+              ));
+            }
+          );
+
+          // Update status to processing
+          setFiles(prev => prev.map(f => 
+            f.id === fileEntry.id 
+              ? { 
+                  ...f, 
+                  status: 'processing', 
+                  driveFileId: driveFile.id,
+                  webViewLink: driveFile.webViewLink,
+                  thumbnailLink: driveFile.thumbnailLink
+                }
+              : f
+          ));
+
+          // Save to database if mediaService is available
+          try {
+            const mediaFile = await mediaService.createMediaFile({
+              name: driveFile.name,
+              original_name: file.name,
+              mime_type: file.type,
+              file_size: file.size,
+              google_drive_file_id: driveFile.id,
+              file_type: fileEntry.type,
+              is_public: true,
+              uploaded_by: 'current-user-id' // Replace with actual user ID
+            });
+
+            // Link to event if provided
+            if (eventId && mediaFile) {
+              await mediaService.createEventMedia({
+                event_id: eventId,
+                media_file_id: mediaFile.id,
+                is_featured: false,
+                display_order: files.length + i
+              });
+            }
+
+            // Update with media file ID
+            setFiles(prev => prev.map(f => 
+              f.id === fileEntry.id 
+                ? { 
+                    ...f, 
+                    status: 'completed', 
+                    progress: 100,
+                    mediaFileId: mediaFile?.id 
+                  }
+                : f
+            ));
+          } catch (dbError) {
+            console.warn('⚠️ Database save failed, but file uploaded to Drive:', dbError);
+            // Still mark as completed since Drive upload succeeded
+            setFiles(prev => prev.map(f => 
+              f.id === fileEntry.id 
+                ? { ...f, status: 'completed', progress: 100 }
+                : f
+            ));
+          }
+
+        } catch (error) {
+          console.error('❌ Upload failed:', error);
+          setFiles(prev => prev.map(f => 
+            f.id === fileEntry.id 
+              ? { 
+                  ...f, 
+                  status: 'error', 
+                  error: error instanceof Error ? error.message : 'Upload failed' 
+                }
+              : f
+          ));
+        }
+      }
+
+      // Call completion callback
+      if (onUploadComplete) {
+        const completedFiles = newFiles.filter(f => f.status === 'completed');
+        onUploadComplete(completedFiles);
+      }
+
+    } catch (error) {
+      console.error('❌ Upload process failed:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [files, maxFiles, maxFileSize, acceptedTypes, eventId, eventName, eventFolder, onUploadComplete, initializeGoogleDrive]);
+
+  const removeFile = useCallback((fileId: string) => {
+    setFiles(prev => prev.filter(f => f.id !== fileId));
+  }, []);
+
+  const retryUpload = useCallback((fileId: string) => {
+    setFiles(prev => prev.map(f => 
+      f.id === fileId 
+        ? { ...f, status: 'uploading', progress: 0, error: undefined }
+        : f
+    ));
+    // Would need to implement retry logic here
+  }, []);
+
+  const getFileIcon = (type: string) => {
+    return type === 'image' ? FileImage : FileVideo;
   };
 
-  const formatFileSize = (bytes: number): string => {
+  const getStatusColor = (status: UploadedFile['status']) => {
+    switch (status) {
+      case 'uploading': return 'text-blue-600';
+      case 'processing': return 'text-yellow-600';
+      case 'completed': return 'text-green-600';
+      case 'error': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -161,155 +302,196 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Upload Area */}
-      <div
-        className={`
-          border-2 border-dashed rounded-lg p-8 text-center transition-colors
-          ${isDragOver 
-            ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
-            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-          }
-        `}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          id="file-upload"
-          className="hidden"
-          multiple={multiple}
-          accept={acceptedTypes.join(',')}
-          onChange={handleFileInputChange}
-        />
-        
-        <div className="space-y-4">
-          <Upload className="w-12 h-12 text-gray-400 mx-auto" />
-          
-          <div>
-            <label
-              htmlFor="file-upload"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer transition-colors"
-            >
-              Choose Files
-            </label>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              or drag and drop files here
-            </p>
-          </div>
-
-          <div className="text-xs text-gray-400 space-y-1">
-            <p>Supported: {acceptedTypes.join(', ')}</p>
-            <p>Max file size: {maxFileSize}MB | Max files: {maxFiles}</p>
-          </div>
-        </div>
+    <div className={`media-upload ${className}`}>
+      {/* Header */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Upload Media Files
+        </h3>
+        <p className="text-sm text-gray-600">
+          {eventFolder ? (
+            <span className="flex items-center">
+              <FolderOpen className="h-4 w-4 mr-1" />
+              Uploading to: {eventName}
+            </span>
+          ) : (
+            'Drag and drop files or click to select'
+          )}
+        </p>
       </div>
 
-      {/* Error Messages */}
-      {errors.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-start">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="space-y-1">
-              {errors.map((error, index) => (
-                <p key={index} className="text-sm text-red-700 dark:text-red-300">
-                  {error}
-                </p>
-              ))}
-            </div>
-            <button
-              onClick={() => setErrors([])}
-              className="ml-auto text-red-500 hover:text-red-700"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      {/* Drop Zone */}
+      <div
+        className={`
+          border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200
+          ${isDragOver 
+            ? 'border-blue-400 bg-blue-50 scale-[1.02]' 
+            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+          }
+          ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}
+        `}
+        onDrop={handleDrop}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onClick={() => document.getElementById('file-upload')?.click()}
+      >
+        <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
+        <h4 className="text-lg font-medium text-gray-900 mb-2">
+          {isDragOver ? 'Drop files here' : 'Upload Media Files'}
+        </h4>
+        <p className="text-gray-600 mb-4">
+          Drag and drop files here, or click to select
+        </p>
+        <div className="text-sm text-gray-500 space-y-1">
+          <p>Supports: {acceptedTypes.join(', ')}</p>
+          <p>Max file size: {maxFileSize}MB each</p>
+          <p>Max files: {maxFiles} total</p>
         </div>
-      )}
+        
+        <input
+          type="file"
+          multiple
+          accept={acceptedTypes.join(',')}
+          onChange={handleFileSelect}
+          className="hidden"
+          id="file-upload"
+          disabled={isUploading}
+        />
+        
+        <button
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isUploading}
+          onClick={(e) => {
+            e.stopPropagation();
+            document.getElementById('file-upload')?.click();
+          }}
+        >
+          {isUploading ? 'Uploading...' : 'Select Files'}
+        </button>
+      </div>
 
-      {/* Selected Files */}
-      {selectedFiles.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-              Selected Files ({selectedFiles.length})
+      {/* File List */}
+      {files.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-gray-900">
+              Upload Progress ({files.filter(f => f.status === 'completed').length}/{files.length} completed)
             </h4>
             <button
-              onClick={clearAllFiles}
-              className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+              onClick={() => setFiles([])}
+              className="text-sm text-gray-500 hover:text-gray-700"
+              disabled={isUploading}
             >
               Clear All
             </button>
           </div>
-
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {selectedFiles.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-              >
-                {/* File Preview/Icon */}
-                <div className="flex-shrink-0">
-                  {file.preview ? (
-                    <img
-                      src={file.preview}
-                      alt={file.name}
-                      className="w-12 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
-                      {getFileIcon(file)}
-                    </div>
-                  )}
-                </div>
-
-                {/* File Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatFileSize(file.size)}
-                  </p>
+          
+          <div className="space-y-4">
+            {files.map((file) => {
+              const Icon = getFileIcon(file.type);
+              const statusColor = getStatusColor(file.status);
+              
+              return (
+                <div key={file.id} className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                  <Icon className={`h-10 w-10 ${statusColor} mr-4 flex-shrink-0`} />
                   
-                  {/* Upload Progress */}
-                  {file.uploadProgress !== undefined && file.uploadProgress > 0 && (
-                    <div className="mt-1">
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-                        <div
-                          className="bg-blue-600 h-1 rounded-full transition-all duration-300"
-                          style={{ width: `${file.uploadProgress}%` }}
-                        />
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {file.name}
+                      </p>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {formatFileSize(file.size)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span className="capitalize">{file.type}</span>
+                      <span className={statusColor}>
+                        {file.status === 'uploading' && 'Uploading...'}
+                        {file.status === 'processing' && 'Processing...'}
+                        {file.status === 'completed' && 'Completed'}
+                        {file.status === 'error' && 'Failed'}
+                      </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    {(file.status === 'uploading' || file.status === 'processing') && (
+                      <div className="mb-2">
+                        <div className="bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              file.status === 'uploading' ? 'bg-blue-500' : 'bg-yellow-500'
+                            }`}
+                            style={{ width: `${file.progress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {file.progress}% complete
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Error Message */}
+                    {file.status === 'error' && file.error && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-red-600">
+                          {file.error}
+                        </p>
+                        <button
+                          onClick={() => retryUpload(file.id)}
+                          className="text-xs text-blue-600 hover:text-blue-700 ml-2"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
 
-                {/* Status */}
-                <div className="flex-shrink-0">
-                  {file.uploadStatus === 'success' && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  )}
-                  {file.uploadStatus === 'error' && (
-                    <AlertCircle className="w-5 h-5 text-red-500" />
-                  )}
-                  {file.uploadStatus === 'pending' && (
+                    {/* Success Links */}
+                    {file.status === 'completed' && file.webViewLink && (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <a
+                          href={file.webViewLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-700"
+                        >
+                          View in Drive
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Status Icon */}
+                  <div className="ml-4 flex items-center space-x-2">
+                    {file.status === 'completed' && (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    )}
+                    {file.status === 'error' && (
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                    )}
+                    {(file.status === 'uploading' || file.status === 'processing') && (
+                      <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full" />
+                    )}
+                    
+                    {/* Remove Button */}
                     <button
-                      onClick={() => removeFile(index)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      onClick={() => removeFile(file.id)}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                      disabled={file.status === 'uploading' || file.status === 'processing'}
                     >
-                      <X className="w-5 h-5" />
+                      <X className="h-4 w-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default MediaUpload;
+}
