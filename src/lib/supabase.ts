@@ -42,8 +42,13 @@ if (typeof window !== 'undefined') {
     configured: isSupabaseConfigured(),
     hasUrl: !!supabaseUrl,
     hasKey: !!supabaseAnonKey,
-    environment: import.meta.env.NODE_ENV || 'development'
+    environment: import.meta.env.NODE_ENV || 'development',
+    mockAuthEnabled: import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true'
   });
+  
+  if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase not configured - using mock authentication for development');
+  }
 }
 
 // Legacy exports for compatibility
