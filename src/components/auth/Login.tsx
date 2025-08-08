@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LoginRequest } from '../../types/api';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -18,9 +17,9 @@ const Login: React.FC = () => {
     );
   }
 
-  const { login, loading = false, error } = authContext;
+  const { signIn, loading = false, error } = authContext;
   
-  const [formData, setFormData] = useState<LoginRequest>({
+  const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
@@ -39,16 +38,11 @@ const Login: React.FC = () => {
     console.log('🔐 Submitting login form...', { email: formData.email });
     
     try {
-      const success = await login(formData);
-      if (!success) {
-        setLocalError('Invalid email or password. Please check your credentials.');
-        console.log('❌ Login failed');
-      } else {
-        console.log('✅ Login successful, should redirect to dashboard');
-      }
+      await signIn(formData.email, formData.password);
+      console.log('✅ Login successful, should redirect to dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      setLocalError('An error occurred during login. Please try again.');
+      setLocalError('Invalid email or password. Please check your credentials.');
     }
   };
 

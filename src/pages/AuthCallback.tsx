@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, getCurrentProfile } from "../lib/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Wait a moment for the profile to be loaded
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Get user profile to determine role
-        const user = getCurrentUser();
-        const profile = getCurrentProfile();
+        // Wait for auth context to finish loading
+        if (authLoading) {
+          return;
+        }
         
         if (user && profile) {
           // Redirect based on role
@@ -44,7 +43,7 @@ const AuthCallback: React.FC = () => {
     };
 
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, user, profile, authLoading]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
