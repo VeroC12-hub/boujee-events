@@ -1,6 +1,6 @@
 /**
- * Environment Detection Utilities
- * Safe environment detection that works in all contexts
+ * Environment Detection Utilities - Build Safe Version
+ * No direct import.meta usage to avoid esbuild parsing issues
  */
 
 export interface EnvironmentInfo {
@@ -13,24 +13,58 @@ export interface EnvironmentInfo {
 }
 
 /**
+ * Get environment variable safely without import.meta
+ */
+function getEnvVar(name: string): string | undefined {
+  try {
+    // Use globalThis to avoid import.meta parsing issues
+    const globalEnv = (globalThis as any).__VITE_ENV__ || {};
+    if (globalEnv[name]) {
+      return globalEnv[name];
+    }
+    
+    // Fallback to process.env if available
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[name];
+    }
+
+    // Browser environment variables (set by Vite at build time)
+    const envKey = name as keyof ImportMetaEnv;
+    if (typeof window !== 'undefined' && (window as any).__VITE_DEFINED_ENV__) {
+      return (window as any).__VITE_DEFINED_ENV__[envKey];
+    }
+
+    return undefined;
+  } catch (error) {
+    return undefined;
+  }
+}
+
+/**
  * Get current environment information safely
  */
 export function getEnvironmentInfo(): EnvironmentInfo {
-  // Safe way to access environment variables
-  const getEnvVar = (name: string): string | undefined => {
-    try {
-      // Try to access import.meta.env safely
-      if (typeof import !== 'undefined' && import.meta && import.meta.env) {
-        return import.meta.env[name];
-      }
-    } catch (error) {
-      console.warn(`Could not access environment variable ${name}:`, error);
+  // Determine mode from various sources
+  let mode = 'development';
+  
+  try {
+    // Try to determine from build-time constants
+    if (typeof __PROD__ !== 'undefined' && __PROD__) {
+      mode = 'production';
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      mode = 'development';
     }
-    return undefined;
-  };
+    
+    // Fallback to environment detection
+    const envMode = getEnvVar('MODE') || getEnvVar('NODE_ENV');
+    if (envMode) {
+      mode = envMode;
+    }
+  } catch {
+    // Default to development if detection fails
+    mode = 'development';
+  }
 
-  // Determine mode
-  const mode = getEnvVar('MODE') || getEnvVar('NODE_ENV') || 'development';
   const isDevelopment = mode === 'development';
   const isProduction = mode === 'production';
 
@@ -53,22 +87,13 @@ export function getEnvironmentInfo(): EnvironmentInfo {
  * Get Google Drive configuration safely
  */
 export function getGoogleDriveConfig() {
-  const getEnvVar = (name: string): string | undefined => {
-    try {
-      if (typeof import !== 'undefined' && import.meta && import.meta.env) {
-        return import.meta.env[name];
-      }
-    } catch (error) {
-      console.warn(`Could not access environment variable ${name}:`, error);
-    }
-    return undefined;
-  };
-
   return {
     clientId: getEnvVar('VITE_GOOGLE_CLIENT_ID'),
     apiKey: getEnvVar('VITE_GOOGLE_DRIVE_API_KEY'),
     folderId: getEnvVar('VITE_GOOGLE_DRIVE_FOLDER_ID'),
-    isConfigured: !!(getEnvVar('VITE_GOOGLE_CLIENT_ID') && getEnvVar('VITE_GOOGLE_DRIVE_API_KEY'))
+    get isConfigured() {
+      return !!(this.clientId && this.apiKey);
+    }
   };
 }
 
@@ -109,12 +134,11 @@ export function logEnvironmentInfo(): void {
 }
 
 /**
- * Check if we're in a valid module context
+ * Check if we're in a valid build context
  */
-export function isModuleContext(): boolean {
+export function isBuildContext(): boolean {
   try {
-    // Try to access import.meta
-    return typeof import !== 'undefined' && !!import.meta;
+    return typeof __PROD__ !== 'undefined' || typeof __DEV__ !== 'undefined';
   } catch {
     return false;
   }
@@ -125,16 +149,20 @@ export function isModuleContext(): boolean {
  */
 export function getBuildEnvironment(): 'development' | 'production' | 'unknown' {
   try {
-    // Check various ways the environment might be determined
-    if (isModuleContext() && import.meta.env) {
-      if (import.meta.env.PROD) return 'production';
-      if (import.meta.env.DEV) return 'development';
-      return import.meta.env.MODE as 'development' | 'production' || 'unknown';
+    // Use build-time constants that Vite defines
+    if (typeof __PROD__ !== 'undefined' && __PROD__) {
+      return 'production';
+    }
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      return 'development';
     }
     
-    // Fallback checks
+    // Fallback to process.env
     if (typeof process !== 'undefined' && process.env) {
-      return process.env.NODE_ENV as 'development' | 'production' || 'unknown';
+      const nodeEnv = process.env.NODE_ENV;
+      if (nodeEnv === 'production' || nodeEnv === 'development') {
+        return nodeEnv;
+      }
     }
 
     // Domain-based fallback
@@ -144,7 +172,7 @@ export function getBuildEnvironment(): 'development' | 'production' | 'unknown' 
         return 'development';
       }
       if (hostname.includes('vercel.app')) {
-        return 'production'; // Should be production on Vercel
+        return 'production';
       }
     }
 
@@ -154,3 +182,7 @@ export function getBuildEnvironment(): 'development' | 'production' | 'unknown' 
     return 'unknown';
   }
 }
+
+// Declare global build-time constants for TypeScript
+declare const __DEV__: boolean;
+declare const __PROD__: boolean;
