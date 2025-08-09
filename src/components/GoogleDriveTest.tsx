@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { googleDriveService } from '../services/googleDriveService';
 
 interface ConnectionStatus {
-  initialized: boolean;
-  authenticated: boolean;
+  isConnected: boolean;
+  isInitialized: boolean;
+  hasToken: boolean;
   error?: string;
   userInfo?: any;
 }
@@ -17,8 +18,9 @@ interface TestResult {
 
 export const GoogleDriveTest: React.FC = () => {
   const [status, setStatus] = useState<ConnectionStatus>({
-    initialized: false,
-    authenticated: false
+    isConnected: false,
+    isInitialized: false,
+    hasToken: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -145,13 +147,18 @@ export const GoogleDriveTest: React.FC = () => {
       
       const eventFolder = await googleDriveService.createEventFolder(testEventName, testEventId);
       
-      addLog(`Event folder created: ${eventFolder.eventName}`, 'success');
-      addLog(`Main folder ID: ${eventFolder.eventFolderId}`, 'info');
-      addLog(`Photos folder ID: ${eventFolder.photosFolderId}`, 'info');
-      addLog(`Videos folder ID: ${eventFolder.videosFolderId}`, 'info');
-      addLog(`View link: ${eventFolder.webViewLink}`, 'info');
-      
-      addTestResult('Folder Creation', 'success', `Created test event folder: ${eventFolder.eventName}`);
+      if (eventFolder) {
+        addLog(`Event folder created: ${eventFolder.eventName || 'Unnamed Event'}`, 'success');
+        addLog(`Main folder ID: ${eventFolder.eventFolderId}`, 'info');
+        addLog(`Photos folder ID: ${eventFolder.photosFolderId}`, 'info');
+        addLog(`Videos folder ID: ${eventFolder.videosFolderId}`, 'info');
+        addLog(`View link: ${eventFolder.webViewLink || 'No link available'}`, 'info');
+        
+        addTestResult('Folder Creation', 'success', `Created test event folder: ${eventFolder.eventName || 'Unnamed Event'}`);
+      } else {
+        addLog('Event folder creation returned null', 'error');
+        addTestResult('Folder Creation', 'error', 'Folder creation returned null');
+      }
     } catch (error: any) {
       addLog(`Folder creation error: ${error.message}`, 'error');
       addTestResult('Folder Creation', 'error', error.message);

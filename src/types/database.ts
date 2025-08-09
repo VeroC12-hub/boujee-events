@@ -72,37 +72,110 @@ export interface Database {
           id: string;
           email: string;
           full_name: string;
+          name?: string; // alias for full_name
           avatar_url?: string;
+          avatar?: string; // alias for avatar_url
           phone?: string;
           bio?: string;
           role: 'admin' | 'organizer' | 'member';
           status: 'pending' | 'approved' | 'rejected' | 'suspended';
           created_at: string;
           updated_at: string;
+          // Additional profile properties
+          loyaltyTier?: string;
+          loyaltyPoints?: number;
+          isVip?: boolean;
+          preferences?: {
+            emailNotifications: boolean;
+            pushNotifications: boolean;
+            newsletter: boolean;
+            eventReminders: boolean;
+            privacySettings: boolean;
+          };
+          stats?: {
+            eventsAttended: number;
+            totalSpent: number;
+            reviewsLeft: number;
+            favoriteEvents: number;
+          };
+          socialProfile?: {
+            twitter?: string;
+            instagram?: string;
+            linkedin?: string;
+            website?: string;
+          };
         };
         Insert: {
           id: string;
           email: string;
           full_name: string;
+          name?: string;
           avatar_url?: string;
+          avatar?: string;
           phone?: string;
           bio?: string;
           role?: 'admin' | 'organizer' | 'member';
           status?: 'pending' | 'approved' | 'rejected' | 'suspended';
           created_at?: string;
           updated_at?: string;
+          loyaltyTier?: string;
+          loyaltyPoints?: number;
+          isVip?: boolean;
+          preferences?: {
+            emailNotifications: boolean;
+            pushNotifications: boolean;
+            newsletter: boolean;
+            eventReminders: boolean;
+            privacySettings: boolean;
+          };
+          stats?: {
+            eventsAttended: number;
+            totalSpent: number;
+            reviewsLeft: number;
+            favoriteEvents: number;
+          };
+          socialProfile?: {
+            twitter?: string;
+            instagram?: string;
+            linkedin?: string;
+            website?: string;
+          };
         };
         Update: {
           id?: string;
           email?: string;
           full_name?: string;
+          name?: string;
           avatar_url?: string;
+          avatar?: string;
           phone?: string;
           bio?: string;
           role?: 'admin' | 'organizer' | 'member';
           status?: 'pending' | 'approved' | 'rejected' | 'suspended';
           created_at?: string;
           updated_at?: string;
+          loyaltyTier?: string;
+          loyaltyPoints?: number;
+          isVip?: boolean;
+          preferences?: {
+            emailNotifications: boolean;
+            pushNotifications: boolean;
+            newsletter: boolean;
+            eventReminders: boolean;
+            privacySettings: boolean;
+          };
+          stats?: {
+            eventsAttended: number;
+            totalSpent: number;
+            reviewsLeft: number;
+            favoriteEvents: number;
+          };
+          socialProfile?: {
+            twitter?: string;
+            instagram?: string;
+            linkedin?: string;
+            website?: string;
+          };
         };
       };
       media_files: {

@@ -13,7 +13,7 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
   onError,
   mode = 'signin'
 }) => {
-  const { register, isLoading } = usePublicUser();
+  const { register, isLoading: publicUserLoading } = usePublicUser();
   const { signIn, signUp, loading: authLoading } = useAuth();
   
   const [formMode, setFormMode] = useState<'signin' | 'signup'>(mode);
@@ -28,7 +28,7 @@ const PublicAuth: React.FC<PublicAuthProps> = ({
   const [localError, setLocalError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const isLoading = authLoading || false; // Use authLoading from useAuth
+  const isLoading = authLoading || publicUserLoading; // Combined loading state
   
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};

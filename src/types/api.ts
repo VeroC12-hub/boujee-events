@@ -27,17 +27,36 @@ export interface PaginatedResponse<T> {
 export interface User {
   id: string;
   name: string;
+  full_name?: string; // alias for name
   email: string;
   phone: string;
   role: 'admin' | 'organizer' | 'user';
   status: 'active' | 'inactive' | 'banned';
   avatar: string;
+  avatar_url?: string; // alias for avatar
   joinDate: string;
   lastLogin: string;
   eventsCreated: number;
   eventsAttended: number;
   totalSpent: number;
   verified: boolean;
+  // Additional profile properties
+  loyaltyTier?: string;
+  loyaltyPoints?: number;
+  isVip?: boolean;
+  preferences?: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    newsletter: boolean;
+    eventReminders: boolean;
+    privacySettings: boolean;
+  };
+  stats?: {
+    eventsAttended: number;
+    totalSpent: number;
+    reviewsLeft: number;
+    favoriteEvents: number;
+  };
 }
 
 export interface CreateUserRequest {

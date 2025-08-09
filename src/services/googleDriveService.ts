@@ -20,6 +20,8 @@ export interface EventFolder {
   eventFolderUrl: string;
   photosUrl: string;
   videosUrl: string;
+  eventName?: string; // Event name associated with folder
+  webViewLink?: string; // Direct web view link to the folder
 }
 
 export interface UploadProgress {
@@ -608,6 +610,58 @@ class GoogleDriveService {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  }
+
+  // Additional methods required by components
+  async getUserInfo(): Promise<any> {
+    try {
+      if (!this.isInitialized || !this.accessToken) {
+        throw new Error('Google Drive service not initialized');
+      }
+
+      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get user info');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting user info:', error);
+      throw error;
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      if (!this.isInitialized || !this.accessToken) {
+        return false;
+      }
+
+      // Test by making a simple API call
+      const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+    }
+  }
+
+  getConnectionStatus(): { isConnected: boolean; isInitialized: boolean; hasToken: boolean } {
+    return {
+      isConnected: this.isInitialized && !!this.accessToken,
+      isInitialized: this.isInitialized,
+      hasToken: !!this.accessToken
+    };
   }
 }
 

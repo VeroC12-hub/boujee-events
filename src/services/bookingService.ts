@@ -4,7 +4,17 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { stripePaymentService, type BookingData, type PaymentResult } from './stripeService';
+import { stripeService, type PaymentResult } from './stripeService';
+
+// Define BookingData interface locally since it's not exported from stripeService
+export interface BookingData {
+  eventId: string;
+  userId: string;
+  quantity: number;
+  amount: number;
+  currency?: string;
+  metadata?: Record<string, string>;
+}
 
 interface Booking {
   id: string;
@@ -57,19 +67,23 @@ class BookingService {
         eventId: request.eventId,
         userId: request.userId,
         quantity: request.quantity,
-        totalAmount: request.totalAmount,
-        userEmail: request.userEmail,
-        userName: request.userName
+        amount: request.totalAmount,
+        currency: 'usd',
+        metadata: {
+          userEmail: request.userEmail,
+          userName: request.userName,
+          bookingReference
+        }
       };
 
       // Create payment intent
-      const paymentResult = await stripePaymentService.createPaymentIntent(bookingData);
+      const paymentIntent = await stripeService.createPaymentIntent(bookingData);
       
-      if (!paymentResult.success) {
+      if (!paymentIntent) {
         return {
           booking: null as any,
           success: false,
-          error: paymentResult.error || 'Failed to create payment',
+          error: 'Failed to create payment intent',
           bookingReference
         };
       }
@@ -78,7 +92,7 @@ class BookingService {
       const booking = await this.createBookingRecord({
         ...request,
         bookingReference,
-        paymentIntentId: paymentResult.paymentIntent?.id
+        paymentIntentId: paymentIntent.id
       });
 
       if (!booking) {

@@ -45,6 +45,7 @@ interface NotificationData {
   time: string;
   type: string;
   icon: string;
+  read?: boolean;
 }
 
 interface ChartData {
@@ -195,9 +196,9 @@ const AdminDashboard: React.FC = () => {
 
       // Load notifications
       const mockNotifications: NotificationData[] = [
-        { id: '1', message: 'New event "Summer Festival" created', time: '2 min ago', type: 'success', icon: '🎉' },
-        { id: '2', message: 'User registration spike detected', time: '15 min ago', type: 'info', icon: '📈' },
-        { id: '3', message: 'Payment system maintenance scheduled', time: '1 hour ago', type: 'warning', icon: '⚠️' }
+        { id: '1', message: 'New event "Summer Festival" created', time: '2 min ago', type: 'success', icon: '🎉', read: false },
+        { id: '2', message: 'User registration spike detected', time: '15 min ago', type: 'info', icon: '📈', read: false },
+        { id: '3', message: 'Payment system maintenance scheduled', time: '1 hour ago', type: 'warning', icon: '⚠️', read: true }
       ];
       setNotifications(mockNotifications);
 

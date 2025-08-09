@@ -522,6 +522,7 @@ class MediaService {
         original_name: file.name,
         mime_type: file.type,
         file_size: file.size,
+        google_drive_file_id: 'mock-drive-id', // This would be set from actual Google Drive upload
         file_type: file.type.startsWith('image/') ? 'image' : 'document',
         is_public: true,
         uploaded_by: 'current-user-id' // Replace with actual user ID

@@ -6,13 +6,32 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name?: string;
+  name?: string; // alias for full_name for compatibility
   avatar_url?: string;
+  avatar?: string; // alias for avatar_url for compatibility
   phone?: string;
   bio?: string;
   role: 'admin' | 'organizer' | 'member';
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   created_at: string;
   updated_at: string;
+  // Additional profile properties
+  loyaltyTier?: string;
+  loyaltyPoints?: number;
+  isVip?: boolean;
+  preferences?: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    newsletter: boolean;
+    eventReminders: boolean;
+    privacySettings: boolean;
+  };
+  stats?: {
+    eventsAttended: number;
+    totalSpent: number;
+    reviewsLeft: number;
+    favoriteEvents: number;
+  };
 }
 
 export interface AuthState {
@@ -439,6 +458,48 @@ class AuthService {
         nodeEnv: import.meta.env.NODE_ENV
       }
     };
+  }
+
+  // Additional methods required by components
+  async getSession(): Promise<Session | null> {
+    if (supabase) {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!error && session) {
+          this.currentSession = session;
+          return session;
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+      }
+    }
+    return this.currentSession;
+  }
+
+  async getProfile(userId?: string): Promise<UserProfile | null> {
+    const targetUserId = userId || this.currentUser?.id;
+    if (!targetUserId) return null;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+
+        if (!error && data) {
+          if (targetUserId === this.currentUser?.id) {
+            this.currentProfile = data;
+          }
+          return data;
+        }
+      } catch (error) {
+        console.error('Error getting profile:', error);
+      }
+    }
+    
+    return targetUserId === this.currentUser?.id ? this.currentProfile : null;
   }
 }
 

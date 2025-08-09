@@ -12,6 +12,7 @@ export interface AuthContextType {
   signUp: (data: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
