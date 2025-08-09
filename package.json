@@ -7,20 +7,6 @@
   "author": "Boujee Events Team",
   "license": "MIT",
   "homepage": "https://boujee-events.vercel.app",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/boujee-events.git"
-  },
-  "keywords": [
-    "events",
-    "management",
-    "luxury",
-    "premium",
-    "react",
-    "typescript",
-    "google-drive",
-    "supabase"
-  ],
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 8080",
     "build": "tsc && vite build",
@@ -31,9 +17,7 @@
     "clean": "rm -rf dist node_modules/.vite",
     "test-drive": "echo 'Testing Google Drive integration...' && npm run dev",
     "setup-env": "cp .env.example .env.local && echo 'Environment file created. Please fill in your API keys.'",
-    "check-env": "node -e \"console.log('Environment check:'); console.log('VITE_GOOGLE_CLIENT_ID:', process.env.VITE_GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing'); console.log('VITE_GOOGLE_DRIVE_API_KEY:', process.env.VITE_GOOGLE_DRIVE_API_KEY ? '✅ Set' : '❌ Missing');\"",
-    "build:analyze": "npm run build && npx vite-bundle-analyzer dist/assets/*.js",
-    "deploy": "npm run build && vercel --prod"
+    "check-env": "node -e \"console.log('Environment check:'); console.log('VITE_GOOGLE_CLIENT_ID:', process.env.VITE_GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing'); console.log('VITE_GOOGLE_DRIVE_API_KEY:', process.env.VITE_GOOGLE_DRIVE_API_KEY ? '✅ Set' : '❌ Missing');\""
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -51,25 +35,7 @@
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-slot": "^1.1.0",
-    "@radix-ui/react-accordion": "^1.2.0",
-    "@radix-ui/react-alert-dialog": "^1.1.1",
-    "@radix-ui/react-checkbox": "^1.1.1",
-    "@radix-ui/react-form": "^0.1.0",
-    "@radix-ui/react-navigation-menu": "^1.2.0",
-    "@radix-ui/react-popover": "^1.1.1",
-    "@radix-ui/react-progress": "^1.1.0",
-    "@radix-ui/react-radio-group": "^1.2.0",
-    "@radix-ui/react-separator": "^1.1.0",
-    "@radix-ui/react-slider": "^1.2.0",
-    "@radix-ui/react-switch": "^1.1.0",
-    "@radix-ui/react-toggle": "^1.1.0",
-    "@radix-ui/react-tooltip": "^1.1.2",
-    "class-variance-authority": "^0.7.0",
-    "date-fns": "^3.6.0",
-    "framer-motion": "^11.5.4",
-    "react-hook-form": "^7.53.0",
-    "react-hot-toast": "^2.4.1",
-    "zustand": "^4.5.5"
+    "class-variance-authority": "^0.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",
@@ -84,25 +50,13 @@
     "eslint-plugin-react-refresh": "^0.4.12",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.6.2",
     "vite": "^5.4.8",
-    "terser": "^5.36.0",
-    "@types/google.accounts": "^0.0.14",
-    "vite-plugin-pwa": "^0.20.5",
-    "workbox-window": "^7.1.0"
+    "terser": "^5.36.0"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead",
-    "not ie 11"
-  ],
-  "overrides": {
-    "@typescript-eslint/eslint-plugin": "^8.8.0",
-    "@typescript-eslint/parser": "^8.8.0"
   }
 }
