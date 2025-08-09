@@ -58,8 +58,8 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Environment detection script - Fixed for modules -->
-    <script type="module">
+    <!-- Simple error handler without import.meta -->
+    <script>
       // Global error handler for better debugging
       window.addEventListener('error', function(e) {
         console.error('Global error:', e.error);
@@ -69,14 +69,7 @@
         console.error('Unhandled promise rejection:', e.reason);
       });
       
-      // Safe environment logging without import.meta in inline script
-      try {
-        console.log('🌐 Page loaded successfully');
-        console.log('Location:', window.location.href);
-        console.log('User Agent:', navigator.userAgent);
-      } catch (error) {
-        console.error('Environment detection error:', error);
-      }
+      console.log('📱 Page loaded successfully');
     </script>
   </body>
 </html>
