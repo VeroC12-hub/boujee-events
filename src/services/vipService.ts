@@ -26,16 +26,21 @@ export class VIPService {
   }
 
   // VIP Tier Management
-  async getVIPTiers(): Promise<VIPTier[]> {
+  async getVIPTiers(): Promise<{ success: boolean; data?: VIPTier[]; error?: string; timestamp: string }> {
     try {
       if (!supabase) {
         // Return mock data when Supabase is not available
-        return DEFAULT_VIP_TIERS.map((tier, index) => ({
+        const mockTiers = DEFAULT_VIP_TIERS.map((tier, index) => ({
           ...tier,
           id: `tier_${index + 1}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
+        return {
+          success: true,
+          data: mockTiers,
+          timestamp: new Date().toISOString()
+        };
       }
 
       const { data, error } = await supabase
@@ -45,10 +50,18 @@ export class VIPService {
         .order('priority');
 
       if (error) throw error;
-      return data || [];
+      return {
+        success: true,
+        data: data || [],
+        timestamp: new Date().toISOString()
+      };
     } catch (error) {
       console.error('Error fetching VIP tiers:', error);
-      return [];
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
@@ -455,10 +468,14 @@ export class VIPService {
   }
 
   // VIP Reservations
-  async getVIPReservations(eventId: string): Promise<VIPReservation[]> {
+  async getVIPReservations(eventId: string): Promise<{ success: boolean; data?: VIPReservation[]; error?: string; timestamp: string }> {
     try {
       if (!supabase) {
-        return []; // Mock empty reservations
+        return {
+          success: true,
+          data: [], // Mock empty reservations
+          timestamp: new Date().toISOString()
+        };
       }
 
       const { data, error } = await supabase
@@ -468,21 +485,33 @@ export class VIPService {
         .order('reservedAt');
 
       if (error) throw error;
-      return data || [];
+      return {
+        success: true,
+        data: data || [],
+        timestamp: new Date().toISOString()
+      };
     } catch (error) {
       console.error('Error fetching VIP reservations:', error);
-      return [];
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
-  async createVIPReservation(reservationData: Omit<VIPReservation, 'id'>): Promise<VIPReservation | null> {
+  async createVIPReservation(reservationData: Omit<VIPReservation, 'id'>): Promise<{ success: boolean; data?: VIPReservation; error?: string; timestamp: string }> {
     try {
       if (!supabase) {
         const newReservation: VIPReservation = {
           ...reservationData,
           id: `reservation_${Date.now()}`
         };
-        return newReservation;
+        return {
+          success: true,
+          data: newReservation,
+          timestamp: new Date().toISOString()
+        };
       }
 
       const { data, error } = await supabase
@@ -492,10 +521,18 @@ export class VIPService {
         .single();
 
       if (error) throw error;
-      return data;
+      return {
+        success: true,
+        data: data,
+        timestamp: new Date().toISOString()
+      };
     } catch (error) {
       console.error('Error creating VIP reservation:', error);
-      return null;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
     }
   }
 

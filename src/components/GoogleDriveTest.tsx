@@ -75,7 +75,7 @@ export const GoogleDriveTest: React.FC = () => {
       const initialized = await googleDriveService.initialize();
       if (initialized) {
         addLog('Google Drive API initialized successfully', 'success');
-        setStatus(prev => ({ ...prev, initialized: true }));
+        setStatus(prev => ({ ...prev, isInitialized: true }));
         addTestResult('API Initialization', 'success', 'Google Drive API initialized successfully');
       } else {
         addLog('Failed to initialize Google Drive API', 'error');
@@ -99,7 +99,7 @@ export const GoogleDriveTest: React.FC = () => {
       const authenticated = await googleDriveService.authenticate();
       if (authenticated) {
         addLog('Successfully authenticated with Google Drive', 'success');
-        setStatus(prev => ({ ...prev, authenticated: true }));
+        setStatus(prev => ({ ...prev, isConnected: true }));
         addTestResult('Authentication', 'success', 'Successfully authenticated with Google Drive');
         
         // Get user info
@@ -133,7 +133,7 @@ export const GoogleDriveTest: React.FC = () => {
   };
 
   const testFolderCreation = async () => {
-    if (!status.authenticated) {
+    if (!status.isConnected) {
       addLog('Please authenticate first', 'error');
       return;
     }
@@ -170,7 +170,7 @@ export const GoogleDriveTest: React.FC = () => {
   const signOut = async () => {
     addLog('Signing out...', 'info');
     await googleDriveService.signOut();
-    setStatus({ initialized: status.initialized, authenticated: false });
+    setStatus({ isInitialized: status.isInitialized, isConnected: false, hasToken: false });
     setUserInfo(null);
     addLog('Signed out successfully', 'success');
     addTestResult('Sign Out', 'success', 'Successfully signed out from Google Drive');
@@ -194,14 +194,14 @@ export const GoogleDriveTest: React.FC = () => {
 
     // Test 2: API Initialization
     await testInitialization();
-    if (!status.initialized) {
+    if (!status.isInitialized) {
       addLog('Cannot proceed with tests due to initialization failure', 'error');
       return;
     }
 
     // Test 3: Authentication
     await testAuthentication();
-    if (!status.authenticated) {
+    if (!status.isConnected) {
       addLog('Cannot proceed with tests due to authentication failure', 'error');
       return;
     }
@@ -247,17 +247,17 @@ export const GoogleDriveTest: React.FC = () => {
           
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2 text-gray-700">Initialization</h3>
-            <div className={`flex items-center space-x-2 ${getStatusColor(status.initialized)}`}>
-              <span>{getStatusIcon(status.initialized)}</span>
-              <span>{status.initialized ? 'Ready' : 'Not Ready'}</span>
+            <div className={`flex items-center space-x-2 ${getStatusColor(status.isInitialized)}`}>
+              <span>{getStatusIcon(status.isInitialized)}</span>
+              <span>{status.isInitialized ? 'Ready' : 'Not Ready'}</span>
             </div>
           </div>
           
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2 text-gray-700">Authentication</h3>
-            <div className={`flex items-center space-x-2 ${getStatusColor(status.authenticated)}`}>
-              <span>{getStatusIcon(status.authenticated)}</span>
-              <span>{status.authenticated ? 'Connected' : 'Not Connected'}</span>
+            <div className={`flex items-center space-x-2 ${getStatusColor(status.isConnected)}`}>
+              <span>{getStatusIcon(status.isConnected)}</span>
+              <span>{status.isConnected ? 'Connected' : 'Not Connected'}</span>
             </div>
           </div>
 
@@ -294,7 +294,7 @@ export const GoogleDriveTest: React.FC = () => {
           
           <button
             onClick={testAuthentication}
-            disabled={isLoading || !status.initialized}
+            disabled={isLoading || !status.isInitialized}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
           >
             Test Authentication
@@ -302,13 +302,13 @@ export const GoogleDriveTest: React.FC = () => {
           
           <button
             onClick={testFolderCreation}
-            disabled={isLoading || !status.authenticated}
+            disabled={isLoading || !status.isConnected}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
           >
             Test Folder Creation
           </button>
           
-          {status.authenticated && (
+          {status.isConnected && (
             <button
               onClick={signOut}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -407,7 +407,7 @@ export const GoogleDriveTest: React.FC = () => {
         </div>
 
         {/* Success Message */}
-        {status.initialized && status.authenticated && (
+        {status.isInitialized && status.isConnected && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <h3 className="font-semibold text-green-800 mb-2">🎉 Success!</h3>
             <p className="text-green-700">

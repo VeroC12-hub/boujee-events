@@ -284,7 +284,7 @@ class AuthService {
     }
   }
 
-  async signIn(data: SignInData): Promise<{ user: any; error: string | null }> {
+  async signIn(data: SignInData): Promise<{ user: any; profile?: UserProfile | null; session?: Session | null; error: string | null }> {
     console.log('🔐 Sign in attempt:', data.email);
     
     // Clear any existing session first
@@ -306,7 +306,7 @@ class AuthService {
           
           if (this.currentProfile && this.currentProfile.status !== 'approved') {
             if (this.currentProfile.status === 'pending') {
-              return { user: authData.user, error: 'Your account is pending approval.' };
+              return { user: authData.user, profile: this.currentProfile, session: authData.session, error: 'Your account is pending approval.' };
             } else {
               await this.signOut();
               return { user: null, error: `Your account has been ${this.currentProfile.status}.` };
@@ -314,7 +314,7 @@ class AuthService {
           }
 
           this.notifyStateChange();
-          return { user: authData.user, error: null };
+          return { user: authData.user, profile: this.currentProfile, session: authData.session, error: null };
         }
       } catch (error) {
         console.error('Supabase sign in failed:', error);
@@ -351,7 +351,7 @@ class AuthService {
     localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
 
     this.notifyStateChange();
-    return { user, error: null };
+    return { user, profile: mockUser.profile, session: null, error: null };
   }
 
   async signOut(): Promise<void> {

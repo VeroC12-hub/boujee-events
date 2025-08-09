@@ -636,3 +636,6 @@ export class MockApiService {
 
 // Export singleton instance
 export const mockApiService = MockApiService.getInstance();
+
+// Export as mockApi for compatibility
+export const mockApi = mockApiService;

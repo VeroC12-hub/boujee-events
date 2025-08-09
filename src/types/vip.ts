@@ -152,6 +152,21 @@ export interface VIPReservation {
   specialInstructions?: string;
 }
 
+export interface CreateVIPReservationRequest {
+  eventId: string;
+  vipConfigId: string;
+  userId: string;
+  reservationType: 'table' | 'seating' | 'area' | 'suite';
+  reservationDetails: {
+    location: string;
+    capacity: number;
+    amenities: string[];
+    view?: string;
+    accessibility?: boolean;
+  };
+  specialInstructions?: string;
+}
+
 export interface VIPAnalytics {
   eventId: string;
   totalVIPRevenue: number;

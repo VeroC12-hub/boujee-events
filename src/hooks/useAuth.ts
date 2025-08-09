@@ -30,7 +30,7 @@ export function useRequireAuth(requiredRole?: 'admin' | 'organizer' | 'attendee'
     isAuthenticated: Boolean(user && profile),
     isAdmin: profile?.role === 'admin',
     isOrganizer: profile?.role === 'organizer',
-    isAttendee: profile?.role === 'attendee'
+    isAttendee: profile?.role === 'member'
   };
 }
 
@@ -148,7 +148,7 @@ export function useIsOrganizer() {
 
 export function useIsAttendee() {
   const { profile } = useAuth();
-  return profile?.role === 'attendee';
+  return profile?.role === 'member';
 }
 
 // Hook for protected routes

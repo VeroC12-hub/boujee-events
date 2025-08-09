@@ -85,17 +85,23 @@ const UserProfile: React.FC = () => {
   // Use auth user if available, otherwise use public user
   const currentUser = user || publicUser;
 
+  // Helper function to safely get user properties
+  const getUserProperty = (user: any, property: string): any => {
+    if (!user) return undefined;
+    return user[property] || user[property.replace('_', '')] || (user.user_metadata && user.user_metadata[property]);
+  };
+
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'preferences' | 'loyalty' | 'history'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    name: currentUser?.name || currentUser?.full_name || '',
+    name: getUserProperty(currentUser, 'name') || getUserProperty(currentUser, 'full_name') || '',
     email: currentUser?.email || '',
     phone: '',
     bio: '',
-    avatar: currentUser?.avatar || '',
+    avatar: getUserProperty(currentUser, 'avatar') || getUserProperty(currentUser, 'avatar_url') || '',
     socialProfile: {
       twitter: '',
       instagram: '',
@@ -106,23 +112,23 @@ const UserProfile: React.FC = () => {
 
   // Mock data fallbacks
   const defaultStats: UserStats = {
-    eventsAttended: currentUser?.stats?.eventsAttended || 12,
-    totalSpent: currentUser?.stats?.totalSpent || 2450,
-    reviewsLeft: currentUser?.stats?.reviewsLeft || 8,
+    eventsAttended: getUserProperty(currentUser, 'stats')?.eventsAttended || 12,
+    totalSpent: getUserProperty(currentUser, 'stats')?.totalSpent || 2450,
+    reviewsLeft: getUserProperty(currentUser, 'stats')?.reviewsLeft || 8,
     favoriteEvents: favorites?.length || 5
   };
 
   const defaultPreferences: UserPreferences = {
-    emailNotifications: currentUser?.preferences?.emailNotifications ?? true,
-    pushNotifications: currentUser?.preferences?.pushNotifications ?? true,
-    newsletter: currentUser?.preferences?.newsletter ?? true,
-    eventReminders: currentUser?.preferences?.eventReminders ?? true,
-    privacySettings: currentUser?.preferences?.privacySettings ?? false
+    emailNotifications: getUserProperty(currentUser, 'preferences')?.emailNotifications ?? true,
+    pushNotifications: getUserProperty(currentUser, 'preferences')?.pushNotifications ?? true,
+    newsletter: getUserProperty(currentUser, 'preferences')?.newsletter ?? true,
+    eventReminders: getUserProperty(currentUser, 'preferences')?.eventReminders ?? true,
+    privacySettings: getUserProperty(currentUser, 'preferences')?.privacySettings ?? false
   };
 
   const defaultLoyaltyProgram: LoyaltyProgram = loyaltyProgram || {
-    currentTier: currentUser?.loyaltyTier || 'Gold',
-    points: currentUser?.loyaltyPoints || 2840,
+    currentTier: getUserProperty(currentUser, 'loyaltyTier') || 'Gold',
+    points: getUserProperty(currentUser, 'loyaltyPoints') || 2840,
     nextTierPoints: 5000,
     benefits: [
       'Priority booking access',
@@ -189,12 +195,12 @@ const UserProfile: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       setProfileForm({
-        name: currentUser.name || currentUser.full_name || '',
+        name: getUserProperty(currentUser, 'name') || getUserProperty(currentUser, 'full_name') || '',
         email: currentUser.email || '',
         phone: '',
         bio: '',
-        avatar: currentUser.avatar || '',
-        socialProfile: currentUser.socialProfile || {
+        avatar: getUserProperty(currentUser, 'avatar') || getUserProperty(currentUser, 'avatar_url') || '',
+        socialProfile: getUserProperty(currentUser, 'socialProfile') || {
           twitter: '',
           instagram: '',
           linkedin: '',
@@ -290,18 +296,18 @@ const UserProfile: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">{profileForm.name || 'User'}</h1>
-                <p className="text-gray-300">{currentUser.email}</p>
-                {currentUser.loyaltyTier && (
+                <p className="text-gray-300">{currentUser?.email}</p>
+                {getUserProperty(currentUser, 'loyaltyTier') && (
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                    currentUser.loyaltyTier === 'Diamond' ? 'bg-blue-500/20 text-blue-400' :
-                    currentUser.loyaltyTier === 'Platinum' ? 'bg-purple-500/20 text-purple-400' :
-                    currentUser.loyaltyTier === 'Gold' ? 'bg-yellow-500/20 text-yellow-400' :
+                    getUserProperty(currentUser, 'loyaltyTier') === 'Diamond' ? 'bg-blue-500/20 text-blue-400' :
+                    getUserProperty(currentUser, 'loyaltyTier') === 'Platinum' ? 'bg-purple-500/20 text-purple-400' :
+                    getUserProperty(currentUser, 'loyaltyTier') === 'Gold' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-gray-500/20 text-gray-400'
                   }`}>
-                    {currentUser.loyaltyTier} Member
+                    {getUserProperty(currentUser, 'loyaltyTier')} Member
                   </span>
                 )}
-                {currentUser.isVip && (
+                {getUserProperty(currentUser, 'isVip') && (
                   <span className="ml-2 inline-block px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-medium">
                     VIP
                   </span>
@@ -439,7 +445,7 @@ const UserProfile: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-gray-300 mb-2">Contact Information</h4>
                       <div className="space-y-2">
-                        <p><span className="text-gray-400">Email:</span> {currentUser.email}</p>
+                        <p><span className="text-gray-400">Email:</span> {currentUser?.email}</p>
                         <p><span className="text-gray-400">Name:</span> {profileForm.name || 'Not provided'}</p>
                       </div>
                     </div>
