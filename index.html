@@ -5,12 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Updated Content Security Policy to allow Google APIs and Vercel -->
+    <!-- Fixed Content Security Policy for all Vercel and Google services -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://ssl.gstatic.com https://vercel.live;
-      frame-src 'self' https://accounts.google.com https://content.googleapis.com https://drive.google.com;
-      connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.google.com https://vercel.live;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://ssl.gstatic.com https://vercel.live https://*.vercel.live;
+      frame-src 'self' https://accounts.google.com https://content.googleapis.com https://drive.google.com https://vercel.live https://*.vercel.live;
+      connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.google.com https://vercel.live https://*.vercel.live wss://*.vercel.live;
       img-src 'self' data: https: blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
@@ -58,8 +58,8 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Global error handler -->
-    <script>
+    <!-- Environment detection script - Fixed for modules -->
+    <script type="module">
       // Global error handler for better debugging
       window.addEventListener('error', function(e) {
         console.error('Global error:', e.error);
@@ -69,12 +69,14 @@
         console.error('Unhandled promise rejection:', e.reason);
       });
       
-      // Log environment info for debugging
-      console.log('🌐 Environment Info:', {
-        mode: import.meta?.env?.MODE || 'unknown',
-        dev: import.meta?.env?.DEV || false,
-        prod: import.meta?.env?.PROD || false
-      });
+      // Safe environment logging without import.meta in inline script
+      try {
+        console.log('🌐 Page loaded successfully');
+        console.log('Location:', window.location.href);
+        console.log('User Agent:', navigator.userAgent);
+      } catch (error) {
+        console.error('Environment detection error:', error);
+      }
     </script>
   </body>
 </html>
