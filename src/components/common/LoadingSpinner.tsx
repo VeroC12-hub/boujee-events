@@ -1,22 +1,22 @@
-// src/components/common/LoadingSpinner.tsx - Create this file if it doesn't exist
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  fullScreen?: boolean;
-  message?: string;
-  size?: 'small' | 'medium' | 'large';
-  color?: 'primary' | 'white' | 'gray';
+  size?: 'sm' | 'small' | 'md' | 'medium' | 'lg' | 'large';
+  color?: 'primary' | 'secondary' | 'white' | 'gray';
+  className?: string;
+  text?: string;
 }
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  fullScreen = false, 
-  message = "Loading...",
-  size = 'medium',
-  color = 'primary'
+  size = 'medium', 
+  color = 'primary', 
+  className = '',
+  text
 }) => {
-  const containerClass = fullScreen 
-    ? "min-h-screen bg-gray-900 flex items-center justify-center" 
-    : "flex items-center justify-center p-8";
+  // Normalize size prop
+  const normalizedSize = size === 'sm' || size === 'small' ? 'small' :
+                        size === 'md' || size === 'medium' ? 'medium' :
+                        size === 'lg' || size === 'large' ? 'large' : 'medium';
 
   const sizeClasses = {
     small: 'w-4 h-4',
@@ -25,23 +25,34 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   const colorClasses = {
-    primary: 'border-yellow-400 border-t-transparent',
+    primary: 'border-primary-500 border-t-transparent',
+    secondary: 'border-secondary-500 border-t-transparent',
     white: 'border-white border-t-transparent',
     gray: 'border-gray-400 border-t-transparent'
   };
 
+  const textSizeClasses = {
+    small: 'text-xs',
+    medium: 'text-sm',
+    large: 'text-base'
+  };
+
   return (
-    <div className={containerClass}>
-      <div className="text-center">
-        <div 
-          className={`${sizeClasses[size]} border-2 ${colorClasses[color]} rounded-full animate-spin mx-auto mb-4`}
-        />
-        {message && (
-          <p className={`${color === 'white' ? 'text-white' : 'text-gray-400'}`}>
-            {message}
-          </p>
-        )}
-      </div>
+    <div className={`flex flex-col items-center justify-center ${className}`}>
+      <div
+        className={`
+          ${sizeClasses[normalizedSize]}
+          ${colorClasses[color]}
+          border-2 rounded-full animate-spin
+        `}
+        role="status"
+        aria-label="Loading"
+      />
+      {text && (
+        <span className={`mt-2 text-gray-600 ${textSizeClasses[normalizedSize]}`}>
+          {text}
+        </span>
+      )}
     </div>
   );
 };
