@@ -1,51 +1,48 @@
-// File: src/hooks/useAuth.ts
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
 
 // Main useAuth hook that components are importing
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (context === null) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
 
 // Hook for components that require authentication
-export function useRequireAuth(requiredRole?: 'admin' | 'organizer' | 'attendee') {
-  const { user, profile, loading, error } = useAuth();
+export function useRequireAuth(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
+  const { user, loading } = useAuth();
   
-  const hasAccess = user && profile && (
+  const hasAccess = user && (
     !requiredRole || 
-    profile.role === requiredRole || 
-    profile.role === 'admin'  // Admin has access to everything
+    user.role === requiredRole || 
+    user.role === 'admin'  // Admin has access to everything
   );
 
   return {
     user,
-    profile,
+    profile: user,
     loading,
-    error,
     hasAccess: Boolean(hasAccess),
-    isAuthenticated: Boolean(user && profile),
-    isAdmin: profile?.role === 'admin',
-    isOrganizer: profile?.role === 'organizer',
-    isAttendee: profile?.role === 'attendee'
+    isAuthenticated: Boolean(user),
+    isAdmin: user?.role === 'admin',
+    isOrganizer: user?.role === 'organizer',
+    isMember: user?.role === 'member',
+    isAttendee: user?.role === 'attendee'
   };
 }
 
 // Hook for sign in functionality
 export function useSignIn() {
-  const { signIn, loading, error } = useAuth();
+  const { signIn, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSignIn = async (email: string, password: string) => {
     try {
       setIsSubmitting(true);
-      await signIn({ email, password });
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+      const result = await signIn(email, password);
+      return result;
     } finally {
       setIsSubmitting(false);
     }
@@ -53,28 +50,20 @@ export function useSignIn() {
 
   return {
     signIn: handleSignIn,
-    loading: loading || isSubmitting,
-    error
+    loading: loading || isSubmitting
   };
 }
 
 // Hook for sign up functionality  
 export function useSignUp() {
-  const { signUp, loading, error } = useAuth();
+  const { signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSignUp = async (userData: {
-    email: string;
-    password: string;
-    fullName: string;
-    phone?: string;
-  }) => {
+  const handleSignUp = async (email: string, password: string, fullName: string) => {
     try {
       setIsSubmitting(true);
-      await signUp(userData);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+      const result = await signUp(email, password, fullName);
+      return result;
     } finally {
       setIsSubmitting(false);
     }
@@ -82,8 +71,7 @@ export function useSignUp() {
 
   return {
     signUp: handleSignUp,
-    loading: loading || isSubmitting,
-    error
+    loading: loading || isSubmitting
   };
 }
 
@@ -132,69 +120,71 @@ export function useAuthError() {
 }
 
 export function useIsAuthenticated() {
-  const { user, profile } = useAuth();
-  return Boolean(user && profile);
+  const { user } = useAuth();
+  return Boolean(user);
 }
 
 export function useIsAdmin() {
-  const { profile } = useAuth();
-  return profile?.role === 'admin';
+  const { user } = useAuth();
+  return user?.role === 'admin';
 }
 
 export function useIsOrganizer() {
-  const { profile } = useAuth();
-  return profile?.role === 'organizer';
+  const { user } = useAuth();
+  return user?.role === 'organizer';
+}
+
+export function useIsMember() {
+  const { user } = useAuth();
+  return user?.role === 'member';
 }
 
 export function useIsAttendee() {
-  const { profile } = useAuth();
-  return profile?.role === 'attendee';
+  const { user } = useAuth();
+  return user?.role === 'attendee';
 }
 
 // Hook for protected routes
-export function useProtectedRoute(requiredRole?: 'admin' | 'organizer' | 'attendee') {
-  const { user, profile, loading } = useAuth();
+export function useProtectedRoute(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
+  const { user, loading } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
     if (!loading) {
-      if (!user || !profile) {
+      if (!user) {
         setShouldRedirect(true);
         return;
       }
 
-      if (requiredRole && profile.role !== requiredRole && profile.role !== 'admin') {
+      if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
         setShouldRedirect(true);
         return;
       }
 
       setShouldRedirect(false);
     }
-  }, [user, profile, loading, requiredRole]);
+  }, [user, loading, requiredRole]);
 
   return {
     shouldRedirect,
     loading,
     user,
-    profile,
-    isAuthenticated: Boolean(user && profile),
-    hasRequiredRole: !requiredRole || profile?.role === requiredRole || profile?.role === 'admin'
+    profile: user,
+    isAuthenticated: Boolean(user),
+    hasRequiredRole: !requiredRole || user?.role === requiredRole || user?.role === 'admin'
   };
 }
 
 // Hook for user profile management
 export function useUserProfile() {
-  const { user, profile, loading } = useAuth();
+  const { user, updateProfile, loading } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const updateProfile = async (updates: Partial<any>) => {
+  const handleUpdateProfile = async (updates: any) => {
     try {
       setIsUpdating(true);
-      // This would call your profile update service
-      // await profileService.updateProfile(user?.id, updates);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+      const result = await updateProfile(updates);
+      return result;
     } finally {
       setIsUpdating(false);
     }
@@ -202,9 +192,9 @@ export function useUserProfile() {
 
   return {
     user,
-    profile,
+    profile: user,
     loading: loading || isUpdating,
-    updateProfile,
+    updateProfile: handleUpdateProfile,
     isUpdating
   };
 }
