@@ -1,368 +1,322 @@
 import React, { useState } from 'react';
-import { usePublicUser } from '../contexts/PublicUserContext';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import LoadingSpinner from './common/LoadingSpinner';
 
 interface PublicAuthProps {
-  onSuccess?: () => void;
-  onError?: (error: string) => void;
-  mode?: 'signin' | 'signup';
+  onClose?: () => void;
+  redirectPath?: string;
 }
 
-const PublicAuth: React.FC<PublicAuthProps> = ({
-  onSuccess,
-  onError,
-  mode = 'signin'
-}) => {
-  const { register, isLoading } = usePublicUser();
-  const { signIn, signUp, loading: authLoading } = useAuth();
-  
-  const [formMode, setFormMode] = useState<'signin' | 'signup'>(mode);
-  const [formData, setFormData] = useState({
+export function PublicAuth({ onClose, redirectPath }: PublicAuthProps) {
+  const { signIn, signUp, resetPassword } = useAuth();
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup' | 'reset'>('signin');
+
+  // Sign In Form State
+  const [signInData, setSignInData] = useState({
+    email: '',
+    password: ''
+  });
+
+  // Sign Up Form State
+  const [signUpData, setSignUpData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: '',
-    phone: '',
-    agreeToTerms: false
+    fullName: ''
   });
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const isLoading = authLoading || false; // Use authLoading from useAuth
-  
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
+  // Reset Password Form State
+  const [resetEmail, setResetEmail] = useState('');
 
-    // Email validation
-    if (!formData.email) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    // Password validation
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters';
-    }
-
-    // Signup specific validations
-    if (formMode === 'signup') {
-      if (!formData.fullName) {
-        errors.fullName = 'Full name is required';
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        errors.confirmPassword = 'Passwords do not match';
-      }
-
-      if (!formData.agreeToTerms) {
-        errors.agreeToTerms = 'You must agree to the terms and conditions';
-      }
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    // Clear validation error when user starts typing
-    if (validationErrors[name]) {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalError(null);
+    if (authLoading) return;
 
-    if (!validateForm()) {
+    setError('');
+    setMessage('');
+    setAuthLoading(true);
+
+    try {
+      const result = await signIn(signInData.email, signInData.password);
+      
+      if (result.error) {
+        setError(result.error);
+      } else if (result.user) {
+        setMessage('Sign in successful!');
+        if (onClose) {
+          setTimeout(onClose, 1000);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign in');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (authLoading) return;
+
+    setError('');
+    setMessage('');
+
+    // Validation
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
-    try {
-      if (formMode === 'signin') {
-        await signIn({
-          email: formData.email,
-          password: formData.password
-        });
-      } else {
-        // Try both registration methods
-        try {
-          await signUp({
-            email: formData.email,
-            password: formData.password,
-            fullName: formData.fullName,
-            phone: formData.phone
-          });
-        } catch (authError) {
-          // Fallback to public user registration
-          await register({
-            email: formData.email,
-            password: formData.password,
-            name: formData.fullName,
-            fullName: formData.fullName,
-            phone: formData.phone
-          });
-        }
-      }
+    if (signUpData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
 
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      const errorMessage = error.message || 'Authentication failed. Please try again.';
-      setLocalError(errorMessage);
+    setAuthLoading(true);
+
+    try {
+      const result = await signUp(signUpData.email, signUpData.password, signUpData.fullName);
       
-      if (onError) {
-        onError(errorMessage);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.user) {
+        setMessage('Account created successfully! Please check your email for verification.');
+        // Clear form
+        setSignUpData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          fullName: ''
+        });
       }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign up');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const switchMode = () => {
-    setFormMode(prev => prev === 'signin' ? 'signup' : 'signin');
-    setLocalError(null);
-    setValidationErrors({});
-    setFormData({
-      email: '',
-      password: '',
-      confirmPassword: '',
-      fullName: '',
-      phone: '',
-      agreeToTerms: false
-    });
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (authLoading) return;
+
+    setError('');
+    setMessage('');
+    setAuthLoading(true);
+
+    try {
+      const result = await resetPassword(resetEmail);
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setMessage('Password reset email sent! Check your inbox.');
+        setResetEmail('');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred sending reset email');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
-            {formMode === 'signin' ? 'Welcome Back' : 'Join Boujee Events'}
-          </h2>
-          <p className="text-gray-400">
-            {formMode === 'signin' 
-              ? 'Sign in to access your account' 
-              : 'Create your account for exclusive events'
-            }
-          </p>
-        </div>
+      <Card className="shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-gray-900">
+            Welcome to Boujee Events
+          </CardTitle>
+          <CardDescription>
+            Sign in to your account or create a new one
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="reset">Reset</TabsTrigger>
+            </TabsList>
 
-        {localError && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <span className="text-red-400">❌</span>
-              <span className="text-red-300">{localError}</span>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Full Name (Signup only) */}
-          {formMode === 'signup' && (
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                  validationErrors.fullName 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-white/20 focus:ring-yellow-400'
-                }`}
-                placeholder="Enter your full name"
-                disabled={isLoading}
-              />
-              {validationErrors.fullName && (
-                <p className="mt-1 text-sm text-red-400">{validationErrors.fullName}</p>
-              )}
-            </div>
-          )}
-
-          {/* Email */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                validationErrors.email 
-                  ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-white/20 focus:ring-yellow-400'
-              }`}
-              placeholder="Enter your email"
-              disabled={isLoading}
-            />
-            {validationErrors.email && (
-              <p className="mt-1 text-sm text-red-400">{validationErrors.email}</p>
-            )}
-          </div>
-
-          {/* Phone (Signup only) */}
-          {formMode === 'signup' && (
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                Phone Number (Optional)
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
-                placeholder="Enter your phone number"
-                disabled={isLoading}
-              />
-            </div>
-          )}
-
-          {/* Password */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                validationErrors.password 
-                  ? 'border-red-500 focus:ring-red-500' 
-                  : 'border-white/20 focus:ring-yellow-400'
-              }`}
-              placeholder="Enter your password"
-              disabled={isLoading}
-            />
-            {validationErrors.password && (
-              <p className="mt-1 text-sm text-red-400">{validationErrors.password}</p>
-            )}
-          </div>
-
-          {/* Confirm Password (Signup only) */}
-          {formMode === 'signup' && (
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                  validationErrors.confirmPassword 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-white/20 focus:ring-yellow-400'
-                }`}
-                placeholder="Confirm your password"
-                disabled={isLoading}
-              />
-              {validationErrors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-400">{validationErrors.confirmPassword}</p>
-              )}
-            </div>
-          )}
-
-          {/* Terms Agreement (Signup only) */}
-          {formMode === 'signup' && (
-            <div>
-              <label className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  name="agreeToTerms"
-                  checked={formData.agreeToTerms}
-                  onChange={handleInputChange}
-                  className="mt-1 w-4 h-4 text-yellow-400 bg-transparent border-gray-300 rounded focus:ring-yellow-400"
-                  disabled={isLoading}
-                />
-                <span className="text-sm text-gray-300">
-                  I agree to the{' '}
-                  <a href="/terms" className="text-yellow-400 hover:text-yellow-300 underline">
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a href="/privacy" className="text-yellow-400 hover:text-yellow-300 underline">
-                    Privacy Policy
-                  </a>
-                </span>
-              </label>
-              {validationErrors.agreeToTerms && (
-                <p className="mt-1 text-sm text-red-400">{validationErrors.agreeToTerms}</p>
-              )}
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-yellow-400 text-black py-3 px-4 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
-                {formMode === 'signin' ? 'Signing In...' : 'Creating Account...'}
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
-            ) : (
-              formMode === 'signin' ? 'Sign In' : 'Create Account'
             )}
-          </button>
-        </form>
+            
+            {message && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-600">{message}</p>
+              </div>
+            )}
 
-        {/* Switch Mode */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-400">
-            {formMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
-            <button
-              onClick={switchMode}
-              className="text-yellow-400 hover:text-yellow-300 font-medium underline"
-              disabled={isLoading}
-            >
-              {formMode === 'signin' ? 'Sign Up' : 'Sign In'}
-            </button>
-          </p>
-        </div>
+            {/* Sign In Tab */}
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div>
+                  <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    value={signInData.email}
+                    onChange={(e) => setSignInData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="your@email.com"
+                    required
+                    disabled={authLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="signin-password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    value={signInData.password}
+                    onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="••••••••"
+                    required
+                    disabled={authLoading}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={authLoading}
+                >
+                  {authLoading ? <LoadingSpinner size="sm" /> : 'Sign In'}
+                </Button>
+              </form>
+            </TabsContent>
 
-        {/* Forgot Password (Signin only) */}
-        {formMode === 'signin' && (
-          <div className="mt-4 text-center">
-            <a
-              href="/forgot-password"
-              className="text-sm text-gray-400 hover:text-yellow-400 underline"
-            >
-              Forgot your password?
-            </a>
-          </div>
-        )}
-      </div>
+            {/* Sign Up Tab */}
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div>
+                  <label htmlFor="signup-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    value={signUpData.fullName}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="John Doe"
+                    required
+                    disabled={authLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="signup-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    value={signUpData.email}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="your@email.com"
+                    required
+                    disabled={authLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="signup-password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    value={signUpData.password}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="••••••••"
+                    required
+                    disabled={authLoading}
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="signup-confirm" className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password
+                  </label>
+                  <Input
+                    id="signup-confirm"
+                    type="password"
+                    value={signUpData.confirmPassword}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    required
+                    disabled={authLoading}
+                    minLength={6}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={authLoading}
+                >
+                  {authLoading ? <LoadingSpinner size="sm" /> : 'Create Account'}
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* Reset Password Tab */}
+            <TabsContent value="reset">
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    disabled={authLoading}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    We'll send you a link to reset your password
+                  </p>
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={authLoading}
+                >
+                  {authLoading ? <LoadingSpinner size="sm" /> : 'Send Reset Link'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          {/* Close Button */}
+          {onClose && (
+            <div className="mt-4 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="w-full"
+                disabled={authLoading}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default PublicAuth;
+}
