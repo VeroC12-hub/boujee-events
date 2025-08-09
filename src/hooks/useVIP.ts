@@ -11,7 +11,7 @@ export function useVIPTiers() {
 // Hook for VIP reservations
 export function useVIPReservations(eventId?: string) {
   return useApi(
-    () => vipService.getVIPReservations(eventId),
+    () => eventId ? vipService.getVIPReservations(eventId) : Promise.resolve({ success: false, error: 'No event ID provided', timestamp: new Date().toISOString() }),
     [eventId]
   );
 }
@@ -48,7 +48,7 @@ export function useCancelVIPReservation() {
 // Hook for VIP analytics
 export function useVIPAnalytics(eventId?: string) {
   return useApi(
-    () => vipService.getVIPAnalytics(eventId),
+    () => eventId ? vipService.getVIPAnalytics(eventId) : Promise.resolve({ success: false, error: 'No event ID provided', timestamp: new Date().toISOString() }),
     [eventId]
   );
 }

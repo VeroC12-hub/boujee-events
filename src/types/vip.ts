@@ -164,6 +164,8 @@ export interface CreateVIPReservationRequest {
     view?: string;
     accessibility?: boolean;
   };
+  status?: 'reserved' | 'occupied' | 'available' | 'maintenance';
+  reservedAt?: string;
   specialInstructions?: string;
 }
 

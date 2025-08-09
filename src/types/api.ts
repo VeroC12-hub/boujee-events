@@ -30,7 +30,7 @@ export interface User {
   full_name?: string; // alias for name
   email: string;
   phone: string;
-  role: 'admin' | 'organizer' | 'user';
+  role: 'admin' | 'organizer' | 'member';
   status: 'active' | 'inactive' | 'banned';
   avatar: string;
   avatar_url?: string; // alias for avatar
@@ -63,7 +63,7 @@ export interface CreateUserRequest {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'organizer' | 'user';
+  role: 'admin' | 'organizer' | 'member';
   password: string;
 }
 
@@ -71,7 +71,7 @@ export interface UpdateUserRequest {
   name?: string;
   email?: string;
   phone?: string;
-  role?: 'admin' | 'organizer' | 'user';
+  role?: 'admin' | 'organizer' | 'member';
   status?: 'active' | 'inactive' | 'banned';
 }
 
