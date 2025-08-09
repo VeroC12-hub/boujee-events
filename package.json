@@ -14,10 +14,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist node_modules/.vite",
-    "test-drive": "echo 'Testing Google Drive integration...' && npm run dev",
-    "setup-env": "cp .env.example .env.local && echo 'Environment file created. Please fill in your API keys.'",
-    "check-env": "node -e \"console.log('Environment check:'); console.log('VITE_GOOGLE_CLIENT_ID:', process.env.VITE_GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing'); console.log('VITE_GOOGLE_DRIVE_API_KEY:', process.env.VITE_GOOGLE_DRIVE_API_KEY ? '✅ Set' : '❌ Missing');\""
+    "clean": "rm -rf dist node_modules/.vite"
   },
   "dependencies": {
     "react": "^18.3.1",
