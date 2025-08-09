@@ -1,70 +1,240 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, Settings, Heart, History, Star, Award, Bell, Users, 
-  Edit3, Camera, MapPin, Calendar, TrendingUp, Gift, 
-  ChevronRight, Crown, Zap, Shield, MessageSquare, Share2
-} from 'lucide-react';
 import { usePublicUser } from '../contexts/PublicUserContext';
+import { useAuth } from '../hooks/useAuth';
 
-interface UserProfileProps {
-  onClose?: () => void;
+interface UserStats {
+  eventsAttended: number;
+  totalSpent: number;
+  reviewsLeft: number;
+  favoriteEvents: number;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
+interface UserPreferences {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  newsletter: boolean;
+  eventReminders: boolean;
+  privacySettings: boolean;
+}
+
+interface SocialProfile {
+  twitter?: string;
+  instagram?: string;
+  linkedin?: string;
+  website?: string;
+}
+
+interface LoyaltyProgram {
+  currentTier: string;
+  points: number;
+  nextTierPoints: number;
+  benefits: string[];
+}
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+}
+
+interface FavoriteEvent {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventImage: string;
+  addedAt: string;
+}
+
+interface HistoryItem {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  attendedDate: string;
+  rating?: number;
+  review?: string;
+}
+
+interface TransactionItem {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  amount: number;
+  date: string;
+  status: 'completed' | 'pending' | 'refunded';
+  paymentMethod: string;
+}
+
+const UserProfile: React.FC = () => {
+  const { user, updateProfile } = useAuth();
   const { 
-    user, 
-    favorites, 
-    history, 
+    user: publicUser, 
+    favorites = [], 
+    history = [], 
     loyaltyProgram, 
-    notifications,
-    getUnreadCount,
-    markNotificationRead,
-    updateProfile,
-    updatePreferences
+    notifications = [], 
+    getUnreadCount, 
+    markNotificationRead, 
+    updatePreferences 
   } = usePublicUser();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'favorites' | 'history' | 'loyalty' | 'notifications' | 'settings'>('profile');
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  // Use auth user if available, otherwise use public user
+  const currentUser = user || publicUser;
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'preferences' | 'loyalty' | 'history'>('profile');
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Profile form state
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || '',
-    bio: user?.socialProfile?.bio || '',
-    isPublic: user?.socialProfile?.isPublic || false
+    name: currentUser?.name || currentUser?.full_name || '',
+    email: currentUser?.email || '',
+    phone: '',
+    bio: '',
+    avatar: currentUser?.avatar || '',
+    socialProfile: {
+      twitter: '',
+      instagram: '',
+      linkedin: '',
+      website: ''
+    } as SocialProfile
   });
 
-  const unreadCount = getUnreadCount();
-
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'Bronze': return 'text-orange-600 bg-orange-50';
-      case 'Silver': return 'text-gray-600 bg-gray-50';
-      case 'Gold': return 'text-yellow-600 bg-yellow-50';
-      case 'Platinum': return 'text-purple-600 bg-purple-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
+  // Mock data fallbacks
+  const defaultStats: UserStats = {
+    eventsAttended: currentUser?.stats?.eventsAttended || 12,
+    totalSpent: currentUser?.stats?.totalSpent || 2450,
+    reviewsLeft: currentUser?.stats?.reviewsLeft || 8,
+    favoriteEvents: favorites?.length || 5
   };
 
-  const getTierIcon = (tier: string) => {
-    switch (tier) {
-      case 'Bronze': return '🥉';
-      case 'Silver': return '🥈';
-      case 'Gold': return '🥇';
-      case 'Platinum': return '💎';
-      default: return '🏆';
-    }
+  const defaultPreferences: UserPreferences = {
+    emailNotifications: currentUser?.preferences?.emailNotifications ?? true,
+    pushNotifications: currentUser?.preferences?.pushNotifications ?? true,
+    newsletter: currentUser?.preferences?.newsletter ?? true,
+    eventReminders: currentUser?.preferences?.eventReminders ?? true,
+    privacySettings: currentUser?.preferences?.privacySettings ?? false
   };
+
+  const defaultLoyaltyProgram: LoyaltyProgram = loyaltyProgram || {
+    currentTier: currentUser?.loyaltyTier || 'Gold',
+    points: currentUser?.loyaltyPoints || 2840,
+    nextTierPoints: 5000,
+    benefits: [
+      'Priority booking access',
+      '15% discount on all events',
+      'Exclusive VIP events',
+      'Personal concierge service'
+    ]
+  };
+
+  const mockNotifications: NotificationItem[] = notifications?.length > 0 ? notifications : [
+    {
+      id: '1',
+      title: 'Event Reminder',
+      message: 'Summer Music Festival is tomorrow!',
+      type: 'info',
+      read: false,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: '2',
+      title: 'Booking Confirmed',
+      message: 'Your booking for Tech Summit has been confirmed.',
+      type: 'success',
+      read: true,
+      createdAt: new Date(Date.now() - 86400000).toISOString()
+    }
+  ];
+
+  const mockFavorites: FavoriteEvent[] = favorites?.length > 0 ? favorites : [
+    {
+      id: '1',
+      eventId: 'event_1',
+      eventTitle: 'Summer Music Festival',
+      eventDate: '2025-08-15',
+      eventImage: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea',
+      addedAt: new Date().toISOString()
+    }
+  ];
+
+  const mockHistory: HistoryItem[] = history?.length > 0 ? history : [
+    {
+      id: '1',
+      eventId: 'event_past_1',
+      eventTitle: 'Wine Tasting Evening',
+      eventDate: '2025-01-15',
+      attendedDate: '2025-01-15',
+      rating: 5,
+      review: 'Absolutely fantastic event!'
+    }
+  ];
+
+  const mockTransactions: TransactionItem[] = [
+    {
+      id: '1',
+      eventId: 'event_1',
+      eventTitle: 'Summer Music Festival',
+      amount: 299,
+      date: '2025-01-10',
+      status: 'completed',
+      paymentMethod: 'Credit Card'
+    }
+  ];
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || currentUser.full_name || '',
+        email: currentUser.email || '',
+        phone: '',
+        bio: '',
+        avatar: currentUser.avatar || '',
+        socialProfile: currentUser.socialProfile || {
+          twitter: '',
+          instagram: '',
+          linkedin: '',
+          website: ''
+        }
+      });
+    }
+  }, [currentUser]);
 
   const handleProfileUpdate = async () => {
-    if (!user) return;
-    
-    await updateProfile({
-      name: profileForm.name,
-      socialProfile: {
-        ...user.socialProfile,
-        bio: profileForm.bio,
-        isPublic: profileForm.isPublic
+    setLoading(true);
+    try {
+      const updates = {
+        name: profileForm.name,
+        socialProfile: profileForm.socialProfile
+      };
+
+      if (updateProfile) {
+        await updateProfile(updates);
       }
-    });
-    setIsEditingProfile(false);
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Profile update failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePreferenceChange = (key: keyof UserPreferences, value: boolean) => {
+    const newPrefs = { [key]: value };
+    if (updatePreferences) {
+      updatePreferences(newPrefs);
+    }
+  };
+
+  const handleNotificationRead = (notificationId: string) => {
+    if (markNotificationRead) {
+      markNotificationRead(notificationId);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -74,634 +244,410 @@ const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const getUnreadNotificationCount = () => {
+    if (getUnreadCount) {
+      return getUnreadCount();
+    }
+    return mockNotifications.filter(n => !n.read).length;
   };
 
-  if (!user) {
+  if (!currentUser) {
     return (
-      <div className="max-w-4xl mx-auto p-6 text-center">
-        <h2 className="text-2xl font-bold text-white mb-4">Please log in to view your profile</h2>
-        <p className="text-gray-400">Access your favorites, history, and loyalty rewards</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">👤</div>
+          <div className="text-white text-xl mb-4">Please sign in to view your profile</div>
+          <button
+            onClick={() => window.location.href = '/auth'}
+            className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 bg-background min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white">
       {/* Header */}
-      <div className="bg-card rounded-xl border border-border p-6 mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-          {/* Profile Picture & Basic Info */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <img 
-                src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
-                alt={user.name}
-                className="w-20 h-20 rounded-full object-cover border-4 border-primary/20"
-              />
-              <button className="absolute -bottom-1 -right-1 bg-primary text-black p-2 rounded-full hover:bg-primary/80 transition-colors">
-                <Camera className="w-4 h-4" />
-              </button>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">{user.name}</h1>
-              <p className="text-muted-foreground">{user.email}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTierColor(user.loyaltyTier)}`}>
-                  {getTierIcon(user.loyaltyTier)} {user.loyaltyTier} Member
-                </span>
-                {user.isVip && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-600 text-white">
-                    <Crown className="w-3 h-3" /> VIP
+      <div className="bg-black/20 backdrop-blur-md border-b border-yellow-400/20 p-6">
+        <div className="container mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center">
+                {profileForm.avatar ? (
+                  <img 
+                    src={profileForm.avatar} 
+                    alt={profileForm.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-black text-2xl font-bold">
+                    {profileForm.name?.charAt(0) || 'U'}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{profileForm.name || 'User'}</h1>
+                <p className="text-gray-300">{currentUser.email}</p>
+                {currentUser.loyaltyTier && (
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                    currentUser.loyaltyTier === 'Diamond' ? 'bg-blue-500/20 text-blue-400' :
+                    currentUser.loyaltyTier === 'Platinum' ? 'bg-purple-500/20 text-purple-400' :
+                    currentUser.loyaltyTier === 'Gold' ? 'bg-yellow-500/20 text-yellow-400' :
+                    'bg-gray-500/20 text-gray-400'
+                  }`}>
+                    {currentUser.loyaltyTier} Member
+                  </span>
+                )}
+                {currentUser.isVip && (
+                  <span className="ml-2 inline-block px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-medium">
+                    VIP
                   </span>
                 )}
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Stats */}
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{user.stats.eventsAttended}</div>
-              <div className="text-sm text-muted-foreground">Events</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">{formatCurrency(user.stats.totalSpent)}</div>
-              <div className="text-sm text-muted-foreground">Spent</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-500">{user.loyaltyPoints.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Points</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">{user.socialProfile.followers}</div>
-              <div className="text-sm text-muted-foreground">Followers</div>
-            </div>
+      <div className="container mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className="text-3xl font-bold text-yellow-400">{defaultStats.eventsAttended}</div>
+            <div className="text-gray-300">Events Attended</div>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setIsEditingProfile(!isEditingProfile)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/80 transition-colors"
-            >
-              <Edit3 className="w-4 h-4" />
-              Edit
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">
-              <Share2 className="w-4 h-4" />
-              Share
-            </button>
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className="text-3xl font-bold text-green-400">{formatCurrency(defaultStats.totalSpent)}</div>
+            <div className="text-gray-300">Total Spent</div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className="text-3xl font-bold text-blue-400">{defaultStats.reviewsLeft}</div>
+            <div className="text-gray-300">Reviews Left</div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className="text-3xl font-bold text-purple-400">{defaultLoyaltyProgram.points}</div>
+            <div className="text-gray-300">Loyalty Points</div>
           </div>
         </div>
 
-        {/* Bio */}
-        {(user.socialProfile.bio || isEditingProfile) && (
-          <div className="mt-4 pt-4 border-t border-border">
-            {isEditingProfile ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={profileForm.name}
-                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Bio</label>
-                  <textarea
-                    value={profileForm.bio}
-                    onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground resize-none"
-                    placeholder="Tell us about yourself..."
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isPublic"
-                    checked={profileForm.isPublic}
-                    onChange={(e) => setProfileForm({ ...profileForm, isPublic: e.target.checked })}
-                    className="rounded"
-                  />
-                  <label htmlFor="isPublic" className="text-sm text-foreground">Make profile public</label>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleProfileUpdate}
-                    className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/80 transition-colors"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setIsEditingProfile(false)}
-                    className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground">{user.socialProfile.bio}</p>
-            )}
+        {/* Tab Navigation */}
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 mb-8">
+          <div className="border-b border-white/10">
+            <nav className="flex space-x-8 px-6">
+              {[
+                { key: 'profile', label: 'Profile', icon: '👤' },
+                { key: 'notifications', label: 'Notifications', icon: '🔔', count: getUnreadNotificationCount() },
+                { key: 'preferences', label: 'Preferences', icon: '⚙️' },
+                { key: 'loyalty', label: 'Loyalty Program', icon: '🏆' },
+                { key: 'history', label: 'History', icon: '📊' }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.key
+                      ? 'border-yellow-400 text-yellow-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                  {tab.count && tab.count > 0 && (
+                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] h-5 flex items-center justify-center">
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </nav>
           </div>
-        )}
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 mb-6 bg-card rounded-lg p-2">
-        {[
-          { id: 'profile', label: 'Overview', icon: User },
-          { id: 'favorites', label: 'Favorites', icon: Heart, count: favorites.length },
-          { id: 'history', label: 'History', icon: History, count: history.length },
-          { id: 'loyalty', label: 'Loyalty', icon: Award, highlight: true },
-          { id: 'notifications', label: 'Notifications', icon: Bell, count: unreadCount },
-          { id: 'settings', label: 'Settings', icon: Settings }
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors relative ${
-                activeTab === tab.id
-                  ? 'bg-primary text-black'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              } ${tab.highlight ? 'ring-2 ring-yellow-500/30' : ''}`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
-              {tab.count && tab.count > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {tab.count > 99 ? '99+' : tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+          <div className="p-6">
+            {/* Profile Tab */}
+            {activeTab === 'profile' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">Profile Information</h3>
+                  <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-medium hover:bg-yellow-500 transition-colors"
+                  >
+                    {isEditing ? 'Cancel' : 'Edit Profile'}
+                  </button>
+                </div>
 
-      {/* Tab Content */}
-      <div className="space-y-6">
-        {/* Profile Overview */}
-        {activeTab === 'profile' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Recent Activity */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Recent Activity
-              </h3>
-              <div className="space-y-3">
-                {history.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <img src={item.eventImage} alt={item.eventTitle} className="w-10 h-10 rounded object-cover" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{item.eventTitle}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                    </div>
-                    {item.rating && (
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                        <span className="text-xs text-muted-foreground">{item.rating}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Loyalty Overview */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-500" />
-                Loyalty Status
-              </h3>
-              {loyaltyProgram && (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">{getTierIcon(loyaltyProgram.currentTier)}</div>
-                    <div className="text-lg font-semibold text-white">{loyaltyProgram.currentTier} Member</div>
-                    <div className="text-sm text-muted-foreground">{loyaltyProgram.currentPoints.toLocaleString()} points</div>
-                  </div>
-                  
-                  {loyaltyProgram.nextTier && (
+                {isEditing ? (
+                  <div className="space-y-4">
                     <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Progress to {loyaltyProgram.nextTier}</span>
-                        <span>{loyaltyProgram.pointsToNextTier} points needed</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-2 rounded-full transition-all duration-500"
-                          style={{ 
-                            width: `${100 - (loyaltyProgram.pointsToNextTier / (loyaltyProgram.pointsToNextTier + loyaltyProgram.currentPoints) * 100)}%` 
-                          }}
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                      <input
+                        type="text"
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                      />
+                    </div>
+                    
+                    {/* Social Profile */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Social Profiles</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          placeholder="Twitter username"
+                          value={profileForm.socialProfile?.twitter || ''}
+                          onChange={(e) => setProfileForm(prev => ({
+                            ...prev,
+                            socialProfile: { ...prev.socialProfile, twitter: e.target.value }
+                          }))}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Instagram username"
+                          value={profileForm.socialProfile?.instagram || ''}
+                          onChange={(e) => setProfileForm(prev => ({
+                            ...prev,
+                            socialProfile: { ...prev.socialProfile, instagram: e.target.value }
+                          }))}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400"
                         />
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
 
-            {/* Preferences */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-primary" />
-                Quick Settings
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Event Reminders</span>
-                  <input 
-                    type="checkbox" 
-                    checked={user.preferences.notifications.eventReminders}
-                    onChange={(e) => updatePreferences({
-                      notifications: {
-                        ...user.preferences.notifications,
-                        eventReminders: e.target.checked
-                      }
-                    })}
-                    className="rounded"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Early Access</span>
-                  <input 
-                    type="checkbox" 
-                    checked={user.preferences.notifications.earlyAccess}
-                    onChange={(e) => updatePreferences({
-                      notifications: {
-                        ...user.preferences.notifications,
-                        earlyAccess: e.target.checked
-                      }
-                    })}
-                    className="rounded"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Deal Notifications</span>
-                  <input 
-                    type="checkbox" 
-                    checked={user.preferences.notifications.deals}
-                    onChange={(e) => updatePreferences({
-                      notifications: {
-                        ...user.preferences.notifications,
-                        deals: e.target.checked
-                      }
-                    })}
-                    className="rounded"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Favorites */}
-        {activeTab === 'favorites' && (
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-red-500" />
-              Favorite Events ({favorites.length})
-            </h3>
-            {favorites.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {favorites.map((favorite) => (
-                  <div key={favorite.id} className="bg-muted rounded-lg p-4 hover:bg-muted/80 transition-colors">
-                    <img 
-                      src={favorite.eventImage} 
-                      alt={favorite.eventTitle}
-                      className="w-full h-32 object-cover rounded-lg mb-3"
-                    />
-                    <h4 className="font-medium text-foreground mb-2">{favorite.eventTitle}</h4>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(favorite.eventDate)}
-                      </span>
-                      <span>Added {formatDate(favorite.addedAt)}</span>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={handleProfileUpdate}
+                        disabled={loading}
+                        className="bg-green-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                      >
+                        {loading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="bg-gray-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No favorite events yet</p>
-                <p className="text-sm text-muted-foreground mt-2">Explore events and add them to your favorites!</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* History */}
-        {activeTab === 'history' && (
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <History className="w-5 h-5 text-blue-500" />
-              Event History ({history.length})
-            </h3>
-            {history.length > 0 ? (
-              <div className="space-y-4">
-                {history.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                    <img 
-                      src={item.eventImage} 
-                      alt={item.eventTitle}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-foreground">{item.eventTitle}</h4>
-                      <p className="text-sm text-muted-foreground">{item.ticketType}</p>
-                      <div className="flex items-center gap-4 mt-2 text-sm">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(item.date)}
-                        </span>
-                        <span>{formatCurrency(item.amount)}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.status === 'attended' ? 'bg-green-100 text-green-800' :
-                          item.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {item.status}
-                        </span>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-2">Contact Information</h4>
+                      <div className="space-y-2">
+                        <p><span className="text-gray-400">Email:</span> {currentUser.email}</p>
+                        <p><span className="text-gray-400">Name:</span> {profileForm.name || 'Not provided'}</p>
                       </div>
                     </div>
-                    {item.rating && (
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                        <span className="text-sm font-medium">{item.rating}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <History className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No event history yet</p>
-                <p className="text-sm text-muted-foreground mt-2">Your attended events will appear here</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Loyalty Program */}
-        {activeTab === 'loyalty' && loyaltyProgram && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-500" />
-                Loyalty Program
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <div className="text-center mb-6">
-                    <div className="text-6xl mb-2">{getTierIcon(loyaltyProgram.currentTier)}</div>
-                    <h4 className="text-2xl font-bold text-white">{loyaltyProgram.currentTier} Member</h4>
-                    <p className="text-muted-foreground">{loyaltyProgram.currentPoints.toLocaleString()} points</p>
-                  </div>
-                  
-                  {loyaltyProgram.nextTier && (
-                    <div className="bg-card/50 rounded-lg p-4">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Progress to {loyaltyProgram.nextTier}</span>
-                        <span>{loyaltyProgram.pointsToNextTier} points needed</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-3">
-                        <div 
-                          className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
-                          style={{ 
-                            width: `${100 - (loyaltyProgram.pointsToNextTier / (loyaltyProgram.pointsToNextTier + loyaltyProgram.currentPoints) * 100)}%` 
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <h5 className="font-semibold text-white mb-3">Your Benefits</h5>
-                  <div className="space-y-2">
-                    {Object.entries(loyaltyProgram.tierBenefits).map(([key, value]) => (
-                      <div key={key} className="flex items-center gap-2 text-sm">
-                        {value ? (
-                          <Shield className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <div className="w-4 h-4 border border-muted-foreground rounded opacity-50" />
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-2">Social Profiles</h4>
+                      <div className="space-y-2">
+                        {profileForm.socialProfile?.twitter && (
+                          <p><span className="text-gray-400">Twitter:</span> @{profileForm.socialProfile.twitter}</p>
                         )}
-                        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          {key === 'discountPercentage' && value && ` (${loyaltyProgram.tierBenefits.discountPercentage}%)`}
-                        </span>
+                        {profileForm.socialProfile?.instagram && (
+                          <p><span className="text-gray-400">Instagram:</span> @{profileForm.socialProfile.instagram}</p>
+                        )}
+                        {!profileForm.socialProfile?.twitter && !profileForm.socialProfile?.instagram && (
+                          <p className="text-gray-500">No social profiles added</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notifications Tab */}
+            {activeTab === 'notifications' && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold">Recent Notifications</h3>
+                <div className="space-y-3">
+                  {mockNotifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg border ${
+                        notification.read 
+                          ? 'bg-white/5 border-white/10' 
+                          : 'bg-yellow-400/10 border-yellow-400/30'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{notification.title}</h4>
+                          <p className="text-gray-300 text-sm mt-1">{notification.message}</p>
+                          <p className="text-gray-500 text-xs mt-2">
+                            {new Date(notification.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {!notification.read && (
+                          <button
+                            onClick={() => handleNotificationRead(notification.id)}
+                            className="text-yellow-400 hover:text-yellow-300 text-sm"
+                          >
+                            Mark as read
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preferences Tab */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold">Notification Preferences</h3>
+                <div className="space-y-4">
+                  {Object.entries(defaultPreferences).map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                      <div>
+                        <h4 className="font-medium capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </h4>
+                        <p className="text-sm text-gray-400">
+                          {key === 'emailNotifications' && 'Receive event updates via email'}
+                          {key === 'pushNotifications' && 'Get push notifications on your device'}
+                          {key === 'newsletter' && 'Subscribe to our weekly newsletter'}
+                          {key === 'eventReminders' && 'Reminders about upcoming events'}
+                          {key === 'privacySettings' && 'Enhanced privacy protection'}
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={(e) => handlePreferenceChange(key as keyof UserPreferences, e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 dark:peer-focus:ring-yellow-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-yellow-400"></div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Loyalty Program Tab */}
+            {activeTab === 'loyalty' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold">Loyalty Program</h3>
+                <div className="bg-gradient-to-r from-yellow-400/20 to-purple-500/20 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-xl font-bold">{defaultLoyaltyProgram.currentTier} Tier</h4>
+                      <p className="text-gray-300">{defaultLoyaltyProgram.points} points</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-400">Next tier in</p>
+                      <p className="font-semibold">
+                        {defaultLoyaltyProgram.nextTierPoints - defaultLoyaltyProgram.points} points
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-yellow-400 h-2 rounded-full"
+                      style={{ 
+                        width: `${(defaultLoyaltyProgram.points / defaultLoyaltyProgram.nextTierPoints) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold mb-3">Your Benefits</h4>
+                  <ul className="space-y-2">
+                    {defaultLoyaltyProgram.benefits.map((benefit, index) => (
+                      <li key={index} className="flex items-center space-x-2">
+                        <span className="text-green-400">✓</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* History Tab */}
+            {activeTab === 'history' && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold">Event History</h3>
+                
+                {/* Favorites Section */}
+                <div>
+                  <h4 className="font-medium mb-3">Favorite Events</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {mockFavorites.map((favorite) => (
+                      <div key={favorite.id} className="bg-white/5 rounded-lg p-4">
+                        <h5 className="font-medium">{favorite.eventTitle}</h5>
+                        <p className="text-sm text-gray-400">{favorite.eventDate}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Past Events */}
+                <div>
+                  <h4 className="font-medium mb-3">Past Events</h4>
+                  <div className="space-y-3">
+                    {mockHistory.map((item) => (
+                      <div key={item.id} className="bg-white/5 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="font-medium">{item.eventTitle}</h5>
+                            <p className="text-sm text-gray-400">Attended: {item.attendedDate}</p>
+                            {item.rating && (
+                              <div className="flex items-center mt-2">
+                                <span className="text-yellow-400">{'★'.repeat(item.rating)}</span>
+                                <span className="text-gray-400 ml-2">({item.rating}/5)</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {item.review && (
+                          <p className="text-sm text-gray-300 mt-2 italic">"{item.review}"</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Transaction History */}
+                <div>
+                  <h4 className="font-medium mb-3">Transaction History</h4>
+                  <div className="space-y-3">
+                    {mockTransactions.map((transaction) => (
+                      <div key={transaction.id} className="bg-white/5 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h5 className="font-medium">{transaction.eventTitle}</h5>
+                            <p className="text-sm text-gray-400">{transaction.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{formatCurrency(transaction.amount)}</p>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              transaction.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                              transaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              {transaction.status}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Points History */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h4 className="font-semibold text-white mb-4">Points History</h4>
-              <div className="space-y-3">
-                {loyaltyProgram.history.slice(0, 10).map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${
-                        transaction.type === 'earned' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                      }`}>
-                        {transaction.type === 'earned' ? <Zap className="w-4 h-4" /> : <Gift className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{transaction.description}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(transaction.date)}</p>
-                      </div>
-                    </div>
-                    <div className={`font-semibold ${
-                      transaction.type === 'earned' ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {transaction.type === 'earned' ? '+' : ''}{transaction.points}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Notifications */}
-        {activeTab === 'notifications' && (
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-blue-500" />
-              Notifications ({notifications.length})
-            </h3>
-            {notifications.length > 0 ? (
-              <div className="space-y-3">
-                {notifications.map((notification) => (
-                  <div 
-                    key={notification.id} 
-                    className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      notification.isRead 
-                        ? 'bg-muted border-border' 
-                        : 'bg-primary/5 border-primary/20'
-                    }`}
-                    onClick={() => markNotificationRead(notification.id)}
-                  >
-                    <div className="flex items-start gap-3">
-                      {notification.imageUrl && (
-                        <img 
-                          src={notification.imageUrl} 
-                          alt=""
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <h4 className="font-medium text-foreground">{notification.title}</h4>
-                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
-                        <p className="text-xs text-muted-foreground mt-2">{formatDate(notification.date)}</p>
-                      </div>
-                      {!notification.isRead && (
-                        <div className="w-2 h-2 bg-primary rounded-full" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No notifications</p>
-                <p className="text-sm text-muted-foreground mt-2">You're all caught up!</p>
-              </div>
             )}
           </div>
-        )}
-
-        {/* Settings */}
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-primary" />
-                Notification Preferences
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-foreground">Event Reminders</h4>
-                      <p className="text-sm text-muted-foreground">Get notified about upcoming events</p>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={user.preferences.notifications.eventReminders}
-                      onChange={(e) => updatePreferences({
-                        notifications: {
-                          ...user.preferences.notifications,
-                          eventReminders: e.target.checked
-                        }
-                      })}
-                      className="rounded"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-foreground">Early Access</h4>
-                      <p className="text-sm text-muted-foreground">Be first to know about new events</p>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={user.preferences.notifications.earlyAccess}
-                      onChange={(e) => updatePreferences({
-                        notifications: {
-                          ...user.preferences.notifications,
-                          earlyAccess: e.target.checked
-                        }
-                      })}
-                      className="rounded"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-foreground">Deal Notifications</h4>
-                      <p className="text-sm text-muted-foreground">Receive special offers and discounts</p>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={user.preferences.notifications.deals}
-                      onChange={(e) => updatePreferences({
-                        notifications: {
-                          ...user.preferences.notifications,
-                          deals: e.target.checked
-                        }
-                      })}
-                      className="rounded"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-foreground">Recommendations</h4>
-                      <p className="text-sm text-muted-foreground">Get personalized event suggestions</p>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={user.preferences.notifications.recommendations}
-                      onChange={(e) => updatePreferences({
-                        notifications: {
-                          ...user.preferences.notifications,
-                          recommendations: e.target.checked
-                        }
-                      })}
-                      className="rounded"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-white mb-6">Privacy Settings</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-foreground">Public Profile</h4>
-                    <p className="text-sm text-muted-foreground">Allow others to see your profile</p>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    checked={user.socialProfile.isPublic}
-                    onChange={(e) => updateProfile({
-                      socialProfile: {
-                        ...user.socialProfile,
-                        isPublic: e.target.checked
-                      }
-                    })}
-                    className="rounded"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
