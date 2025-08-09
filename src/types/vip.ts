@@ -32,6 +32,7 @@ export interface EventVIPConfig {
   personalizedService: boolean;
   premiumLocation: boolean;
   giftPackage: boolean;
+  tiers?: VIPTier[];
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +53,7 @@ export interface CreateEventVIPConfigRequest {
   personalizedService?: boolean;
   premiumLocation?: boolean;
   giftPackage?: boolean;
+  tiers?: VIPTier[];
 }
 
 export interface UpdateEventVIPConfigRequest {
@@ -150,6 +152,25 @@ export interface VIPReservation {
   reservedAt: string;
   expiresAt?: string;
   specialInstructions?: string;
+  totalAmount?: number;
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateVIPReservationRequest {
+  eventId: string;
+  vipConfigId: string;
+  userId: string;
+  reservationType: 'table' | 'seating' | 'area' | 'suite';
+  reservationDetails: {
+    location: string;
+    capacity: number;
+    amenities: string[];
+    view?: string;
+    accessibility?: boolean;
+  };
+  specialInstructions?: string;
 }
 
 export interface VIPAnalytics {
@@ -158,7 +179,13 @@ export interface VIPAnalytics {
   totalVIPBookings: number;
   averageVIPSpend: number;
   conversionRate: number;
-  tierPerformance: {
+  totalReservations: number;
+  totalRevenue: number;
+  avgReservationValue: number;
+  statusBreakdown: {
+    [status: string]: number;
+  };
+  tierBreakdown: {
     [tierId: string]: {
       bookings: number;
       revenue: number;
@@ -196,167 +223,43 @@ export interface VIPMember {
     accessibility?: string[];
     communication?: 'email' | 'phone' | 'text';
     language?: string;
+    notifications?: boolean;
   };
-  isActive: boolean;
 }
 
-// Default VIP tiers configuration
-export const DEFAULT_VIP_TIERS: Omit<VIPTier, 'id' | 'created_at' | 'updated_at'>[] = [
+// Default VIP tiers
+export const DEFAULT_VIP_TIERS: VIPTier[] = [
   {
-    name: 'VIP Silver',
-    description: 'Premium experience with exclusive perks',
-    price: 299,
+    id: 'vip-gold',
+    name: 'Gold VIP',
+    description: 'Premium VIP experience with exclusive benefits',
+    price: 500,
     maxCapacity: 50,
-    benefits: [
-      'Priority entry',
-      'Complimentary welcome drink',
-      'Access to VIP lounge',
-      'Reserved seating area',
-      'Dedicated staff assistance'
-    ],
+    benefits: ['Priority entry', 'Premium seating', 'Complimentary drinks', 'VIP lounge access'],
     priority: 1,
-    color: '#C0C0C0',
-    icon: '🥈',
-    isActive: true
+    color: 'gold',
+    icon: '👑',
+    isActive: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   {
-    name: 'VIP Gold',
-    description: 'Luxury experience with premium amenities',
-    price: 499,
-    maxCapacity: 30,
-    benefits: [
-      'All Silver benefits',
-      'Premium bar package',
-      'Gourmet dining options',
-      'Private networking area',
-      'Event photography session',
-      'Personalized concierge'
-    ],
+    id: 'vip-platinum',
+    name: 'Platinum VIP',
+    description: 'Ultra-premium VIP experience with all amenities',
+    price: 1000,
+    maxCapacity: 20,
+    benefits: ['All Gold benefits', 'Personal concierge', 'Premium dining', 'Meet & greet', 'Exclusive merchandise'],
     priority: 2,
-    color: '#FFD700',
-    icon: '🥇',
-    isActive: true
-  },
-  {
-    name: 'VIP Platinum',
-    description: 'Ultra-luxury experience with exclusive access',
-    price: 899,
-    maxCapacity: 15,
-    benefits: [
-      'All Gold benefits',
-      'Private transportation',
-      'Celebrity meet & greet',
-      'Exclusive backstage access',
-      'Premium gift package',
-      'Post-event private party',
-      '24/7 personal assistant'
-    ],
-    priority: 3,
-    color: '#E5E4E2',
+    color: 'platinum',
     icon: '💎',
-    isActive: true
+    isActive: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
 ];
 
-// Service categories for VIP packages
-export const VIP_SERVICE_CATEGORIES = [
-  'dining',
-  'transportation',
-  'accommodation',
-  'entertainment',
-  'concierge',
-  'other'
-] as const;
-
-export type VIPServiceCategory = typeof VIP_SERVICE_CATEGORIES[number];
-
-// VIP booking statuses
-export const VIP_BOOKING_STATUSES = [
-  'pending',
-  'confirmed',
-  'cancelled',
-  'completed'
-] as const;
-
-export type VIPBookingStatus = typeof VIP_BOOKING_STATUSES[number];
-
-// VIP membership tiers
-export const VIP_MEMBERSHIP_TIERS = [
-  'Bronze',
-  'Silver',
-  'Gold',
-  'Platinum',
-  'Diamond'
-] as const;
-
-export type VIPMembershipTier = typeof VIP_MEMBERSHIP_TIERS[number];
-
-// Utility functions
-export const getVIPTierColor = (tierName: string): string => {
-  const colorMap: { [key: string]: string } = {
-    'Bronze': '#CD7F32',
-    'Silver': '#C0C0C0',
-    'Gold': '#FFD700',
-    'Platinum': '#E5E4E2',
-    'Diamond': '#B9F2FF'
-  };
-  return colorMap[tierName] || '#666666';
-};
-
-export const getVIPTierIcon = (tierName: string): string => {
-  const iconMap: { [key: string]: string } = {
-    'Bronze': '🥉',
-    'Silver': '🥈',
-    'Gold': '🥇',
-    'Platinum': '💍',
-    'Diamond': '💎'
-  };
-  return iconMap[tierName] || '⭐';
-};
-
-export const calculateVIPDiscount = (membershipTier: VIPMembershipTier): number => {
-  const discountMap: { [key in VIPMembershipTier]: number } = {
-    'Bronze': 0.05, // 5%
-    'Silver': 0.10, // 10%
-    'Gold': 0.15,   // 15%
-    'Platinum': 0.20, // 20%
-    'Diamond': 0.25   // 25%
-  };
-  return discountMap[membershipTier];
-};
-
-export const getVIPPrivileges = (membershipTier: VIPMembershipTier): string[] => {
-  const privilegesMap: { [key in VIPMembershipTier]: string[] } = {
-    'Bronze': [
-      'Early event notifications',
-      'Basic customer support'
-    ],
-    'Silver': [
-      'Priority booking',
-      'Enhanced customer support',
-      '5% discount on all events'
-    ],
-    'Gold': [
-      'VIP entry at events',
-      'Premium customer support',
-      '10% discount on all events',
-      'Exclusive event invitations'
-    ],
-    'Platinum': [
-      'Backstage access',
-      'Dedicated account manager',
-      '15% discount on all events',
-      'Complimentary upgrades',
-      'Annual VIP gift package'
-    ],
-    'Diamond': [
-      'Private event access',
-      '24/7 concierge service',
-      '20% discount on all events',
-      'Personal event planning',
-      'Exclusive networking events',
-      'Lifetime membership benefits'
-    ]
-  };
-  return privilegesMap[membershipTier];
-};
+export type VIPTierLevel = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+export type ReservationStatus = 'reserved' | 'occupied' | 'available' | 'maintenance';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
