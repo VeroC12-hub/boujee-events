@@ -1,17 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../lib/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import type { UserProfile } from '../lib/auth';
+import { authService, type UserProfile, type SignInData, type SignUpData } from '../lib/auth';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signIn: (data: SignInData) => Promise<void>;
+  signUp: (data: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,72 +24,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Clear any stored sessions first
-    const clearOldSessions = () => {
-      localStorage.removeItem('boujee_auth_user');
-      localStorage.removeItem('boujee_auth_profile');
+    // Initialize auth state
+    const initAuth = async () => {
+      try {
+        setLoading(true);
+        const currentSession = await authService.getSession();
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          const userProfile = await authService.getProfile(currentSession.user.id);
+          setProfile(userProfile);
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    clearOldSessions();
-    checkSession();
 
+    initAuth();
+
+    // Subscribe to auth changes
     const unsubscribe = authService.onAuthStateChange((state) => {
       setUser(state.user);
       setProfile(state.profile);
       setSession(state.session);
+      setLoading(state.loading);
       setError(state.error);
     });
 
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
-  const checkSession = async () => {
-    try {
-      setLoading(true);
-      // Don't auto-restore session
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      setLoading(false);
-    } catch (error) {
-      console.error('Session check failed:', error);
-      setLoading(false);
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (data: SignInData) => {
     try {
       setError(null);
       setLoading(true);
       
-      const result = await authService.signIn({ email, password });
+      const result = await authService.signIn(data);
       
       if (result.error) {
         throw new Error(result.error);
       }
       
-      if (!result.user) {
-        throw new Error('Login failed');
-      }
+      setUser(result.user);
+      setProfile(result.profile);
+      setSession(result.session);
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Sign in failed');
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (data: SignUpData) => {
     try {
       setError(null);
       setLoading(true);
       
       const result = await authService.signUp({ 
-        email, 
-        password, 
-        fullName,
+        email: data.email, 
+        password: data.password, 
+        fullName: data.fullName,
         role: 'member'
       });
       
@@ -120,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const logout = signOut; // Alias for signOut
+
   const value = {
     user,
     profile,
@@ -128,7 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     error,
     signIn,
     signUp,
-    signOut
+    signOut,
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -141,3 +141,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export { AuthContext };
