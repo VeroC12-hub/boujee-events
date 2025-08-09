@@ -20,6 +20,8 @@ export interface EventFolder {
   eventFolderUrl: string;
   photosUrl: string;
   videosUrl: string;
+  eventName: string;
+  webViewLink: string;
 }
 
 export interface UploadProgress {
@@ -369,6 +371,8 @@ class GoogleDriveService {
         eventFolderUrl: eventFolder.webViewLink,
         photosUrl: photosFolder.webViewLink,
         videosUrl: videosFolder.webViewLink,
+        eventName: eventFolderName,
+        webViewLink: eventFolder.webViewLink,
       };
     } catch (error) {
       console.error('Error creating event folder structure:', error);
@@ -608,6 +612,63 @@ class GoogleDriveService {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  }
+
+  // Missing methods needed by components
+  async getUserInfo(): Promise<any> {
+    try {
+      if (!this.accessToken) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await this.makeAuthenticatedRequest(
+        'https://www.googleapis.com/oauth2/v2/userinfo'
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get user info: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting user info:', error);
+      return null;
+    }
+  }
+
+  async testConnection(): Promise<{ success: boolean; message: string; user?: any }> {
+    try {
+      const isAuth = await this.isAuthenticated();
+      if (!isAuth) {
+        return { success: false, message: 'Not authenticated' };
+      }
+
+      const userInfo = await this.getUserInfo();
+      if (!userInfo) {
+        return { success: false, message: 'Failed to get user info' };
+      }
+
+      // Test basic API access by listing files
+      const files = await this.listFiles('root', 1);
+      
+      return {
+        success: true,
+        message: 'Connection successful',
+        user: userInfo
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  getConnectionStatus(): { connected: boolean; user?: any; lastCheck?: Date } {
+    return {
+      connected: this.isInitialized && !!this.accessToken,
+      lastCheck: new Date()
+    };
   }
 }
 

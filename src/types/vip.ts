@@ -54,6 +54,21 @@ export interface CreateEventVIPConfigRequest {
   giftPackage?: boolean;
 }
 
+export interface CreateVIPReservationRequest {
+  eventId: string;
+  vipConfigId: string;
+  userId: string;
+  reservationType: 'table' | 'seating' | 'area' | 'suite';
+  reservationDetails: {
+    location: string;
+    capacity: number;
+    amenities: string[];
+    view?: string;
+    accessibility?: boolean;
+  };
+  specialInstructions?: string;
+}
+
 export interface UpdateEventVIPConfigRequest {
   tierName?: string;
   tierDescription?: string;

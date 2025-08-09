@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { googleDriveService } from '../services/googleDriveService';
 
 interface ConnectionStatus {
-  initialized: boolean;
-  authenticated: boolean;
+  initialized?: boolean;
+  authenticated?: boolean;
+  connected: boolean;
+  user?: any;
+  lastCheck?: Date;
   error?: string;
   userInfo?: any;
 }
@@ -18,7 +21,8 @@ interface TestResult {
 export const GoogleDriveTest: React.FC = () => {
   const [status, setStatus] = useState<ConnectionStatus>({
     initialized: false,
-    authenticated: false
+    authenticated: false,
+    connected: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -145,6 +149,10 @@ export const GoogleDriveTest: React.FC = () => {
       
       const eventFolder = await googleDriveService.createEventFolder(testEventName, testEventId);
       
+      if (!eventFolder) {
+        throw new Error('Failed to create event folder');
+      }
+      
       addLog(`Event folder created: ${eventFolder.eventName}`, 'success');
       addLog(`Main folder ID: ${eventFolder.eventFolderId}`, 'info');
       addLog(`Photos folder ID: ${eventFolder.photosFolderId}`, 'info');
@@ -163,7 +171,11 @@ export const GoogleDriveTest: React.FC = () => {
   const signOut = async () => {
     addLog('Signing out...', 'info');
     await googleDriveService.signOut();
-    setStatus({ initialized: status.initialized, authenticated: false });
+    setStatus({ 
+      initialized: status.initialized, 
+      authenticated: false,
+      connected: false
+    });
     setUserInfo(null);
     addLog('Signed out successfully', 'success');
     addTestResult('Sign Out', 'success', 'Successfully signed out from Google Drive');
@@ -214,8 +226,8 @@ export const GoogleDriveTest: React.FC = () => {
     checkEnvironmentVariables();
   }, []);
 
-  const getStatusColor = (status: boolean) => status ? 'text-green-600' : 'text-red-600';
-  const getStatusIcon = (status: boolean) => status ? '✅' : '❌';
+  const getStatusColor = (status: boolean | undefined) => status ? 'text-green-600' : 'text-red-600';
+  const getStatusIcon = (status: boolean | undefined) => status ? '✅' : '❌';
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">

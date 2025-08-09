@@ -12,6 +12,9 @@ export interface AuthContextType {
   signUp: (data: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  getSession: () => Promise<Session | null>;
+  getProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,6 +122,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = signOut; // Alias for signOut
 
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      if (!user) {
+        throw new Error('No user signed in');
+      }
+
+      // Update profile in authService first
+      const updatedProfile = await authService.getProfile(user.id);
+      if (updatedProfile) {
+        const newProfile = { ...updatedProfile, ...updates };
+        setProfile(newProfile);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Profile update failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSession = async () => {
+    return await authService.getSession();
+  };
+
+  const getProfile = async () => {
+    if (!user) return null;
+    return await authService.getProfile(user.id);
+  };
+
   const value = {
     user,
     profile,
@@ -128,7 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
-    logout
+    logout,
+    updateProfile,
+    getSession,
+    getProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

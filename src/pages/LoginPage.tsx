@@ -50,7 +50,7 @@ function LoginPage() {
 
     try {
       console.log('Attempting login with:', formData.email);
-      await signIn(formData.email, formData.password);
+      await signIn({ email: formData.email, password: formData.password });
       // Navigation handled by useEffect
     } catch (err: any) {
       console.error('Login error:', err);

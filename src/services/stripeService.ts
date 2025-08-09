@@ -50,6 +50,17 @@ export interface CreatePaymentIntentRequest {
   metadata?: Record<string, string>;
 }
 
+export interface BookingData {
+  eventId: string;
+  userId: string;
+  quantity: number;
+  totalAmount: number;
+  paymentMethod?: string;
+  specialRequests?: string;
+  userEmail?: string;
+  userName?: string;
+}
+
 export interface ConfirmPaymentRequest {
   paymentIntentId: string;
   paymentMethodId: string;
@@ -439,6 +450,7 @@ class StripeService {
 
 // Export singleton instance
 export const stripeService = StripeService.getInstance();
+export const stripePaymentService = stripeService; // Alias for compatibility
 
 // Export helper functions
 export const formatCurrency = (amount: number, currency: string = 'usd'): string => {

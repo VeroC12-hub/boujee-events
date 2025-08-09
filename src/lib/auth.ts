@@ -1,19 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  full_name?: string;
-  avatar_url?: string;
-  phone?: string;
-  bio?: string;
-  role: 'admin' | 'organizer' | 'member';
-  status: 'pending' | 'approved' | 'rejected' | 'suspended';
-  created_at: string;
-  updated_at: string;
-}
+import type { UserProfile } from '../types/auth';
 
 export interface AuthState {
   user: User | null;
@@ -43,8 +31,12 @@ const MOCK_USERS = {
       id: 'admin-nexacore',
       email: 'admin@nexacore-innovations.com',
       full_name: 'Nexacore Admin',
+      name: 'Nexacore Admin',
+      avatar: '',
       role: 'admin' as const,
       status: 'approved' as const,
+      stats: { eventsAttended: 0, totalSpent: 0 },
+      preferences: { notifications: true, marketing: false, language: 'en', timezone: 'UTC' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -55,8 +47,12 @@ const MOCK_USERS = {
       id: 'test-admin',
       email: 'admin@test.com',
       full_name: 'Test Administrator',
+      name: 'Test Administrator',
+      avatar: '',
       role: 'admin' as const,
       status: 'approved' as const,
+      stats: { eventsAttended: 0, totalSpent: 0 },
+      preferences: { notifications: true, marketing: false, language: 'en', timezone: 'UTC' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -67,8 +63,12 @@ const MOCK_USERS = {
       id: 'test-organizer',
       email: 'organizer@test.com',
       full_name: 'Test Organizer',
+      name: 'Test Organizer',
+      avatar: '',
       role: 'organizer' as const,
       status: 'approved' as const,
+      stats: { eventsAttended: 0, totalSpent: 0 },
+      preferences: { notifications: true, marketing: false, language: 'en', timezone: 'UTC' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -79,8 +79,12 @@ const MOCK_USERS = {
       id: 'test-member',
       email: 'member@test.com',
       full_name: 'Test Member',
+      name: 'Test Member',
+      avatar: '',
       role: 'member' as const,
       status: 'approved' as const,
+      stats: { eventsAttended: 0, totalSpent: 0 },
+      preferences: { notifications: true, marketing: false, language: 'en', timezone: 'UTC' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -201,8 +205,12 @@ class AuthService {
       id: user.id,
       email: user.email || '',
       full_name: user.user_metadata?.full_name || user.email || '',
+      name: user.user_metadata?.full_name || user.email || '',
+      avatar: '',
       role: user.email?.includes('admin') ? 'admin' : 'member',
       status: 'approved',
+      stats: { eventsAttended: 0, totalSpent: 0 },
+      preferences: { notifications: true, marketing: false, language: 'en', timezone: 'UTC' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -440,6 +448,49 @@ class AuthService {
       }
     };
   }
+
+  // Add missing methods for AuthContext compatibility
+  async getSession(): Promise<Session | null> {
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+          return null;
+        }
+        return data.session;
+      } catch (error) {
+        console.error('Error getting session:', error);
+        return null;
+      }
+    }
+    return this.currentSession;
+  }
+
+  async getProfile(userId?: string): Promise<UserProfile | null> {
+    const targetUserId = userId || this.currentUser?.id;
+    if (!targetUserId) return null;
+
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+
+        if (error) {
+          console.warn('Failed to load user profile from database:', error);
+          return this.currentProfile;
+        }
+        return data;
+      } catch (error) {
+        console.error('Error getting profile:', error);
+        return this.currentProfile;
+      }
+    }
+    return this.currentProfile;
+  }
 }
 
 export const authService = AuthService.getInstance();
@@ -447,6 +498,8 @@ export const authService = AuthService.getInstance();
 export const getCurrentUser = () => authService.getCurrentUser();
 export const getCurrentProfile = () => authService.getCurrentProfile();
 export const getCurrentSession = () => authService.getCurrentSession();
+export const getSession = () => authService.getSession();
+export const getProfile = (userId?: string) => authService.getProfile(userId);
 export const signIn = (data: SignInData) => authService.signIn(data);
 export const signUp = (data: SignUpData) => authService.signUp(data);
 export const signOut = () => authService.signOut();
