@@ -1,190 +1,259 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Bell, Search, User, Menu, X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
-interface HeaderProps {
-  showBackButton?: boolean;
-  onBackToHome?: () => void;
-  user?: any;
-}
-
-export function Header({ showBackButton, onBackToHome, user }: HeaderProps) {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const Header: React.FC = () => {
+  const { user, profile, logout, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: adminUser, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isAdminRoute = location.pathname.startsWith('/admin');
-  const currentUser = isAdminRoute ? adminUser : user;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      // Use logout if available, otherwise use signOut
+      if (logout) {
+        await logout();
+      } else if (signOut) {
+        await signOut();
+      }
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    setIsMobileMenuOpen(false);
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
-  const navLinks = [
-    { href: '#events', label: 'Events' },
-    { href: '#about', label: 'About' },
-    { href: '#testimonials', label: 'Testimonials' },
-    { href: '#contact', label: 'Contact' }
+  const navigation = [
+    { name: 'Home', href: '/', icon: '🏠' },
+    { name: 'Events', href: '/events', icon: '🎪' },
+    { name: 'About', href: '/about', icon: 'ℹ️' },
+    { name: 'Contact', href: '/contact', icon: '📞' }
   ];
 
-  return (
-    <header className="fixed top-0 w-full z-50 glass-effect border-b border-border/30 bg-gray-900/95 backdrop-blur-md">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+  const userNavigation = user ? [
+    ...(profile?.role === 'admin' ? [
+      { name: 'Admin Dashboard', href: '/admin', icon: '⚡' }
+    ] : []),
+    ...(profile?.role === 'organizer' ? [
+      { name: 'Organizer Dashboard', href: '/organizer', icon: '📊' }
+    ] : []),
+    { name: 'Member Dashboard', href: '/member', icon: '👤' },
+    { name: 'Profile', href: '/profile', icon: '⚙️' }
+  ] : [];
 
-          {/* Back Button or Logo */}
-          <div className="flex items-center space-x-4">
-            {showBackButton && onBackToHome ? (
-              <button
-                onClick={onBackToHome}
-                className="flex items-center gap-2 text-white hover:text-yellow-400 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => handleNavigation('/')}
-                className="flex items-center space-x-4"
-              >
-                {/* Use your real logo */}
-                <img
-                  src="/favicon.svg"
-                  alt="Boujee Events Logo"
-                  className="h-12 w-12 logo-glow"
-                  onError={(e) => {
-                    // Fallback to PNG favicon if SVG fails
-                    e.currentTarget.src = '/favicon-32x32.png';
-                    if (e.currentTarget.src.includes('favicon-32x32.png')) {
-                      // If PNG also fails, show text logo
-                      e.currentTarget.style.display = 'none';
-                      const textLogo = e.currentTarget.nextElementSibling as HTMLElement;
-                      if (textLogo) textLogo.style.display = 'block';
-                    }
-                  }}
-                />
-                <div className="text-3xl font-bold text-yellow-400 logo-glow" style={{ display: 'none' }}>be</div>
-                <div className="hidden md:block text-left leading-tight">
-                  <h1 className="text-lg font-semibold text-white">Boujee Events</h1>
-                  <p className="text-xs text-gray-400">Setting the new standard</p>
-                </div>
-              </button>
-            )}
+  return (
+    <header className="bg-black/90 backdrop-blur-md border-b border-yellow-400/20 sticky top-0 z-50">
+      <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="text-2xl">✨</div>
+              <span className="text-xl font-bold text-yellow-400">
+                Boujee Events
+              </span>
+            </Link>
           </div>
 
-          {/* Desktop Navigation Links - Only show on home page */}
-          <nav className={
-            `hidden lg:flex items-center space-x-8 ${location.pathname === '/' && !showBackButton ? '' : 'lg:hidden'}`
-          }>
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-white hover:text-yellow-400 transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Actions & User Menu */}
-          <div className="flex items-center space-x-4">
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
-            >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-
-            {/* Only show Sign Up for non-authenticated users on public pages */}
-            {!currentUser && !isAdminRoute && (
-              <button
-                onClick={() => navigate('/login')}
-                className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors"
-              >
-                Sign Up
-              </button>
-            )}
-
-            {/* User Menu - Only for authenticated users */}
-            {currentUser && (
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center space-x-2 p-2 text-gray-300 hover:text-white transition-colors"
+          {/* Desktop Navigation */}
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-4">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`
+                    px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200
+                    ${isActive(item.href)
+                      ? 'bg-yellow-400 text-black'
+                      : 'text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400'
+                    }
+                  `}
                 >
-                  <User className="h-5 w-5" />
-                  <span className="hidden md:block text-sm font-medium">
-                    {currentUser.email?.split('@')[0]}
-                  </span>
-                </button>
+                  <span className="mr-1">{item.icon}</span>
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </div>
 
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                    <button
-                      onClick={() => {
-                        navigate('/dashboard');
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      Dashboard
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      Sign Out
-                    </button>
+          {/* User Menu */}
+          <div className="hidden md:block">
+            <div className="ml-4 flex items-center md:ml-6">
+              {user ? (
+                <div className="relative group">
+                  <button className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400 transition-colors duration-200">
+                    <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
+                      <span className="text-black font-semibold">
+                        {profile?.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <span>{profile?.full_name || 'User'}</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-900 rounded-md shadow-lg border border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div className="py-1">
+                      {/* User Info */}
+                      <div className="px-4 py-2 border-b border-gray-700">
+                        <div className="text-sm font-medium text-white">
+                          {profile?.full_name || 'User'}
+                        </div>
+                        <div className="text-xs text-gray-400">{user.email}</div>
+                        {profile?.role && (
+                          <div className="text-xs text-yellow-400 capitalize">
+                            {profile.role}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Navigation Links */}
+                      {userNavigation.map((item) => (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400 transition-colors duration-200"
+                        >
+                          <span className="mr-2">{item.icon}</span>
+                          {item.name}
+                        </Link>
+                      ))}
+
+                      {/* Logout */}
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200"
+                      >
+                        <span className="mr-2">🚪</span>
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <Link
+                    to="/auth"
+                    className="text-gray-300 hover:text-yellow-400 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="bg-yellow-400 text-black hover:bg-yellow-500 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-gray-400 hover:text-white hover:bg-gray-700 p-2 rounded-md"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 )}
-              </div>
-            )}
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden mt-4 bg-gray-800/95 rounded-lg p-4">
-            <nav className="space-y-2">
-              {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="block py-2 text-white hover:text-yellow-400 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-900 rounded-lg mt-2">
+              {/* Main Navigation */}
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`
+                    block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200
+                    ${isActive(item.href)
+                      ? 'bg-yellow-400 text-black'
+                      : 'text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400'
+                    }
+                  `}
+                  onClick={() => setMobileMenuOpen(false)}
                 >
-                  {link.label}
-                </a>
+                  <span className="mr-2">{item.icon}</span>
+                  {item.name}
+                </Link>
               ))}
-              {!currentUser && (
-                <button
-                  onClick={() => {
-                    navigate('/login');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-left py-2 text-yellow-400 font-semibold"
-                >
-                  Sign Up
-                </button>
+
+              {/* User Section */}
+              {user ? (
+                <>
+                  <div className="border-t border-gray-700 pt-4">
+                    <div className="px-3 py-2">
+                      <div className="text-base font-medium text-white">
+                        {profile?.full_name || 'User'}
+                      </div>
+                      <div className="text-sm text-gray-400">{user.email}</div>
+                    </div>
+                  </div>
+
+                  {userNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="mr-2">{item.icon}</span>
+                      {item.name}
+                    </Link>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200"
+                  >
+                    <span className="mr-2">🚪</span>
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <div className="border-t border-gray-700 pt-4 space-y-1">
+                  <Link
+                    to="/auth"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-yellow-400/20 hover:text-yellow-400 transition-colors duration-200"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="block px-3 py-2 rounded-md text-base font-medium bg-yellow-400 text-black hover:bg-yellow-500 transition-colors duration-200"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </div>
               )}
-            </nav>
+            </div>
           </div>
         )}
-      </div>
+      </nav>
     </header>
   );
-}
+};
+
+export default Header;
