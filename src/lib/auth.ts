@@ -1,18 +1,46 @@
+// File: src/lib/auth.ts
 import { createClient } from '@supabase/supabase-js';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 export interface UserProfile {
   id: string;
+  user_id: string;
   email: string;
   full_name?: string;
+  name?: string;
   avatar_url?: string;
+  avatar?: string;
   phone?: string;
   bio?: string;
   role: 'admin' | 'organizer' | 'member';
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   created_at: string;
   updated_at: string;
+  
+  // Extended properties for UserProfile component
+  stats?: {
+    eventsAttended: number;
+    totalSpent: number;
+    reviewsLeft: number;
+    favoriteEvents: number;
+  };
+  preferences?: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    newsletter: boolean;
+    eventReminders: boolean;
+    privacySettings: boolean;
+  };
+  socialProfile?: {
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    website?: string;
+  };
+  loyaltyTier?: string;
+  loyaltyPoints?: number;
+  isVip?: boolean;
 }
 
 export interface AuthState {
@@ -41,8 +69,10 @@ const MOCK_USERS = {
     password: 'NexaCore2024!',
     profile: {
       id: 'admin-nexacore',
+      user_id: 'admin-nexacore',
       email: 'admin@nexacore-innovations.com',
       full_name: 'Nexacore Admin',
+      name: 'Nexacore Admin',
       role: 'admin' as const,
       status: 'approved' as const,
       created_at: new Date().toISOString(),
@@ -53,8 +83,10 @@ const MOCK_USERS = {
     password: 'TestAdmin2025',
     profile: {
       id: 'test-admin',
+      user_id: 'test-admin',
       email: 'admin@test.com',
       full_name: 'Test Administrator',
+      name: 'Test Administrator',
       role: 'admin' as const,
       status: 'approved' as const,
       created_at: new Date().toISOString(),
@@ -65,8 +97,10 @@ const MOCK_USERS = {
     password: 'TestOrganizer2025',
     profile: {
       id: 'test-organizer',
+      user_id: 'test-organizer',
       email: 'organizer@test.com',
       full_name: 'Test Organizer',
+      name: 'Test Organizer',
       role: 'organizer' as const,
       status: 'approved' as const,
       created_at: new Date().toISOString(),
@@ -77,8 +111,10 @@ const MOCK_USERS = {
     password: 'TestMember2025',
     profile: {
       id: 'test-member',
+      user_id: 'test-member',
       email: 'member@test.com',
       full_name: 'Test Member',
+      name: 'Test Member',
       role: 'member' as const,
       status: 'approved' as const,
       created_at: new Date().toISOString(),
@@ -146,220 +182,396 @@ class AuthService {
         } else if (event === 'TOKEN_REFRESHED' && session) {
           this.currentSession = session;
         }
-
+        
         this.notifyStateChange();
       });
-
     } catch (error) {
-      console.error('Supabase initialization failed:', error);
-      this.initializeMockAuth();
+      console.error('Supabase initialization error:', error);
     }
   }
 
   private initializeMockAuth(): void {
-    // Don't auto-restore session - require login
-    console.log('Mock authentication ready - login required');
-    this.clearStorage();
+    const storedUser = localStorage.getItem('boujee_auth_user');
+    const storedProfile = localStorage.getItem('boujee_auth_profile');
+    
+    if (storedUser && storedProfile) {
+      try {
+        this.currentUser = JSON.parse(storedUser);
+        this.currentProfile = JSON.parse(storedProfile);
+        this.currentSession = {
+          user: this.currentUser!,
+          access_token: 'mock_token',
+          refresh_token: 'mock_refresh',
+          expires_in: 3600,
+          expires_at: Date.now() / 1000 + 3600,
+          token_type: 'bearer'
+        } as Session;
+      } catch (error) {
+        console.error('Error parsing stored auth data:', error);
+        this.clearStorage();
+      }
+    }
   }
 
-  private async loadUserProfile(user: User): Promise<void> {
-    if (!supabase) return;
-
+  // NEW METHOD - Required by AuthContext
+  async getSession(): Promise<Session | null> {
     try {
-      const { data, error } = await supabase
+      if (!supabase) {
+        return this.currentSession;
+      }
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error getting session:', error);
+        return null;
+      }
+      
+      this.currentSession = session;
+      return session;
+    } catch (error) {
+      console.error('Error in getSession:', error);
+      return null;
+    }
+  }
+
+  // NEW METHOD - Required by AuthContext
+  async getProfile(userId: string): Promise<UserProfile | null> {
+    try {
+      if (!supabase) {
+        return this.currentProfile;
+      }
+      
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error getting profile:', error);
+        return null;
+      }
+      
+      this.currentProfile = profile;
+      return profile;
+    } catch (error) {
+      console.error('Error in getProfile:', error);
+      return null;
+    }
+  }
+
+  // NEW METHOD - Required by UserProfile component
+  async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
+    try {
+      if (!supabase) {
+        // Mock update
+        const updatedProfile = {
+          ...this.currentProfile,
+          ...updates,
+          updated_at: new Date().toISOString()
+        } as UserProfile;
+        
+        this.currentProfile = updatedProfile;
+        localStorage.setItem('boujee_auth_profile', JSON.stringify(updatedProfile));
+        this.notifyStateChange();
+        
+        return updatedProfile;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
         .single();
 
       if (error) {
-        console.warn('Failed to load user profile from database:', error);
-        this.currentProfile = this.createFallbackProfile(user);
-      } else if (data) {
-        this.currentProfile = data;
+        console.error('Error updating profile:', error);
+        return null;
       }
 
-      if (this.currentProfile) {
-        localStorage.setItem('boujee_auth_user', JSON.stringify(user));
-        localStorage.setItem('boujee_auth_profile', JSON.stringify(this.currentProfile));
-      }
-
+      this.currentProfile = profile;
+      this.notifyStateChange();
+      
+      return profile;
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      this.currentProfile = this.createFallbackProfile(user);
+      console.error('Error in updateProfile:', error);
+      return null;
     }
   }
 
-  private createFallbackProfile(user: User): UserProfile {
-    const mockUser = MOCK_USERS[user.email as keyof typeof MOCK_USERS];
-    
-    if (mockUser) {
-      return { ...mockUser.profile, id: user.id };
-    }
-
-    return {
-      id: user.id,
-      email: user.email || '',
-      full_name: user.user_metadata?.full_name || user.email || '',
-      role: user.email?.includes('admin') ? 'admin' : 'member',
-      status: 'approved',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  }
-
-  async signUp(data: SignUpData): Promise<{ user: any; error: string | null }> {
-    console.log('📝 Sign up attempt:', data.email);
-    
-    if (!isSupabaseConfigured() || !supabase) {
-      return { 
-        user: null, 
-        error: 'Sign up requires Supabase configuration.' 
-      };
-    }
-
+  private async loadUserProfile(user: User): Promise<UserProfile | null> {
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.fullName,
-            phone: data.phone || null,
-          }
-        }
-      });
-
-      if (authError) {
-        return { user: null, error: authError.message };
+      if (!supabase) {
+        // Enhanced mock profile with all properties components expect
+        const mockProfile: UserProfile = {
+          id: `profile_${user.id}`,
+          user_id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+          name: user.user_metadata?.name || user.user_metadata?.full_name || '',
+          avatar: user.user_metadata?.avatar_url || '',
+          avatar_url: user.user_metadata?.avatar_url || '',
+          role: 'member' as const,
+          status: 'approved' as const,
+          phone: '',
+          bio: '',
+          
+          // User stats
+          stats: {
+            eventsAttended: 0,
+            totalSpent: 0,
+            reviewsLeft: 0,
+            favoriteEvents: 0
+          },
+          
+          // User preferences
+          preferences: {
+            emailNotifications: true,
+            pushNotifications: true,
+            newsletter: false,
+            eventReminders: true,
+            privacySettings: false
+          },
+          
+          // Social profile
+          socialProfile: {
+            twitter: '',
+            instagram: '',
+            linkedin: '',
+            website: ''
+          },
+          
+          // Loyalty program
+          loyaltyTier: 'Bronze',
+          loyaltyPoints: 0,
+          isVip: false,
+          
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        this.currentProfile = mockProfile;
+        return mockProfile;
       }
 
-      if (!authData.user) {
-        return { user: null, error: 'Sign up failed - no user returned' };
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading user profile:', error);
+        return null;
       }
 
-      try {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: authData.user.id,
-            email: data.email,
-            full_name: data.fullName,
-            phone: data.phone || null,
-            role: data.role || 'member',
-            status: 'pending'
-          });
-
-        if (profileError) {
-          console.warn('Profile creation failed, but signup succeeded:', profileError);
-        }
-      } catch (profileError) {
-        console.warn('Profile creation error, but signup succeeded:', profileError);
-      }
-
-      return { user: authData.user, error: null };
-
+      this.currentProfile = profile;
+      return profile;
     } catch (error) {
-      console.error('Sign up failed:', error);
-      return { user: null, error: 'Sign up failed. Please try again.' };
+      console.error('Error in loadUserProfile:', error);
+      return null;
     }
   }
 
-  async signIn(data: SignInData): Promise<{ user: any; error: string | null }> {
-    console.log('🔐 Sign in attempt:', data.email);
-    
-    // Clear any existing session first
-    this.clearStorage();
-    
-    // Try Supabase first if configured
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  async signIn(data: SignInData): Promise<{
+    user: User | null;
+    profile: UserProfile | null;
+    session: Session | null;
+    error?: string;
+  }> {
+    try {
+      if (supabase) {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
           email: data.email,
-          password: data.password,
+          password: data.password
         });
 
-        if (!authError && authData.user) {
-          console.log('✅ Supabase authentication successful');
+        if (error) {
+          return { user: null, profile: null, session: null, error: error.message };
+        }
+
+        if (authData.user) {
           this.currentUser = authData.user;
           this.currentSession = authData.session;
           await this.loadUserProfile(authData.user);
-          
-          if (this.currentProfile && this.currentProfile.status !== 'approved') {
-            if (this.currentProfile.status === 'pending') {
-              return { user: authData.user, error: 'Your account is pending approval.' };
-            } else {
-              await this.signOut();
-              return { user: null, error: `Your account has been ${this.currentProfile.status}.` };
+        }
+
+        return {
+          user: this.currentUser,
+          profile: this.currentProfile,
+          session: this.currentSession
+        };
+      } else {
+        // Mock authentication
+        const mockUser = MOCK_USERS[data.email as keyof typeof MOCK_USERS];
+        
+        if (!mockUser || mockUser.password !== data.password) {
+          return { 
+            user: null, 
+            profile: null, 
+            session: null, 
+            error: 'Invalid email or password' 
+          };
+        }
+
+        const user = {
+          id: mockUser.profile.id,
+          email: data.email,
+          user_metadata: { full_name: mockUser.profile.full_name },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as User;
+
+        const session = {
+          user,
+          access_token: 'mock_token',
+          refresh_token: 'mock_refresh',
+          expires_in: 3600,
+          expires_at: Date.now() / 1000 + 3600,
+          token_type: 'bearer'
+        } as Session;
+
+        this.currentUser = user;
+        this.currentProfile = mockUser.profile as UserProfile;
+        this.currentSession = session;
+
+        localStorage.setItem('boujee_auth_user', JSON.stringify(user));
+        localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
+
+        return {
+          user: this.currentUser,
+          profile: this.currentProfile,
+          session: this.currentSession
+        };
+      }
+    } catch (error: any) {
+      return { 
+        user: null, 
+        profile: null, 
+        session: null, 
+        error: error.message || 'Sign in failed' 
+      };
+    }
+  }
+
+  async signUp(data: SignUpData): Promise<{
+    user: User | null;
+    profile: UserProfile | null;
+    session: Session | null;
+    error?: string;
+  }> {
+    try {
+      if (supabase) {
+        const { data: authData, error } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              full_name: data.fullName,
+              phone: data.phone
             }
           }
+        });
 
-          this.notifyStateChange();
-          return { user: authData.user, error: null };
+        if (error) {
+          return { user: null, profile: null, session: null, error: error.message };
         }
-      } catch (error) {
-        console.error('Supabase sign in failed:', error);
+
+        if (authData.user) {
+          this.currentUser = authData.user;
+          this.currentSession = authData.session;
+          
+          // Create user profile
+          const profileData = {
+            user_id: authData.user.id,
+            email: data.email,
+            full_name: data.fullName,
+            phone: data.phone,
+            role: data.role || 'member',
+            status: 'pending'
+          };
+
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .insert([profileData])
+            .select()
+            .single();
+
+          if (!profileError) {
+            this.currentProfile = profile;
+          }
+        }
+
+        return {
+          user: this.currentUser,
+          profile: this.currentProfile,
+          session: this.currentSession
+        };
+      } else {
+        // Mock signup
+        const user = {
+          id: `user_${Date.now()}`,
+          email: data.email,
+          user_metadata: { full_name: data.fullName },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as User;
+
+        const profile: UserProfile = {
+          id: `profile_${user.id}`,
+          user_id: user.id,
+          email: data.email,
+          full_name: data.fullName,
+          name: data.fullName,
+          phone: data.phone,
+          role: data.role || 'member',
+          status: 'approved',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        this.currentUser = user;
+        this.currentProfile = profile;
+
+        return {
+          user: this.currentUser,
+          profile: this.currentProfile,
+          session: null
+        };
       }
+    } catch (error: any) {
+      return { 
+        user: null, 
+        profile: null, 
+        session: null, 
+        error: error.message || 'Sign up failed' 
+      };
     }
-
-    // Mock authentication fallback with password validation
-    console.log('🧪 Trying mock authentication...');
-    const mockUser = MOCK_USERS[data.email as keyof typeof MOCK_USERS];
-    
-    // Check both email and password
-    if (!mockUser || mockUser.password !== data.password) {
-      console.log('❌ Invalid credentials');
-      return { user: null, error: 'Invalid email or password' };
-    }
-
-    console.log('✅ Mock authentication successful');
-    
-    const user = {
-      id: mockUser.profile.id,
-      email: mockUser.profile.email,
-      user_metadata: {
-        full_name: mockUser.profile.full_name
-      },
-      app_metadata: {},
-      aud: 'authenticated',
-      created_at: mockUser.profile.created_at
-    };
-
-    this.currentUser = user;
-    this.currentProfile = mockUser.profile;
-
-    localStorage.setItem('boujee_auth_user', JSON.stringify(user));
-    localStorage.setItem('boujee_auth_profile', JSON.stringify(mockUser.profile));
-
-    this.notifyStateChange();
-    return { user, error: null };
   }
 
   async signOut(): Promise<void> {
-    console.log('🚪 Signing out...');
-    
-    if (supabase && isSupabaseConfigured()) {
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('Supabase sign out error:', error);
-        }
-      } catch (error) {
-        console.error('Sign out failed:', error);
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
       }
+      
+      this.currentUser = null;
+      this.currentProfile = null;
+      this.currentSession = null;
+      this.clearStorage();
+      this.notifyStateChange();
+    } catch (error) {
+      console.error('Sign out error:', error);
     }
-    
-    this.currentUser = null;
-    this.currentProfile = null;
-    this.currentSession = null;
-    this.clearStorage();
-    this.notifyStateChange();
   }
 
   private clearStorage(): void {
     localStorage.removeItem('boujee_auth_user');
     localStorage.removeItem('boujee_auth_profile');
-    sessionStorage.clear();
   }
 
   private notifyStateChange(): void {
