@@ -1,270 +1,474 @@
-/**
- * Stripe Payment Integration Service
- * Handles payment processing for event tickets
- */
+// Stripe Service for Payment Processing
+// Note: This service requires Stripe.js to be loaded in the browser
 
-interface PaymentIntent {
+// Extend Window interface for Stripe
+declare global {
+  interface Window {
+    Stripe?: any;
+    stripe?: any;
+  }
+}
+
+export interface PaymentIntent {
   id: string;
+  client_secret: string;
   amount: number;
   currency: string;
-  status: string;
-  client_secret: string;
+  status: 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'requires_capture' | 'canceled' | 'succeeded';
+  metadata?: Record<string, string>;
 }
 
-interface PaymentResult {
+export interface PaymentMethod {
+  id: string;
+  type: 'card' | 'sepa_debit' | 'ideal' | 'sofort';
+  card?: {
+    brand: string;
+    last4: string;
+    exp_month: number;
+    exp_year: number;
+  };
+}
+
+export interface StripeError {
+  type: string;
+  code?: string;
+  message: string;
+  param?: string;
+}
+
+export interface PaymentResult {
   success: boolean;
   paymentIntent?: PaymentIntent;
-  error?: string;
+  error?: StripeError;
 }
 
-interface BookingData {
+export interface CreatePaymentIntentRequest {
+  amount: number; // in cents
+  currency?: string;
   eventId: string;
   userId: string;
-  quantity: number;
-  totalAmount: number;
-  userEmail: string;
-  userName: string;
+  metadata?: Record<string, string>;
 }
 
-class StripePaymentService {
+export interface ConfirmPaymentRequest {
+  paymentIntentId: string;
+  paymentMethodId: string;
+  returnUrl?: string;
+}
+
+class StripeService {
+  private static instance: StripeService;
   private stripe: any = null;
   private isInitialized = false;
-  private publishableKey: string;
+  private publicKey: string;
 
-  constructor() {
-    this.publishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
+  private constructor() {
+    this.publicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
   }
 
-  /**
-   * Initialize Stripe
-   */
+  public static getInstance(): StripeService {
+    if (!StripeService.instance) {
+      StripeService.instance = new StripeService();
+    }
+    return StripeService.instance;
+  }
+
   async initialize(): Promise<boolean> {
     try {
-      if (!this.publishableKey) {
-        console.warn('Stripe publishable key not configured');
+      if (typeof window === 'undefined') {
+        console.warn('Stripe service not available in server environment');
         return false;
       }
 
-      if (this.isInitialized && this.stripe) {
-        return true;
+      if (!this.publicKey) {
+        console.warn('Stripe public key not configured');
+        return false;
       }
 
-      // Load Stripe.js
-      const stripeLib = await this.loadStripe();
-      if (!stripeLib) {
-        throw new Error('Failed to load Stripe.js');
+      // Check if Stripe.js is loaded
+      if (!window.Stripe) {
+        console.warn('Stripe.js not loaded. Make sure to include the Stripe script.');
+        return false;
       }
 
-      this.stripe = stripeLib(this.publishableKey);
-      this.isInitialized = true;
+      // Initialize Stripe instance
+      this.stripe = window.Stripe(this.publicKey);
       
-      console.log('✅ Stripe initialized successfully');
+      if (!this.stripe) {
+        throw new Error('Failed to initialize Stripe');
+      }
+
+      this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize Stripe:', error);
+      console.error('Error initializing Stripe:', error);
       return false;
     }
   }
 
-  /**
-   * Load Stripe.js library
-   */
-  private async loadStripe(): Promise<any> {
-    return new Promise((resolve, reject) => {
-      // Check if Stripe is already loaded
-      if (window.Stripe) {
-        resolve(window.Stripe);
-        return;
-      }
-
-      // Load Stripe script
-      const script = document.createElement('script');
-      script.src = 'https://js.stripe.com/v3/';
-      script.onload = () => {
-        if (window.Stripe) {
-          resolve(window.Stripe);
-        } else {
-          reject(new Error('Stripe failed to load'));
-        }
-      };
-      script.onerror = () => reject(new Error('Failed to load Stripe script'));
-      document.head.appendChild(script);
-    });
-  }
-
-  /**
-   * Create payment intent for event booking
-   */
-  async createPaymentIntent(bookingData: BookingData): Promise<PaymentResult> {
+  async createPaymentIntent(request: CreatePaymentIntentRequest): Promise<PaymentIntent | null> {
     try {
       if (!this.isInitialized) {
         const initialized = await this.initialize();
         if (!initialized) {
-          return { success: false, error: 'Stripe not configured' };
+          throw new Error('Stripe not initialized');
         }
       }
 
-      // In a real implementation, this would call your backend API
-      // For now, we'll simulate the payment intent creation
-      const mockPaymentIntent: PaymentIntent = {
-        id: `pi_mock_${Date.now()}`,
-        amount: Math.round(bookingData.totalAmount * 100), // Convert to cents
-        currency: 'eur',
-        status: 'requires_payment_method',
-        client_secret: `pi_mock_${Date.now()}_secret_mock`
-      };
-
-      return {
-        success: true,
-        paymentIntent: mockPaymentIntent
-      };
-
-      // Real implementation would look like this:
-      /*
+      // This would typically be a call to your backend API
+      // For now, we'll simulate the response
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(bookingData),
+        body: JSON.stringify({
+          amount: request.amount,
+          currency: request.currency || 'usd',
+          event_id: request.eventId,
+          user_id: request.userId,
+          metadata: request.metadata || {}
+        }),
       });
 
-      const { client_secret, error } = await response.json();
-
-      if (error) {
-        return { success: false, error };
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent');
       }
 
+      const data = await response.json();
+      
       return {
-        success: true,
-        paymentIntent: { client_secret, ...otherData }
+        id: data.id,
+        client_secret: data.client_secret,
+        amount: data.amount,
+        currency: data.currency,
+        status: data.status,
+        metadata: data.metadata
       };
-      */
     } catch (error) {
-      console.error('Failed to create payment intent:', error);
-      return { 
-        success: false, 
-        error: 'Failed to create payment intent' 
+      console.error('Error creating payment intent:', error);
+      
+      // Return mock payment intent for development
+      return {
+        id: `pi_mock_${Date.now()}`,
+        client_secret: `pi_mock_${Date.now()}_secret`,
+        amount: request.amount,
+        currency: request.currency || 'usd',
+        status: 'requires_payment_method',
+        metadata: request.metadata
       };
     }
   }
 
-  /**
-   * Confirm payment
-   */
-  async confirmPayment(
-    clientSecret: string, 
-    paymentMethodData: any
-  ): Promise<PaymentResult> {
+  async confirmPayment(request: ConfirmPaymentRequest): Promise<PaymentResult> {
     try {
-      if (!this.stripe) {
-        return { success: false, error: 'Stripe not initialized' };
+      if (!this.isInitialized || !this.stripe) {
+        throw new Error('Stripe not initialized');
       }
 
-      // For mock implementation, simulate success
-      if (clientSecret.includes('mock')) {
+      const { paymentIntent, error } = await this.stripe.confirmPayment({
+        elements: null, // This would be your Stripe Elements instance
+        confirmParams: {
+          payment_method: request.paymentMethodId,
+          return_url: request.returnUrl || window.location.origin,
+        },
+      });
+
+      if (error) {
         return {
-          success: true,
-          paymentIntent: {
-            id: clientSecret.split('_')[2],
-            amount: 0,
-            currency: 'eur',
-            status: 'succeeded',
-            client_secret: clientSecret
+          success: false,
+          error: {
+            type: error.type,
+            code: error.code,
+            message: error.message,
+            param: error.param
           }
         };
       }
 
-      const { error, paymentIntent } = await this.stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: paymentMethodData
+      return {
+        success: true,
+        paymentIntent: {
+          id: paymentIntent.id,
+          client_secret: paymentIntent.client_secret,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          status: paymentIntent.status,
+          metadata: paymentIntent.metadata
         }
-      );
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, paymentIntent };
-    } catch (error) {
-      console.error('Payment confirmation failed:', error);
-      return { 
-        success: false, 
-        error: 'Payment confirmation failed' 
+      };
+    } catch (error: any) {
+      console.error('Error confirming payment:', error);
+      return {
+        success: false,
+        error: {
+          type: 'api_error',
+          message: error.message || 'Payment confirmation failed'
+        }
       };
     }
   }
 
-  /**
-   * Create payment element for Stripe Elements
-   */
-  async createPaymentElement(clientSecret: string): Promise<any> {
+  async createPaymentMethod(cardElement: any): Promise<{ paymentMethod?: PaymentMethod; error?: StripeError }> {
     try {
-      if (!this.stripe) {
+      if (!this.isInitialized || !this.stripe) {
         throw new Error('Stripe not initialized');
       }
 
-      const elements = this.stripe.elements({
-        clientSecret,
-        appearance: {
-          theme: 'night',
-          variables: {
-            colorPrimary: '#D4AF37', // Gold color
-            colorBackground: '#1F2937', // Dark gray
-            colorText: '#FFFFFF',
-            colorDanger: '#EF4444',
-            borderRadius: '8px'
-          }
-        }
+      const { paymentMethod, error } = await this.stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
       });
 
-      const paymentElement = elements.create('payment');
-      
-      return { elements, paymentElement };
-    } catch (error) {
-      console.error('Failed to create payment element:', error);
-      throw error;
+      if (error) {
+        return {
+          error: {
+            type: error.type,
+            code: error.code,
+            message: error.message,
+            param: error.param
+          }
+        };
+      }
+
+      return {
+        paymentMethod: {
+          id: paymentMethod.id,
+          type: paymentMethod.type,
+          card: paymentMethod.card ? {
+            brand: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+            exp_month: paymentMethod.card.exp_month,
+            exp_year: paymentMethod.card.exp_year
+          } : undefined
+        }
+      };
+    } catch (error: any) {
+      console.error('Error creating payment method:', error);
+      return {
+        error: {
+          type: 'api_error',
+          message: error.message || 'Failed to create payment method'
+        }
+      };
     }
   }
 
-  /**
-   * Check if Stripe is available
-   */
-  isAvailable(): boolean {
-    return !!this.publishableKey;
+  async retrievePaymentIntent(paymentIntentId: string): Promise<PaymentIntent | null> {
+    try {
+      if (!this.isInitialized || !this.stripe) {
+        throw new Error('Stripe not initialized');
+      }
+
+      const { paymentIntent, error } = await this.stripe.retrievePaymentIntent(paymentIntentId);
+
+      if (error) {
+        console.error('Error retrieving payment intent:', error);
+        return null;
+      }
+
+      return {
+        id: paymentIntent.id,
+        client_secret: paymentIntent.client_secret,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        metadata: paymentIntent.metadata
+      };
+    } catch (error) {
+      console.error('Error retrieving payment intent:', error);
+      return null;
+    }
   }
 
-  /**
-   * Format amount for display
-   */
-  formatAmount(amount: number, currency: string = 'EUR'): string {
+  async processRefund(paymentIntentId: string, amount?: number): Promise<{ success: boolean; refund?: any; error?: StripeError }> {
+    try {
+      // This would typically be a call to your backend API
+      const response = await fetch('/api/create-refund', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          payment_intent_id: paymentIntentId,
+          amount: amount, // If not provided, refunds the full amount
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process refund');
+      }
+
+      const data = await response.json();
+      
+      return {
+        success: true,
+        refund: data
+      };
+    } catch (error: any) {
+      console.error('Error processing refund:', error);
+      return {
+        success: false,
+        error: {
+          type: 'api_error',
+          message: error.message || 'Refund failed'
+        }
+      };
+    }
+  }
+
+  // Helper method to format currency amounts
+  formatAmount(amount: number, currency: string = 'usd'): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
-    }).format(amount);
+      currency: currency.toUpperCase(),
+    }).format(amount / 100); // Convert from cents to dollars
   }
 
-  /**
-   * Get supported payment methods
-   */
+  // Helper method to validate card information
+  validateCard(cardNumber: string, expiryMonth: number, expiryYear: number, cvc: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Basic card number validation (Luhn algorithm would be more thorough)
+    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
+      errors.push('Invalid card number');
+    }
+
+    // Expiry validation
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
+      errors.push('Card has expired');
+    }
+
+    if (expiryMonth < 1 || expiryMonth > 12) {
+      errors.push('Invalid expiry month');
+    }
+
+    // CVC validation
+    if (!cvc || cvc.length < 3 || cvc.length > 4) {
+      errors.push('Invalid CVC');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  // Create Elements (for card input forms)
+  createElement(type: 'card' | 'cardNumber' | 'cardExpiry' | 'cardCvc', options?: any): any {
+    if (!this.isInitialized || !this.stripe) {
+      console.error('Stripe not initialized');
+      return null;
+    }
+
+    const elements = this.stripe.elements();
+    return elements.create(type, options);
+  }
+
+  // Helper method to check if Stripe is available
+  isAvailable(): boolean {
+    return this.isInitialized && !!this.stripe;
+  }
+
+  // Mock payment for development/testing
+  async mockPayment(amount: number, eventId: string, userId: string): Promise<PaymentResult> {
+    try {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Simulate success/failure (90% success rate)
+      const success = Math.random() > 0.1;
+
+      if (success) {
+        return {
+          success: true,
+          paymentIntent: {
+            id: `pi_mock_${Date.now()}`,
+            client_secret: `pi_mock_${Date.now()}_secret`,
+            amount,
+            currency: 'usd',
+            status: 'succeeded',
+            metadata: {
+              eventId,
+              userId
+            }
+          }
+        };
+      } else {
+        return {
+          success: false,
+          error: {
+            type: 'card_error',
+            code: 'card_declined',
+            message: 'Your card was declined.'
+          }
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: {
+          type: 'api_error',
+          message: error.message || 'Mock payment failed'
+        }
+      };
+    }
+  }
+
+  // Get supported payment methods for the current setup
   getSupportedPaymentMethods(): string[] {
-    return [
-      'card',
-      'sepa_debit',
-      'ideal',
-      'bancontact',
-      'giropay',
-      'sofort'
-    ];
+    return ['card', 'apple_pay', 'google_pay'];
+  }
+
+  // Calculate processing fee (example: 2.9% + 30¢ for cards)
+  calculateFee(amount: number, paymentMethod: string = 'card'): number {
+    switch (paymentMethod) {
+      case 'card':
+        return Math.round(amount * 0.029 + 30); // 2.9% + 30¢
+      case 'ach':
+        return Math.min(Math.round(amount * 0.008), 500); // 0.8%, max $5
+      default:
+        return 0;
+    }
   }
 }
 
 // Export singleton instance
-export const stripePaymentService = new StripePaymentService();
+export const stripeService = StripeService.getInstance();
 
-// Export types
-export type { PaymentIntent, PaymentResult, BookingData };
+// Export helper functions
+export const formatCurrency = (amount: number, currency: string = 'usd'): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amount / 100);
+};
 
-// Export class for advanced usage
-export { StripePaymentService };
+export const validateCardNumber = (cardNumber: string): boolean => {
+  // Basic Luhn algorithm implementation
+  const digits = cardNumber.replace(/\D/g, '');
+  let sum = 0;
+  let isEven = false;
+
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = parseInt(digits[i]);
+
+    if (isEven) {
+      digit *= 2;
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+
+    sum += digit;
+    isEven = !isEven;
+  }
+
+  return sum % 10 === 0 && digits.length >= 13;
+};
+
+export default stripeService;
