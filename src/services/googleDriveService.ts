@@ -1,7 +1,9 @@
 /**
- * Google Drive Integration Service - Production Ready
- * Fixed for both localhost and vercel.app domains
+ * Google Drive Integration Service - Module Safe Version
+ * Fixed for production deployment and module contexts
  */
+
+import { getGoogleDriveConfig, getEnvironmentInfo, logEnvironmentInfo } from '../utils/environment';
 
 // Types and Interfaces
 export interface DriveFile {
@@ -53,7 +55,10 @@ class GoogleDriveService {
   private mainFolderId: string | null = null;
   private initializationPromise: Promise<boolean> | null = null;
 
-  private constructor() {}
+  private constructor() {
+    // Log environment information when service is created
+    logEnvironmentInfo();
+  }
 
   static getInstance(): GoogleDriveService {
     if (!GoogleDriveService.instance) {
@@ -89,24 +94,37 @@ class GoogleDriveService {
 
   private async performInitialization(): Promise<boolean> {
     try {
-      // Get environment variables
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
+      // Get configuration using safe environment detection
+      const config = getGoogleDriveConfig();
+      const envInfo = getEnvironmentInfo();
       const currentDomain = this.getCurrentDomain();
       
-      console.log('🌐 Current domain:', currentDomain);
-      console.log('🔑 Checking environment variables...');
+      console.log('🌐 Initializing Google Drive API');
+      console.log('├── Domain:', currentDomain);
+      console.log('├── Environment:', envInfo.mode);
+      console.log('├── Is Production:', envInfo.isProduction);
+      console.log('└── Is Vercel:', envInfo.isVercel);
       
-      if (!clientId || !apiKey) {
+      if (!config.clientId || !config.apiKey) {
         console.error('❌ Missing Google Drive credentials');
-        console.log('Environment check:');
-        console.log('- VITE_GOOGLE_CLIENT_ID:', clientId ? '✅ Set' : '❌ Missing');
-        console.log('- VITE_GOOGLE_DRIVE_API_KEY:', apiKey ? '✅ Set' : '❌ Missing');
-        console.log('💡 Make sure these are set in Vercel Environment Variables');
+        console.log('📋 Configuration Status:');
+        console.log('├── Client ID:', config.clientId ? '✅ Set' : '❌ Missing');
+        console.log('├── API Key:', config.apiKey ? '✅ Set' : '❌ Missing');
+        console.log('└── Folder ID:', config.folderId ? '✅ Set' : 'ℹ️ Optional');
+        
+        if (envInfo.isVercel && !config.isConfigured) {
+          console.log('💡 Vercel Environment Variables Help:');
+          console.log('1. Go to Vercel Dashboard → Your Project → Settings');
+          console.log('2. Navigate to Environment Variables');
+          console.log('3. Add VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_DRIVE_API_KEY');
+          console.log('4. Make sure to set them for "Production" environment');
+          console.log('5. Redeploy your application');
+        }
+        
         return false;
       }
 
-      console.log('✅ Environment variables found');
+      console.log('✅ Google Drive credentials found');
 
       // Load Google API with enhanced error handling
       await this.loadGoogleAPI();
@@ -118,14 +136,14 @@ class GoogleDriveService {
             try {
               console.log('🔧 Initializing Google API client...');
               
-              await this.gapi.client.init({
-                apiKey: apiKey,
-                clientId: clientId,
+              const initConfig = {
+                apiKey: config.apiKey,
+                clientId: config.clientId,
                 discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
-                // Add hosted domain for better compatibility
-                hosted_domain: currentDomain.includes('vercel.app') ? undefined : undefined
-              });
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive'
+              };
+
+              await this.gapi.client.init(initConfig);
 
               this.isInitialized = true;
               console.log('✅ Google Drive API initialized successfully');
@@ -136,11 +154,17 @@ class GoogleDriveService {
               resolve();
             } catch (error: any) {
               console.error('❌ Failed to initialize Google API client:', error);
-              console.log('🔍 Common causes:');
-              console.log('- OAuth settings not configured for current domain');
-              console.log('- API key restrictions blocking current domain');
-              console.log('- Client ID mismatch');
-              console.log('💡 Check Google Cloud Console OAuth settings');
+              console.log('🔍 Troubleshooting Guide:');
+              console.log('1. Check Google Cloud Console OAuth settings');
+              console.log('2. Verify authorized origins include:', currentDomain);
+              console.log('3. Check API key restrictions');
+              console.log('4. Ensure Google Drive API is enabled');
+              
+              if (error.details && error.details.includes('origin_mismatch')) {
+                console.log('🚨 OAuth Origin Mismatch Detected:');
+                console.log(`Add "${currentDomain}" to your Google Cloud Console OAuth settings`);
+              }
+              
               reject(error);
             }
           },
@@ -157,17 +181,16 @@ class GoogleDriveService {
       
       // Provide specific error guidance
       if (error.error === 'idpiframe_initialization_failed') {
-        console.log('🚨 OAuth Configuration Issue Detected:');
-        console.log('📝 To fix this error:');
+        console.log('🚨 OAuth Configuration Issue:');
+        console.log('📝 Required Actions:');
         console.log('1. Go to Google Cloud Console');
-        console.log('2. Navigate to APIs & Services → Credentials');
+        console.log('2. APIs & Services → Credentials');
         console.log('3. Edit your OAuth 2.0 Client ID');
         console.log('4. Add to Authorized JavaScript origins:');
         console.log(`   - ${this.getCurrentDomain()}`);
         console.log('5. Add to Authorized redirect URIs:');
         console.log(`   - ${this.getCurrentDomain()}`);
-        console.log(`   - ${this.getCurrentDomain()}/auth/google/callback`);
-        console.log('6. Save and wait a few minutes for changes to propagate');
+        console.log('6. Save and wait 5-10 minutes');
       }
       
       this.isInitialized = false;
@@ -194,7 +217,6 @@ class GoogleDriveService {
       const existingScript = document.querySelector('script[src*="apis.google.com"]');
       if (existingScript) {
         console.log('⏳ Google API script already loading...');
-        // Wait for existing script to load
         existingScript.addEventListener('load', () => {
           this.gapi = window.gapi;
           resolve();
@@ -218,10 +240,11 @@ class GoogleDriveService {
       
       script.onerror = (error) => {
         console.error('❌ Failed to load Google API script:', error);
-        console.log('💡 This might be due to:');
+        console.log('💡 Possible causes:');
         console.log('- Network connectivity issues');
-        console.log('- Content Security Policy blocking the script');
+        console.log('- Content Security Policy blocking');
         console.log('- Ad blockers interfering');
+        console.log('- Firewall restrictions');
         reject(new Error('Failed to load Google API script'));
       };
 
@@ -281,10 +304,9 @@ class GoogleDriveService {
       } else if (error.error === 'access_denied') {
         console.log('ℹ️ User denied access to Google Drive');
       } else if (error.error === 'popup_blocked_by_browser') {
-        console.log('🚫 Popup blocked by browser. Please allow popups for this site.');
+        console.log('🚫 Popup blocked by browser. Please allow popups.');
       } else {
         console.error('Unexpected authentication error:', error);
-        console.log('💡 Try refreshing the page and ensuring OAuth is configured correctly');
       }
       
       this.isAuthenticated = false;
@@ -302,14 +324,15 @@ class GoogleDriveService {
         if (!authenticated) return false;
       }
 
-      // Test by getting user info
       const response = await this.gapi.client.drive.about.get({
         fields: 'user,storageQuota'
       });
 
       console.log('✅ Google Drive connection test successful');
-      console.log('👤 Connected user:', response.result.user.displayName);
-      console.log('💾 Storage used:', this.formatBytes(response.result.storageQuota.usage));
+      console.log('👤 User:', response.result.user.displayName);
+      if (response.result.storageQuota) {
+        console.log('💾 Storage used:', this.formatBytes(response.result.storageQuota.usage));
+      }
       return true;
     } catch (error) {
       console.error('❌ Connection test failed:', error);
@@ -322,11 +345,11 @@ class GoogleDriveService {
    */
   private async setupMainFolders(): Promise<void> {
     try {
-      const mainFolderId = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID;
+      const config = getGoogleDriveConfig();
       
-      if (mainFolderId) {
-        this.mainFolderId = mainFolderId;
-        console.log('✅ Using configured main folder ID:', mainFolderId);
+      if (config.folderId) {
+        this.mainFolderId = config.folderId;
+        console.log('✅ Using configured main folder ID:', config.folderId);
       } else {
         console.log('ℹ️ No main folder ID configured. Will create folders in Drive root.');
       }
@@ -418,12 +441,10 @@ class GoogleDriveService {
         parents: [folderId]
       };
 
-      // Create FormData for multipart upload
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
       form.append('file', file);
 
-      // Upload with XMLHttpRequest for progress tracking
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         
