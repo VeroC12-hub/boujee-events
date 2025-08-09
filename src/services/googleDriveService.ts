@@ -1,6 +1,6 @@
 /**
- * Google Drive Integration Service - Module Safe Version
- * Fixed for production deployment and module contexts
+ * Google Drive Integration Service - Build Safe Version
+ * No import.meta usage to avoid esbuild parsing issues
  */
 
 import { getGoogleDriveConfig, getEnvironmentInfo, logEnvironmentInfo } from '../utils/environment';
@@ -57,7 +57,11 @@ class GoogleDriveService {
 
   private constructor() {
     // Log environment information when service is created
-    logEnvironmentInfo();
+    try {
+      logEnvironmentInfo();
+    } catch (error) {
+      console.warn('Could not log environment info:', error);
+    }
   }
 
   static getInstance(): GoogleDriveService {
