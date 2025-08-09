@@ -57,6 +57,8 @@ export interface BookingData {
   totalAmount: number;
   paymentMethod?: string;
   specialRequests?: string;
+  userEmail?: string;
+  userName?: string;
 }
 
 export interface ConfirmPaymentRequest {

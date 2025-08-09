@@ -30,9 +30,9 @@ export interface PublicUser {
 export interface UserProfile {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   full_name: string;
-  avatar: string;
+  avatar?: string;
   phone?: string;
   bio?: string;
   location?: string;

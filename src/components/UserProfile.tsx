@@ -70,7 +70,7 @@ interface TransactionItem {
 }
 
 const UserProfile: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const { 
     user: publicUser, 
     favorites = [], 
@@ -82,8 +82,16 @@ const UserProfile: React.FC = () => {
     updatePreferences 
   } = usePublicUser();
 
-  // Use auth user if available, otherwise use public user
-  const currentUser = user || publicUser;
+  // Use auth profile if available, otherwise use public user, otherwise fallback
+  const currentUser = profile || publicUser || {
+    id: user?.id || '',
+    email: user?.email || '',
+    name: user?.user_metadata?.full_name || '',
+    full_name: user?.user_metadata?.full_name || '',
+    avatar: '',
+    stats: { eventsAttended: 0, totalSpent: 0 },
+    preferences: { notifications: true, marketing: false, language: 'en' }
+  };
 
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'preferences' | 'loyalty' | 'history'>('profile');
   const [isEditing, setIsEditing] = useState(false);
