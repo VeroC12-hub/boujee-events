@@ -1,3 +1,4 @@
+// File: src/services/mediaService.ts
 import { supabase } from '../lib/supabase';
 import type { 
   MediaFile, 
@@ -9,6 +10,17 @@ import type {
   HomepageMediaInsert 
 } from '../types/database';
 
+// Re-export types for components that need them
+export type { 
+  MediaFile, 
+  MediaFileInsert, 
+  MediaFileUpdate,
+  EventMedia,
+  EventMediaInsert,
+  HomepageMedia,
+  HomepageMediaInsert 
+};
+
 export interface MediaUploadResult {
   mediaFile: MediaFile;
   driveFile?: any;
@@ -17,6 +29,13 @@ export interface MediaUploadResult {
 export interface EventMediaData extends Omit<EventMediaInsert, 'id' | 'created_at' | 'updated_at'> {}
 
 export interface HomepageMediaData extends Omit<HomepageMediaInsert, 'id' | 'created_at' | 'updated_at'> {}
+
+// Upload progress interface for proper typing
+export interface UploadProgress {
+  percentage: number;
+  loaded: number;
+  total: number;
+}
 
 class MediaService {
   private static instance: MediaService;
@@ -44,7 +63,7 @@ class MediaService {
           google_drive_file_id: data.google_drive_file_id,
           file_type: data.file_type,
           is_public: data.is_public || true,
-          is_archived: data.is_archived || false, // Required property
+          is_archived: data.is_archived || false,
           uploaded_by: data.uploaded_by,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -61,7 +80,7 @@ class MediaService {
         .from('media_files')
         .insert([{
           ...data,
-          is_archived: data.is_archived || false, // Ensure required property is set
+          is_archived: data.is_archived || false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -463,6 +482,62 @@ class MediaService {
     } catch (error) {
       console.error('Error in deleteHomepageMedia:', error);
       return false;
+    }
+  }
+
+  // Upload method with proper progress typing
+  async uploadWithProgress(
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<MediaUploadResult | null> {
+    try {
+      // Simulate upload progress for now
+      if (onProgress) {
+        const simulateProgress = () => {
+          let loaded = 0;
+          const total = file.size;
+          
+          const interval = setInterval(() => {
+            loaded += total * 0.1; // 10% increments
+            const percentage = Math.min((loaded / total) * 100, 100);
+            
+            onProgress({
+              percentage,
+              loaded: Math.min(loaded, total),
+              total
+            });
+            
+            if (percentage >= 100) {
+              clearInterval(interval);
+            }
+          }, 100);
+        };
+        
+        simulateProgress();
+      }
+
+      // Create media file record
+      const mediaFile = await this.createMediaFile({
+        name: file.name,
+        original_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+        file_type: file.type.startsWith('image/') ? 'image' : 'document',
+        is_public: true,
+        uploaded_by: 'current-user-id' // Replace with actual user ID
+      });
+
+      if (!mediaFile) {
+        throw new Error('Failed to create media file record');
+      }
+
+      return {
+        mediaFile,
+        driveFile: null // Would be populated with actual Google Drive integration
+      };
+    } catch (error) {
+      console.error('Error in uploadWithProgress:', error);
+      return null;
     }
   }
 
