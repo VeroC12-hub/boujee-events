@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { brandColors, brandConfig } from '../../utils/brandSystem';
+import { brandColors, brandConfig } from '../../utils/brandSystems';
 
 interface Event {
   id: string;

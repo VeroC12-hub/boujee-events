@@ -9,9 +9,9 @@ import type {
   VIPPackage,
   VIPReservation,
   VIPAnalytics,
-  VIPMember,
-  DEFAULT_VIP_TIERS
+  VIPMember
 } from '../types/vip';
+import { DEFAULT_VIP_TIERS } from '../types/vip';
 
 export class VIPService {
   private static instance: VIPService;

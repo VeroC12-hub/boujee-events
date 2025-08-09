@@ -229,12 +229,14 @@ const sortByField = <T>(array: T[], field: keyof T, direction: 'asc' | 'desc' = 
     const aValue = a[field];
     const bValue = b[field];
     
-    // Handle undefined values
-    if (aValue === undefined && bValue === undefined) return 0;
-    if (aValue === undefined) return 1;
-    if (bValue === undefined) return -1;
+    // Handle null/undefined values
+    if (aValue === undefined || aValue === null) {
+      if (bValue === undefined || bValue === null) return 0;
+      return 1;
+    }
+    if (bValue === undefined || bValue === null) return -1;
     
-    // Compare values
+    // Compare values safely
     if (aValue < bValue) return direction === 'asc' ? -1 : 1;
     if (aValue > bValue) return direction === 'asc' ? 1 : -1;
     return 0;
@@ -636,6 +638,6 @@ export class MockApiService {
 
 // Export singleton instance
 export const mockApiService = MockApiService.getInstance();
+export const mockApi = mockApiService; // Alias for compatibility
 
-// Export types
-export type { Event, User, Booking };
+// Note: Types are imported from centralized type files to avoid conflicts

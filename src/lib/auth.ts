@@ -440,6 +440,49 @@ class AuthService {
       }
     };
   }
+
+  // Add missing methods for AuthContext compatibility
+  async getSession(): Promise<Session | null> {
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+          return null;
+        }
+        return data.session;
+      } catch (error) {
+        console.error('Error getting session:', error);
+        return null;
+      }
+    }
+    return this.currentSession;
+  }
+
+  async getProfile(userId?: string): Promise<UserProfile | null> {
+    const targetUserId = userId || this.currentUser?.id;
+    if (!targetUserId) return null;
+
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+
+        if (error) {
+          console.warn('Failed to load user profile from database:', error);
+          return this.currentProfile;
+        }
+        return data;
+      } catch (error) {
+        console.error('Error getting profile:', error);
+        return this.currentProfile;
+      }
+    }
+    return this.currentProfile;
+  }
 }
 
 export const authService = AuthService.getInstance();
@@ -447,6 +490,8 @@ export const authService = AuthService.getInstance();
 export const getCurrentUser = () => authService.getCurrentUser();
 export const getCurrentProfile = () => authService.getCurrentProfile();
 export const getCurrentSession = () => authService.getCurrentSession();
+export const getSession = () => authService.getSession();
+export const getProfile = (userId?: string) => authService.getProfile(userId);
 export const signIn = (data: SignInData) => authService.signIn(data);
 export const signUp = (data: SignUpData) => authService.signUp(data);
 export const signOut = () => authService.signOut();
