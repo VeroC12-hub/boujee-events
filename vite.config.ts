@@ -3,17 +3,17 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
     headers: {
-      // Updated CSP headers for Google Drive API
+      // Updated CSP headers for Google Drive API and Vercel
       'Content-Security-Policy': `
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://ssl.gstatic.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://ssl.gstatic.com https://vercel.live;
         frame-src 'self' https://accounts.google.com https://content.googleapis.com https://drive.google.com;
-        connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.google.com ws://localhost:8080 wss://localhost:8080;
+        connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.google.com https://vercel.live ws://localhost:8080 wss://localhost:8080;
         img-src 'self' data: https: blob:;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
         font-src 'self' https://fonts.gstatic.com;
@@ -67,10 +67,12 @@ export default defineConfig(() => ({
     },
   },
   
-  // Define global constants
+  // Define global constants - FIXED FOR PRODUCTION
   define: {
-    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
-    __PROD__: JSON.stringify(process.env.NODE_ENV === 'production'),
+    __DEV__: JSON.stringify(mode === 'development'),
+    __PROD__: JSON.stringify(mode === 'production'),
+    // Fix Node.js environment detection for Vercel
+    'process.env.NODE_ENV': JSON.stringify(mode),
   },
   
   // Environment variables configuration
@@ -83,9 +85,9 @@ export default defineConfig(() => ({
     headers: {
       'Content-Security-Policy': `
         default-src 'self';
-        script-src 'self' 'unsafe-inline' https://apis.google.com https://accounts.google.com;
+        script-src 'self' 'unsafe-inline' https://apis.google.com https://accounts.google.com https://vercel.live;
         frame-src 'self' https://accounts.google.com https://content.googleapis.com;
-        connect-src 'self' https://www.googleapis.com https://accounts.google.com;
+        connect-src 'self' https://www.googleapis.com https://accounts.google.com https://vercel.live;
         img-src 'self' data: https: blob:;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
         font-src 'self' https://fonts.gstatic.com;
@@ -104,8 +106,8 @@ export default defineConfig(() => ({
     exclude: ['@google/drive'],
   },
   
-  // Enable source maps for better debugging
+  // Enable source maps for better debugging in production
   css: {
-    devSourcemap: true,
+    devSourcemap: mode === 'development',
   }
 }));
