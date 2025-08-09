@@ -37,6 +37,8 @@ export interface UserProfile {
   bio?: string;
   location?: string;
   website?: string;
+  role?: 'admin' | 'organizer' | 'member';
+  status?: 'pending' | 'approved' | 'rejected' | 'suspended';
   stats?: {
     eventsAttended: number;
     totalSpent: number;
