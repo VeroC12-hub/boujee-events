@@ -1,387 +1,124 @@
-// src/services/mediaService.ts
 import { supabase } from '../lib/supabase';
-import type { Database } from '../types/database';
+import type { 
+  MediaFile, 
+  MediaFileInsert, 
+  MediaFileUpdate,
+  EventMedia,
+  EventMediaInsert,
+  HomepageMedia,
+  HomepageMediaInsert 
+} from '../types/database';
 
-export interface MediaFile {
-  id: string;
-  name: string;
-  original_name: string;
-  mime_type: string;
-  file_size?: number;
-  google_drive_file_id: string;
-  google_drive_folder_id?: string;
-  thumbnail_url?: string;
-  download_url?: string;
-  web_view_link?: string;
-  file_type: 'image' | 'video' | 'document' | 'other';
-  uploaded_by?: string;
-  created_at: string;
-  updated_at: string;
-  is_public: boolean;
-  is_archived: boolean;
+export interface MediaUploadResult {
+  mediaFile: MediaFile;
+  driveFile?: any;
 }
 
-export interface EventMedia {
-  id: string;
-  event_id: string;
-  media_file_id: string;
-  display_order: number;
-  is_featured: boolean;
-  caption?: string;
-  created_at: string;
-  updated_at: string;
-  media_file?: MediaFile;
-}
+export interface EventMediaData extends Omit<EventMediaInsert, 'id' | 'created_at' | 'updated_at'> {}
 
-export interface HomepageMedia {
-  id: string;
-  media_file_id: string;
-  media_type: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
-  display_order: number;
-  is_active: boolean;
-  title?: string;
-  description?: string;
-  link_url?: string;
-  created_at: string;
-  updated_at: string;
-  media_file?: MediaFile;
-}
-
-export interface GoogleDriveFolder {
-  id: string;
-  event_id?: string;
-  folder_name: string;
-  google_drive_folder_id: string;
-  parent_folder_id?: string;
-  folder_type: 'main' | 'event' | 'photos' | 'videos' | 'archive';
-  web_view_link?: string;
-  created_by?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UploadStats {
-  totalFiles: number;
-  totalSize: number;
-  recentUploads: MediaFile[];
-  storageUsed: number;
-  filesByType: {
-    images: number;
-    videos: number;
-    documents: number;
-    other: number;
-  };
-}
+export interface HomepageMediaData extends Omit<HomepageMediaInsert, 'id' | 'created_at' | 'updated_at'> {}
 
 class MediaService {
-  /**
-   * Create a new media file record
-   */
-  async createMediaFile(data: Omit<MediaFile, 'id' | 'created_at' | 'updated_at'>): Promise<MediaFile | null> {
-    if (!supabase) {
-      console.warn('⚠️ Supabase not configured, using mock data');
-      return {
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...data
-      };
-    }
+  private static instance: MediaService;
 
+  private constructor() {}
+
+  public static getInstance(): MediaService {
+    if (!MediaService.instance) {
+      MediaService.instance = new MediaService();
+    }
+    return MediaService.instance;
+  }
+
+  // Media File Management
+  async createMediaFile(data: Omit<MediaFileInsert, 'id' | 'created_at' | 'updated_at'>): Promise<MediaFile | null> {
     try {
-      const { data: result, error } = await supabase
+      if (!supabase) {
+        // Mock creation when Supabase is not available
+        const mockMediaFile: MediaFile = {
+          id: `media_${Date.now()}`,
+          name: data.name,
+          original_name: data.original_name,
+          mime_type: data.mime_type,
+          file_size: data.file_size,
+          google_drive_file_id: data.google_drive_file_id,
+          file_type: data.file_type,
+          is_public: data.is_public || true,
+          is_archived: data.is_archived || false, // Required property
+          uploaded_by: data.uploaded_by,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          tags: data.tags,
+          description: data.description,
+          thumbnail_url: data.thumbnail_url,
+          preview_url: data.preview_url,
+          download_url: data.download_url
+        };
+        return mockMediaFile;
+      }
+
+      const { data: mediaFile, error } = await supabase
         .from('media_files')
-        .insert(data)
+        .insert([{
+          ...data,
+          is_archived: data.is_archived || false, // Ensure required property is set
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
         .select()
         .single();
 
       if (error) {
         console.error('Error creating media file:', error);
-        return null;
+        throw error;
       }
 
-      return result;
+      return mediaFile;
     } catch (error) {
-      console.error('Failed to create media file:', error);
+      console.error('Error in createMediaFile:', error);
       return null;
     }
   }
 
-  /**
-   * Get media file by ID
-   */
-  async getMediaFile(id: string): Promise<MediaFile | null> {
-    if (!supabase) return null;
-
+  async updateMediaFile(id: string, updates: MediaFileUpdate): Promise<MediaFile | null> {
     try {
-      const { data, error } = await supabase
+      if (!supabase) {
+        // Mock update
+        return {
+          id,
+          ...updates,
+          updated_at: new Date().toISOString()
+        } as MediaFile;
+      }
+
+      const { data: mediaFile, error } = await supabase
         .from('media_files')
-        .select()
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error getting media file:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Failed to get media file:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get media file by Google Drive file ID
-   */
-  async getMediaFileByDriveId(driveFileId: string): Promise<MediaFile | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('media_files')
         .select()
-        .eq('google_drive_file_id', driveFileId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Error getting media file:', error);
-        return null;
+      if (error) {
+        console.error('Error updating media file:', error);
+        throw error;
       }
 
-      return data;
+      return mediaFile;
     } catch (error) {
-      console.error('Failed to get media file:', error);
+      console.error('Error in updateMediaFile:', error);
       return null;
     }
   }
 
-  /**
-   * Get all media files for a user
-   */
-  async getUserMediaFiles(userId?: string): Promise<MediaFile[]> {
-    if (!supabase) return [];
-
-    try {
-      let query = supabase
-        .from('media_files')
-        .select()
-        .eq('is_archived', false)
-        .order('created_at', { ascending: false });
-
-      if (userId) {
-        query = query.eq('uploaded_by', userId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error getting user media files:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to get user media files:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Create event media relationship
-   */
-  async createEventMedia(data: Omit<EventMedia, 'id' | 'created_at' | 'updated_at' | 'media_file'>): Promise<EventMedia | null> {
-    if (!supabase) {
-      console.warn('⚠️ Supabase not configured, using mock data');
-      return {
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...data
-      };
-    }
-
-    try {
-      const { data: result, error } = await supabase
-        .from('event_media')
-        .insert(data)
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error creating event media:', error);
-        return null;
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to create event media:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get event media files
-   */
-  async getEventMedia(eventId: string): Promise<EventMedia[]> {
-    if (!supabase) {
-      // Return mock data for development
-      return [];
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('event_media')
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .eq('event_id', eventId)
-        .order('display_order', { ascending: true });
-
-      if (error) {
-        console.error('Error getting event media:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to get event media:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Update event media
-   */
-  async updateEventMedia(id: string, updates: Partial<EventMedia>): Promise<EventMedia | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('event_media')
-        .update(updates)
-        .eq('id', id)
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error updating event media:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Failed to update event media:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Create homepage media
-   */
-  async createHomepageMedia(data: Omit<HomepageMedia, 'id' | 'created_at' | 'updated_at' | 'media_file'>): Promise<HomepageMedia | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data: result, error } = await supabase
-        .from('homepage_media')
-        .insert(data)
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error creating homepage media:', error);
-        return null;
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to create homepage media:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get homepage media
-   */
-  async getHomepageMedia(mediaType?: HomepageMedia['media_type']): Promise<HomepageMedia[]> {
-    if (!supabase) return [];
-
-    try {
-      let query = supabase
-        .from('homepage_media')
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (mediaType) {
-        query = query.eq('media_type', mediaType);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error getting homepage media:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to get homepage media:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Update homepage media
-   */
-  async updateHomepageMedia(id: string, updates: Partial<HomepageMedia>): Promise<HomepageMedia | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('homepage_media')
-        .update(updates)
-        .eq('id', id)
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error updating homepage media:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Failed to update homepage media:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Delete media file
-   */
   async deleteMediaFile(id: string): Promise<boolean> {
-    if (!supabase) return true;
-
     try {
+      if (!supabase) {
+        return true; // Mock success
+      }
+
       const { error } = await supabase
         .from('media_files')
         .delete()
@@ -389,343 +126,495 @@ class MediaService {
 
       if (error) {
         console.error('Error deleting media file:', error);
-        return false;
+        throw error;
       }
 
       return true;
     } catch (error) {
-      console.error('Failed to delete media file:', error);
+      console.error('Error in deleteMediaFile:', error);
       return false;
     }
   }
 
-  /**
-   * Archive media file instead of deleting
-   */
-  async archiveMediaFile(id: string): Promise<boolean> {
-    if (!supabase) return true;
-
+  async getMediaFile(id: string): Promise<MediaFile | null> {
     try {
-      const { error } = await supabase
-        .from('media_files')
-        .update({ is_archived: true, updated_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error archiving media file:', error);
-        return false;
+      if (!supabase) {
+        return null; // Mock not found
       }
 
-      return true;
-    } catch (error) {
-      console.error('Failed to archive media file:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Create Google Drive folder record
-   */
-  async createGoogleDriveFolder(data: Omit<GoogleDriveFolder, 'id' | 'created_at' | 'updated_at'>): Promise<GoogleDriveFolder | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data: result, error } = await supabase
-        .from('google_drive_folders')
-        .insert(data)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating Google Drive folder:', error);
-        return null;
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to create Google Drive folder:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get Google Drive folders for event
-   */
-  async getEventDriveFolders(eventId: string): Promise<GoogleDriveFolder[]> {
-    if (!supabase) return [];
-
-    try {
-      const { data, error } = await supabase
-        .from('google_drive_folders')
-        .select()
-        .eq('event_id', eventId);
-
-      if (error) {
-        console.error('Error getting event drive folders:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to get event drive folders:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get upload statistics
-   */
-  async getUploadStats(userId?: string): Promise<UploadStats> {
-    if (!supabase) {
-      // Return mock data for development
-      return {
-        totalFiles: 42,
-        totalSize: 1024 * 1024 * 150, // 150MB
-        recentUploads: [],
-        storageUsed: 1024 * 1024 * 75, // 75MB
-        filesByType: {
-          images: 35,
-          videos: 5,
-          documents: 2,
-          other: 0
-        }
-      };
-    }
-
-    try {
-      let query = supabase
+      const { data: mediaFile, error } = await supabase
         .from('media_files')
         .select('*')
-        .eq('is_archived', false)
-        .order('created_at', { ascending: false });
-
-      if (userId) {
-        query = query.eq('uploaded_by', userId);
-      }
-
-      const { data: files, error } = await query;
-
-      if (error) {
-        console.error('Error getting upload stats:', error);
-        return { 
-          totalFiles: 0, 
-          totalSize: 0, 
-          recentUploads: [], 
-          storageUsed: 0,
-          filesByType: { images: 0, videos: 0, documents: 0, other: 0 }
-        };
-      }
-
-      const totalFiles = files?.length || 0;
-      const totalSize = files?.reduce((sum, file) => sum + (file.file_size || 0), 0) || 0;
-      const recentUploads = files?.slice(0, 5) || [];
-
-      // Count files by type
-      const filesByType = files?.reduce((acc, file) => {
-        if (file.file_type === 'image') acc.images++;
-        else if (file.file_type === 'video') acc.videos++;
-        else if (file.file_type === 'document') acc.documents++;
-        else acc.other++;
-        return acc;
-      }, { images: 0, videos: 0, documents: 0, other: 0 }) || { images: 0, videos: 0, documents: 0, other: 0 };
-
-      return {
-        totalFiles,
-        totalSize,
-        recentUploads,
-        storageUsed: totalSize,
-        filesByType
-      };
-    } catch (error) {
-      console.error('Failed to get upload stats:', error);
-      return { 
-        totalFiles: 0, 
-        totalSize: 0, 
-        recentUploads: [], 
-        storageUsed: 0,
-        filesByType: { images: 0, videos: 0, documents: 0, other: 0 }
-      };
-    }
-  }
-
-  /**
-   * Search media files
-   */
-  async searchMediaFiles(query: string, filters?: {
-    fileType?: 'image' | 'video' | 'document' | 'other';
-    eventId?: string;
-    isPublic?: boolean;
-    userId?: string;
-  }): Promise<MediaFile[]> {
-    if (!supabase) return [];
-
-    try {
-      let dbQuery = supabase
-        .from('media_files')
-        .select('*')
-        .or(`name.ilike.%${query}%,original_name.ilike.%${query}%`)
-        .eq('is_archived', false)
-        .order('created_at', { ascending: false });
-
-      if (filters?.fileType) {
-        dbQuery = dbQuery.eq('file_type', filters.fileType);
-      }
-
-      if (filters?.isPublic !== undefined) {
-        dbQuery = dbQuery.eq('is_public', filters.isPublic);
-      }
-
-      if (filters?.userId) {
-        dbQuery = dbQuery.eq('uploaded_by', filters.userId);
-      }
-
-      const { data, error } = await dbQuery;
-
-      if (error) {
-        console.error('Error searching media files:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to search media files:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Update media file metadata
-   */
-  async updateMediaFile(id: string, updates: Partial<MediaFile>): Promise<MediaFile | null> {
-    if (!supabase) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('media_files')
-        .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select()
         .single();
 
       if (error) {
-        console.error('Error updating media file:', error);
+        console.error('Error fetching media file:', error);
         return null;
       }
 
-      return data;
+      return mediaFile;
     } catch (error) {
-      console.error('Failed to update media file:', error);
+      console.error('Error in getMediaFile:', error);
       return null;
     }
   }
 
-  /**
-   * Get media files by type
-   */
-  async getMediaFilesByType(fileType: MediaFile['file_type'], limit?: number): Promise<MediaFile[]> {
-    if (!supabase) return [];
-
+  async getMediaFiles(filters?: {
+    file_type?: string;
+    is_public?: boolean;
+    is_archived?: boolean;
+    uploaded_by?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<MediaFile[]> {
     try {
+      if (!supabase) {
+        return []; // Mock empty array
+      }
+
       let query = supabase
         .from('media_files')
-        .select('*')
-        .eq('file_type', fileType)
-        .eq('is_archived', false)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
+        .select('*');
 
-      if (limit) {
-        query = query.limit(limit);
+      // Apply filters
+      if (filters?.file_type) {
+        query = query.eq('file_type', filters.file_type);
+      }
+      if (filters?.is_public !== undefined) {
+        query = query.eq('is_public', filters.is_public);
+      }
+      if (filters?.is_archived !== undefined) {
+        query = query.eq('is_archived', filters.is_archived);
+      }
+      if (filters?.uploaded_by) {
+        query = query.eq('uploaded_by', filters.uploaded_by);
+      }
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+      if (filters?.offset) {
+        query = query.range(filters.offset, (filters.offset + (filters.limit || 10)) - 1);
       }
 
-      const { data, error } = await query;
+      query = query.order('created_at', { ascending: false });
+
+      const { data: mediaFiles, error } = await query;
 
       if (error) {
-        console.error('Error getting media files by type:', error);
-        return [];
+        console.error('Error fetching media files:', error);
+        throw error;
       }
 
-      return data || [];
+      return mediaFiles || [];
     } catch (error) {
-      console.error('Failed to get media files by type:', error);
+      console.error('Error in getMediaFiles:', error);
       return [];
     }
   }
 
-  /**
-   * Get featured media for events
-   */
-  async getFeaturedEventMedia(eventId: string): Promise<EventMedia[]> {
-    if (!supabase) return [];
-
+  // Event Media Management
+  async createEventMedia(data: EventMediaData): Promise<EventMedia | null> {
     try {
-      const { data, error } = await supabase
+      if (!supabase) {
+        // Mock creation
+        const mockEventMedia: EventMedia = {
+          id: `event_media_${Date.now()}`,
+          event_id: data.event_id,
+          media_file_id: data.media_file_id,
+          display_order: data.display_order || 0,
+          is_featured: data.is_featured || false,
+          caption: data.caption,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        return mockEventMedia;
+      }
+
+      const { data: eventMedia, error } = await supabase
+        .from('event_media')
+        .insert([{
+          ...data,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating event media:', error);
+        throw error;
+      }
+
+      return eventMedia;
+    } catch (error) {
+      console.error('Error in createEventMedia:', error);
+      return null;
+    }
+  }
+
+  async getEventMedia(eventId: string): Promise<(EventMedia & { media_file?: MediaFile })[]> {
+    try {
+      if (!supabase) {
+        return []; // Mock empty array
+      }
+
+      const { data: eventMedia, error } = await supabase
         .from('event_media')
         .select(`
           *,
           media_file:media_files(*)
         `)
         .eq('event_id', eventId)
-        .eq('is_featured', true)
-        .order('display_order', { ascending: true });
+        .order('display_order');
 
       if (error) {
-        console.error('Error getting featured event media:', error);
-        return [];
+        console.error('Error fetching event media:', error);
+        throw error;
       }
 
-      return data || [];
+      return eventMedia || [];
     } catch (error) {
-      console.error('Failed to get featured event media:', error);
+      console.error('Error in getEventMedia:', error);
       return [];
     }
   }
 
-  /**
-   * Batch update display order for event media
-   */
-  async updateEventMediaOrder(updates: { id: string; display_order: number }[]): Promise<boolean> {
-    if (!supabase) return true;
-
+  async updateEventMedia(id: string, updates: Partial<EventMedia>): Promise<EventMedia | null> {
     try {
-      const promises = updates.map(update =>
-        supabase
-          .from('event_media')
-          .update({ display_order: update.display_order, updated_at: new Date().toISOString() })
-          .eq('id', update.id)
-      );
+      if (!supabase) {
+        return {
+          id,
+          ...updates,
+          updated_at: new Date().toISOString()
+        } as EventMedia;
+      }
 
-      await Promise.all(promises);
+      const { data: eventMedia, error } = await supabase
+        .from('event_media')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating event media:', error);
+        throw error;
+      }
+
+      return eventMedia;
+    } catch (error) {
+      console.error('Error in updateEventMedia:', error);
+      return null;
+    }
+  }
+
+  async deleteEventMedia(id: string): Promise<boolean> {
+    try {
+      if (!supabase) {
+        return true; // Mock success
+      }
+
+      const { error } = await supabase
+        .from('event_media')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting event media:', error);
+        throw error;
+      }
+
       return true;
     } catch (error) {
-      console.error('Failed to update event media order:', error);
+      console.error('Error in deleteEventMedia:', error);
       return false;
     }
   }
 
-  /**
-   * Batch update display order for homepage media
-   */
-  async updateHomepageMediaOrder(updates: { id: string; display_order: number }[]): Promise<boolean> {
-    if (!supabase) return true;
-
+  // Homepage Media Management
+  async createHomepageMedia(data: HomepageMediaData): Promise<HomepageMedia | null> {
     try {
-      const promises = updates.map(update =>
-        supabase
-          .from('homepage_media')
-          .update({ display_order: update.display_order, updated_at: new Date().toISOString() })
-          .eq('id', update.id)
-      );
+      if (!supabase) {
+        // Mock creation
+        const mockHomepageMedia: HomepageMedia = {
+          id: `homepage_media_${Date.now()}`,
+          media_file_id: data.media_file_id,
+          media_type: data.media_type,
+          display_order: data.display_order || 0,
+          is_active: data.is_active !== undefined ? data.is_active : true,
+          title: data.title,
+          description: data.description,
+          link_url: data.link_url,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        return mockHomepageMedia;
+      }
 
-      await Promise.all(promises);
+      const { data: homepageMedia, error } = await supabase
+        .from('homepage_media')
+        .insert([{
+          ...data,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating homepage media:', error);
+        throw error;
+      }
+
+      return homepageMedia;
+    } catch (error) {
+      console.error('Error in createHomepageMedia:', error);
+      return null;
+    }
+  }
+
+  async getHomepageMedia(mediaType?: string): Promise<(HomepageMedia & { media_file?: MediaFile })[]> {
+    try {
+      if (!supabase) {
+        return []; // Mock empty array
+      }
+
+      let query = supabase
+        .from('homepage_media')
+        .select(`
+          *,
+          media_file:media_files(*)
+        `)
+        .eq('is_active', true);
+
+      if (mediaType) {
+        query = query.eq('media_type', mediaType);
+      }
+
+      query = query.order('display_order');
+
+      const { data: homepageMedia, error } = await query;
+
+      if (error) {
+        console.error('Error fetching homepage media:', error);
+        throw error;
+      }
+
+      return homepageMedia || [];
+    } catch (error) {
+      console.error('Error in getHomepageMedia:', error);
+      return [];
+    }
+  }
+
+  async updateHomepageMedia(id: string, updates: Partial<HomepageMedia>): Promise<HomepageMedia | null> {
+    try {
+      if (!supabase) {
+        return {
+          id,
+          ...updates,
+          updated_at: new Date().toISOString()
+        } as HomepageMedia;
+      }
+
+      const { data: homepageMedia, error } = await supabase
+        .from('homepage_media')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating homepage media:', error);
+        throw error;
+      }
+
+      return homepageMedia;
+    } catch (error) {
+      console.error('Error in updateHomepageMedia:', error);
+      return null;
+    }
+  }
+
+  async deleteHomepageMedia(id: string): Promise<boolean> {
+    try {
+      if (!supabase) {
+        return true; // Mock success
+      }
+
+      const { error } = await supabase
+        .from('homepage_media')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting homepage media:', error);
+        throw error;
+      }
+
       return true;
     } catch (error) {
-      console.error('Failed to update homepage media order:', error);
+      console.error('Error in deleteHomepageMedia:', error);
+      return false;
+    }
+  }
+
+  // Utility Methods
+  async getMediaStats(): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    fileTypes: Record<string, number>;
+    recentUploads: number;
+  }> {
+    try {
+      if (!supabase) {
+        // Mock stats
+        return {
+          totalFiles: 150,
+          totalSize: 2048576000, // 2GB
+          fileTypes: {
+            image: 120,
+            video: 25,
+            document: 5
+          },
+          recentUploads: 12
+        };
+      }
+
+      const { data: files, error } = await supabase
+        .from('media_files')
+        .select('file_type, file_size, created_at')
+        .eq('is_archived', false);
+
+      if (error) {
+        console.error('Error fetching media stats:', error);
+        throw error;
+      }
+
+      const totalFiles = files?.length || 0;
+      const totalSize = files?.reduce((sum, file) => sum + (file.file_size || 0), 0) || 0;
+      
+      const fileTypes: Record<string, number> = {};
+      files?.forEach(file => {
+        fileTypes[file.file_type] = (fileTypes[file.file_type] || 0) + 1;
+      });
+
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const recentUploads = files?.filter(file => 
+        new Date(file.created_at) > weekAgo
+      ).length || 0;
+
+      return {
+        totalFiles,
+        totalSize,
+        fileTypes,
+        recentUploads
+      };
+    } catch (error) {
+      console.error('Error in getMediaStats:', error);
+      return {
+        totalFiles: 0,
+        totalSize: 0,
+        fileTypes: {},
+        recentUploads: 0
+      };
+    }
+  }
+
+  async searchMedia(query: string, filters?: {
+    file_type?: string;
+    is_public?: boolean;
+    limit?: number;
+  }): Promise<MediaFile[]> {
+    try {
+      if (!supabase) {
+        return []; // Mock empty search results
+      }
+
+      let dbQuery = supabase
+        .from('media_files')
+        .select('*')
+        .or(`name.ilike.%${query}%, original_name.ilike.%${query}%, description.ilike.%${query}%`)
+        .eq('is_archived', false);
+
+      if (filters?.file_type) {
+        dbQuery = dbQuery.eq('file_type', filters.file_type);
+      }
+      if (filters?.is_public !== undefined) {
+        dbQuery = dbQuery.eq('is_public', filters.is_public);
+      }
+      if (filters?.limit) {
+        dbQuery = dbQuery.limit(filters.limit);
+      }
+
+      dbQuery = dbQuery.order('created_at', { ascending: false });
+
+      const { data: mediaFiles, error } = await dbQuery;
+
+      if (error) {
+        console.error('Error searching media:', error);
+        throw error;
+      }
+
+      return mediaFiles || [];
+    } catch (error) {
+      console.error('Error in searchMedia:', error);
+      return [];
+    }
+  }
+
+  async archiveMediaFile(id: string): Promise<boolean> {
+    try {
+      return await this.updateMediaFile(id, { is_archived: true }) !== null;
+    } catch (error) {
+      console.error('Error archiving media file:', error);
+      return false;
+    }
+  }
+
+  async restoreMediaFile(id: string): Promise<boolean> {
+    try {
+      return await this.updateMediaFile(id, { is_archived: false }) !== null;
+    } catch (error) {
+      console.error('Error restoring media file:', error);
+      return false;
+    }
+  }
+
+  async bulkUpdateMediaFiles(ids: string[], updates: MediaFileUpdate): Promise<boolean> {
+    try {
+      if (!supabase) {
+        return true; // Mock success
+      }
+
+      const { error } = await supabase
+        .from('media_files')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', ids);
+
+      if (error) {
+        console.error('Error bulk updating media files:', error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in bulkUpdateMediaFiles:', error);
       return false;
     }
   }
 }
 
 // Export singleton instance
-export const mediaService = new MediaService();
-export default mediaService;
+export const mediaService = MediaService.getInstance();
