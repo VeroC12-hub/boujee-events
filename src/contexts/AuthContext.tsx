@@ -1,101 +1,85 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { authService, type UserProfile, type SignInData, type SignUpData } from '../lib/auth';
+import { User, PublicUser, UpdateProfileRequest } from '../types/user';
+import { authService } from '../lib/auth';
 
 export interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  session: Session | null;
+  user: User | PublicUser | null;
   loading: boolean;
-  error: string | null;
-  signIn: (data: SignInData) => Promise<void>;
-  signUp: (data: SignUpData) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ user?: User; error?: string }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ user?: User; error?: string }>;
   signOut: () => Promise<void>;
-  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
+  updateProfile: (updates: UpdateProfileRequest) => Promise<{ user?: User | PublicUser; error?: string }>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | PublicUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize auth state
-    const initAuth = async () => {
+    const initializeAuth = async () => {
       try {
-        setLoading(true);
-        const currentSession = await authService.getSession();
-        if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
-          const userProfile = await authService.getProfile(currentSession.user.id);
-          setProfile(userProfile);
-        }
-      } catch (err: any) {
-        setError(err.message);
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    initAuth();
+    initializeAuth();
 
-    // Subscribe to auth changes
-    const unsubscribe = authService.onAuthStateChange((state) => {
-      setUser(state.user);
-      setProfile(state.profile);
-      setSession(state.session);
-      setLoading(state.loading);
-      setError(state.error);
+    // Listen for auth changes
+    const unsubscribe = authService.onAuthStateChange((user) => {
+      setUser(user);
+      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const signIn = async (data: SignInData) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      setError(null);
       setLoading(true);
-      
-      const result = await authService.signIn(data);
-      
-      if (result.error) {
-        throw new Error(result.error);
+      const result = await authService.signIn(email, password);
+      if (result.user) {
+        setUser(result.user);
       }
-      
-      setUser(result.user);
-      setProfile(result.profile);
-      setSession(result.session);
-    } catch (err: any) {
-      setError(err.message || 'Sign in failed');
-      throw err;
+      return result;
+    } catch (error: any) {
+      return { error: error.message };
     } finally {
       setLoading(false);
     }
   };
 
-  const signUp = async (data: SignUpData) => {
+  const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      setError(null);
       setLoading(true);
-      
-      const result = await authService.signUp({ 
-        email: data.email, 
-        password: data.password, 
-        fullName: data.fullName,
-        role: 'member'
-      });
-      
-      if (result.error) {
-        throw new Error(result.error);
+      const result = await authService.signUp(email, password, fullName);
+      if (result.user) {
+        setUser(result.user);
       }
-    } catch (err: any) {
-      setError(err.message || 'Sign up failed');
-      throw err;
+      return result;
+    } catch (error: any) {
+      return { error: error.message };
     } finally {
       setLoading(false);
     }
@@ -106,40 +90,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       await authService.signOut();
       setUser(null);
-      setProfile(null);
-      setSession(null);
-      localStorage.removeItem('boujee_auth_user');
-      localStorage.removeItem('boujee_auth_profile');
-    } catch (err: any) {
-      setError(err.message || 'Sign out failed');
+    } catch (error) {
+      console.error('Error signing out:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = signOut; // Alias for signOut
+  const resetPassword = async (email: string) => {
+    try {
+      return await authService.resetPassword(email);
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
 
-  const value = {
+  const updateProfile = async (updates: UpdateProfileRequest) => {
+    try {
+      if (!user) {
+        return { error: 'No user logged in' };
+      }
+
+      const result = await authService.updateProfile(user.id, updates);
+      if (result.user) {
+        setUser(result.user);
+      }
+      return result;
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      if (!user) return;
+      
+      const currentUser = await authService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
+  const value: AuthContextType = {
     user,
-    profile,
-    session,
     loading,
-    error,
     signIn,
     signUp,
     signOut,
-    logout
+    resetPassword,
+    updateProfile,
+    refreshUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export { AuthContext };
+}
