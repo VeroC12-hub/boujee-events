@@ -1,405 +1,596 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+// ===========================================================================
+// FINAL PRODUCTION HOMEPAGE
+// File: src/pages/Homepage.tsx
+// Complete homepage with Google Drive integration, custom colors, and logo
+// ===========================================================================
 
-interface HomePageEvent {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  type: string;
-  image: string;
-  price: string;
-  description: string;
-  status: string;
-  ticketsSold: number;
-  maxCapacity: number;
-  featured: boolean;
-  tags: string[];
-  basePrice: number;
-  organizerId: string;
-}
+import React, { useState } from 'react';
+import { useAuth } from '../hooks/useProductionData';
+import { useHomepageMedia, useDragAndDrop, useFileValidation } from '../hooks/useHomepageMedia';
 
-const HomePage: React.FC = () => {
-  const [events, setEvents] = useState<HomePageEvent[]>([]);
-  const [featuredEvent, setFeaturedEvent] = useState<HomePageEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+// ===========================================================================
+// PREMIUM COLOR SCHEME (Customizable)
+// ===========================================================================
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
+const THEME = {
+  colors: {
+    // Primary - Elegant Gold & Amber
+    primary: {
+      50: '#fffbeb',
+      100: '#fef3c7', 
+      200: '#fde68a',
+      300: '#fcd34d', // Main brand color
+      400: '#fbbf24',
+      500: '#f59e0b', // Secondary brand
+      600: '#d97706',
+      700: '#b45309',
+      800: '#92400e',
+      900: '#78350f'
+    },
+    // Secondary - Deep Navy & Charcoal
+    secondary: {
+      50: '#f8fafc',
+      100: '#f1f5f9',
+      200: '#e2e8f0',
+      300: '#cbd5e1',
+      400: '#94a3b8',
+      500: '#64748b',
+      600: '#475569',
+      700: '#334155', // Main dark
+      800: '#1e293b', // Deep navy
+      900: '#0f172a'  // Darkest
+    },
+    // Accent colors for variety
+    accent: {
+      emerald: '#10b981',
+      rose: '#f43f5e',
+      purple: '#8b5cf6',
+      blue: '#3b82f6'
+    }
+  },
+  gradients: {
+    hero: 'linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #fcd34d 100%)',
+    overlay: 'linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(252, 211, 77, 0.1) 100%)',
+    card: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(252, 211, 77, 0.05) 100%)',
+    button: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%)'
+  },
+  animations: {
+    float: 'animate-bounce',
+    pulse: 'animate-pulse',
+    spin: 'animate-spin'
+  }
+};
 
-  const loadEvents = async () => {
-    try {
-      setLoading(true);
-      
-      // Mock event data with proper typing
-      const mockEvents: HomePageEvent[] = [
-        {
-          id: 1,
-          title: 'Summer Music Festival 2025',
-          date: '2025-08-15',
-          location: 'Central Park, New York',
-          type: 'Festival',
-          image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea',
-          price: '$150',
-          description: 'The ultimate summer music experience featuring top artists from around the world.',
-          status: 'published',
-          ticketsSold: 7500,
-          maxCapacity: 10000,
-          featured: true,
-          tags: ['music', 'festival', 'outdoor'],
-          basePrice: 150,
-          organizerId: 'org_1'
-        },
-        {
-          id: 2,
-          title: 'Exclusive Wine Tasting Evening',
-          date: '2025-09-20',
-          location: 'The Plaza Hotel, New York',
-          type: 'Luxury Experience',
-          image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3',
-          price: '$250',
-          description: 'An intimate evening of premium wine tasting with renowned sommeliers.',
-          status: 'published',
-          ticketsSold: 35,
-          maxCapacity: 50,
-          featured: false,
-          tags: ['wine', 'luxury', 'tasting'],
-          basePrice: 250,
-          organizerId: 'org_2'
-        },
-        {
-          id: 3,
-          title: 'Tech Innovation Summit',
-          date: '2025-10-12',
-          location: 'San Francisco Convention Center',
-          type: 'Corporate',
-          image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87',
-          price: '$399',
-          description: 'Leading technology conference featuring innovative startups and industry giants.',
-          status: 'published',
-          ticketsSold: 1200,
-          maxCapacity: 2000,
-          featured: false,
-          tags: ['technology', 'innovation', 'business'],
-          basePrice: 399,
-          organizerId: 'org_3'
-        },
-        {
-          id: 4,
-          title: 'VIP Gala Night',
-          date: '2025-11-05',
-          location: 'Beverly Hills Hotel',
-          type: 'VIP Experience',
-          image: 'https://images.unsplash.com/photo-1464207687429-7505649dae38',
-          price: '$500',
-          description: 'An exclusive black-tie gala featuring celebrity performances and luxury dining.',
-          status: 'published',
-          ticketsSold: 180,
-          maxCapacity: 300,
-          featured: true,
-          tags: ['vip', 'gala', 'luxury'],
-          basePrice: 500,
-          organizerId: 'org_4'
-        },
-        {
-          id: 5,
-          title: 'Rooftop Pool Party',
-          date: '2025-07-30',
-          location: 'Downtown Miami',
-          type: 'Party',
-          image: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec',
-          price: '$75',
-          description: 'Summer rooftop party with DJs, cocktails, and stunning city views.',
-          status: 'published',
-          ticketsSold: 650,
-          maxCapacity: 800,
-          featured: false,
-          tags: ['party', 'rooftop', 'summer'],
-          basePrice: 75,
-          organizerId: 'org_5'
-        }
-      ];
-      
-      setEvents(mockEvents);
-      
-      // Set featured event
-      const featured = mockEvents.find(event => event.featured);
-      setFeaturedEvent(featured || null);
-      
-    } catch (error) {
-      console.error('Error loading events:', error);
-    } finally {
-      setLoading(false);
+// ===========================================================================
+// MEDIA MANAGER COMPONENT (Admin/Organizer Only)
+// ===========================================================================
+
+const MediaManagerPanel: React.FC = () => {
+  const { isAdmin, canManageEvents } = useAuth();
+  const { 
+    uploadMedia, 
+    uploading, 
+    uploadProgress, 
+    media,
+    toggleMediaStatus,
+    deleteMedia,
+    setBackgroundVideo,
+    error 
+  } = useHomepageMedia();
+  const { isDragOver, dragHandlers } = useDragAndDrop();
+  const { validateFiles } = useFileValidation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedMediaType, setSelectedMediaType] = useState<'background_video' | 'hero_image' | 'gallery_image' | 'logo' | 'banner'>('hero_image');
+
+  // Only show to admins and organizers
+  if (!isAdmin() && !canManageEvents()) {
+    return null;
+  }
+
+  const handleFileDrop = async (e: React.DragEvent) => {
+    const files = dragHandlers.onDrop(e);
+    if (files && files.length > 0) {
+      await handleFileUpload(files);
     }
   };
 
-  const handleEventClick = (eventId: number) => {
-    // Navigate to event details
-    window.location.href = `/event/${eventId}`;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await handleFileUpload(files);
+    }
   };
 
-  const filteredEvents = events.filter(event => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || 
-                           event.type.toLowerCase() === selectedCategory.toLowerCase();
-    const isPublished = event.status === 'published';
-    
-    return matchesSearch && matchesCategory && isPublished;
-  });
+  const handleFileUpload = async (files: FileList) => {
+    try {
+      const { errors, validFiles } = validateFiles(files, {
+        maxSize: 100, // 100MB
+        allowedTypes: ['image/*', 'video/*'],
+        maxCount: 5
+      });
 
-  const categories = ['all', ...Array.from(new Set(events.map(event => event.type)))];
+      if (errors.length > 0) {
+        alert('File validation errors:\n' + errors.join('\n'));
+        return;
+      }
+
+      const fileList = new (window as any).FileList();
+      validFiles.forEach(file => {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        Object.assign(fileList, dt.files);
+      });
+
+      await uploadMedia(fileList, selectedMediaType);
+      
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
+  };
+
+  return (
+    <>
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110 flex items-center justify-center"
+        >
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Media Manager Panel */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">🎨 Homepage Media Manager</h2>
+                  <p className="text-gray-300">Upload and manage your homepage content</p>
+                </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {/* Media Type Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Media Type
+                </label>
+                <select
+                  value={selectedMediaType}
+                  onChange={(e) => setSelectedMediaType(e.target.value as any)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                >
+                  <option value="hero_image">🖼️ Hero Image</option>
+                  <option value="background_video">🎬 Background Video</option>
+                  <option value="logo">🏷️ Logo</option>
+                  <option value="gallery_image">📸 Gallery Image</option>
+                  <option value="banner">🎯 Banner</option>
+                </select>
+              </div>
+
+              {/* Upload Area */}
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+                  isDragOver 
+                    ? 'border-yellow-400 bg-yellow-50' 
+                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                }`}
+                {...dragHandlers}
+                onDrop={handleFileDrop}
+              >
+                <div className="space-y-4">
+                  <div className="mx-auto w-12 h-12 text-gray-400">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" />
+                    </svg>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className="text-lg font-medium text-gray-900">
+                        Drop files here or click to browse
+                      </span>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Images and videos up to 100MB
+                      </p>
+                    </label>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      className="sr-only"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={handleFileSelect}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Progress */}
+              {uploading && uploadProgress.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <h3 className="font-medium text-gray-900">Uploading to Google Drive...</h3>
+                  {uploadProgress.map((progress) => (
+                    <div key={progress.fileName} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 truncate">{progress.fileName}</span>
+                        <span className="text-gray-900">{progress.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            progress.status === 'completed' 
+                              ? 'bg-green-500' 
+                              : progress.status === 'error'
+                              ? 'bg-red-500'
+                              : 'bg-yellow-500'
+                          }`}
+                          style={{ width: `${progress.percentage}%` }}
+                        />
+                      </div>
+                      {progress.status === 'error' && (
+                        <p className="text-red-500 text-xs">{progress.error}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Error Display */}
+              {error && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Current Media */}
+              <div className="mt-8">
+                <h3 className="font-medium text-gray-900 mb-4">Current Media ({media.length})</h3>
+                {media.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No media uploaded yet</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
+                    {media.map((item) => (
+                      <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center space-x-3">
+                          {/* Preview */}
+                          <div className="flex-shrink-0">
+                            {item.media_file?.file_type === 'video' ? (
+                              <video 
+                                className="w-12 h-12 object-cover rounded" 
+                                src={item.media_file.download_url} 
+                                muted 
+                              />
+                            ) : (
+                              <img 
+                                className="w-12 h-12 object-cover rounded" 
+                                src={item.media_file?.download_url} 
+                                alt={item.title} 
+                              />
+                            )}
+                          </div>
+                          
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {item.title}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {item.media_type.replace('_', ' ')}
+                            </p>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex flex-col space-y-1">
+                            <button
+                              onClick={() => toggleMediaStatus(item.id)}
+                              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                                item.is_active 
+                                  ? 'bg-green-500 border-green-500 text-white' 
+                                  : 'border-gray-300 hover:border-gray-400'
+                              }`}
+                            >
+                              {item.is_active && (
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                            
+                            {item.media_type === 'background_video' && (
+                              <button
+                                onClick={() => setBackgroundVideo(item.id)}
+                                className="w-6 h-6 text-blue-500 hover:text-blue-700"
+                                title="Set as background"
+                              >
+                                🎬
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ===========================================================================
+// MAIN HOMEPAGE COMPONENT
+// ===========================================================================
+
+const Homepage: React.FC = () => {
+  const { 
+    activeBackgroundVideo, 
+    activeHeroImage, 
+    activeLogo, 
+    activeGalleryImages,
+    loading 
+  } = useHomepageMedia();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-6xl mb-4">✨</div>
-          <div className="text-white text-xl">Loading amazing events...</div>
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: THEME.gradients.hero }}
+      >
+        <div className="text-center text-white space-y-4">
+          <div className={`w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto ${THEME.animations.spin}`}></div>
+          <h2 className="text-2xl font-bold">Loading Your Experience...</h2>
+          <p className="text-gray-300">Preparing something magical</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white">
-      {/* Hero Section */}
-      <section className="relative py-20 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-purple-500/20" />
-        <div className="relative container mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-yellow-400 to-purple-500 bg-clip-text text-transparent">
-              Boujee Events
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            Experience the finest curated events where luxury meets unforgettable moments
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/events"
-              className="bg-yellow-400 text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-yellow-500 transition-colors"
-            >
-              Explore Events
-            </Link>
-            <Link
-              to="/auth"
-              className="border-2 border-yellow-400 text-yellow-400 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-yellow-400 hover:text-black transition-colors"
-            >
-              Join Now
-            </Link>
-          </div>
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Background Video */}
+      {activeBackgroundVideo?.media_file && (
+        <div className="absolute inset-0 z-0">
+          <video
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={activeBackgroundVideo.media_file.thumbnail_url}
+          >
+            <source src={activeBackgroundVideo.media_file.download_url} type="video/mp4" />
+          </video>
+          <div 
+            className="absolute inset-0"
+            style={{ background: THEME.gradients.overlay }}
+          />
         </div>
-      </section>
-
-      {/* Featured Event */}
-      {featuredEvent && (
-        <section className="py-16 px-4">
-          <div className="container mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-12">Featured Event</h2>
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 max-w-4xl mx-auto">
-              <div className="md:flex">
-                <div className="md:w-1/2">
-                  <img
-                    src={featuredEvent.image}
-                    alt={featuredEvent.title}
-                    className="w-full h-64 md:h-full object-cover"
-                  />
-                </div>
-                <div className="md:w-1/2 p-8">
-                  <div className="inline-block px-3 py-1 bg-yellow-400 text-black rounded-full text-sm font-medium mb-4">
-                    {featuredEvent.type}
-                  </div>
-                  <h3 className="text-2xl font-bold mb-4">{featuredEvent.title}</h3>
-                  <div className="space-y-2 mb-6">
-                    <div className="flex items-center text-gray-300">
-                      <span className="mr-2">📅</span>
-                      <span>{new Date(featuredEvent.date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}</span>
-                    </div>
-                    <div className="flex items-center text-gray-300">
-                      <span className="mr-2">📍</span>
-                      <span>{featuredEvent.location}</span>
-                    </div>
-                    <div className="flex items-center text-gray-300">
-                      <span className="mr-2">🎫</span>
-                      <span>{featuredEvent.ticketsSold} / {featuredEvent.maxCapacity} tickets sold</span>
-                    </div>
-                  </div>
-                  <p className="text-gray-300 mb-6">{featuredEvent.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-yellow-400">{featuredEvent.price}</span>
-                    <button
-                      onClick={() => handleEventClick(featuredEvent.id)}
-                      className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-                    >
-                      Book Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       )}
 
-      {/* Search and Filter */}
-      <section className="py-8 px-4">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search events..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+      {/* Fallback Background */}
+      {!activeBackgroundVideo && (
+        <div 
+          className="absolute inset-0 z-0"
+          style={{ 
+            background: activeHeroImage?.media_file
+              ? `linear-gradient(${THEME.gradients.overlay}), url(${activeHeroImage.media_file.download_url})`
+              : THEME.gradients.hero,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+      )}
+
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Navigation */}
+        <nav className="absolute top-0 left-0 right-0 z-30 p-6">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            {/* Logo Section */}
+            <div className="flex items-center space-x-3">
+              {activeLogo?.media_file ? (
+                <img 
+                  src={activeLogo.media_file.download_url} 
+                  alt="Boujee Events" 
+                  className="h-12 w-auto max-w-48"
+                />
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <div 
+                    className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
+                    style={{ background: THEME.gradients.button }}
+                  >
+                    <span className="text-gray-900 font-bold text-xl">BE</span>
+                  </div>
+                  <div>
+                    <h1 className="text-white font-bold text-2xl font-display">
+                      Boujee Events
+                    </h1>
+                    <p className="text-yellow-300 text-sm">Creating magical moments</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-8">
+              <a 
+                href="#events" 
+                className="text-white hover:text-yellow-300 transition-colors font-medium flex items-center space-x-2"
               >
-                {categories.map(category => (
-                  <option key={category} value={category} className="bg-gray-800">
-                    {category === 'all' ? 'All Categories' : category}
-                  </option>
-                ))}
-              </select>
+                <span>🏠</span>
+                <span>Events</span>
+              </a>
+              <a 
+                href="#gallery" 
+                className="text-white hover:text-yellow-300 transition-colors font-medium flex items-center space-x-2"
+              >
+                <span>📸</span>
+                <span>Gallery</span>
+              </a>
+              <a 
+                href="#about" 
+                className="text-white hover:text-yellow-300 transition-colors font-medium flex items-center space-x-2"
+              >
+                <span>👋</span>
+                <span>About</span>
+              </a>
+              <a 
+                href="#contact" 
+                className="text-white hover:text-yellow-300 transition-colors font-medium flex items-center space-x-2"
+              >
+                <span>📞</span>
+                <span>Contact</span>
+              </a>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex items-center space-x-4">
+              <button 
+                className="hidden sm:block px-6 py-3 border border-white text-white rounded-full font-semibold hover:bg-white hover:text-gray-900 transition-all duration-300"
+              >
+                Sign In
+              </button>
+              <button 
+                className="px-6 py-3 rounded-full font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+                style={{ background: THEME.gradients.button }}
+              >
+                Get Started
+              </button>
             </div>
           </div>
-        </div>
-      </section>
+        </nav>
 
-      {/* Events Grid */}
-      <section className="py-8 px-4">
-        <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Upcoming Events</h2>
-          
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold mb-2">No events found</h3>
-              <p className="text-gray-400">Try adjusting your search or filter criteria</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:transform hover:scale-105 transition-all duration-300 cursor-pointer"
-                  onClick={() => handleEventClick(event.id)}
+        {/* Hero Section */}
+        <section className="min-h-screen flex items-center justify-center px-6">
+          <div className="max-w-5xl mx-auto text-center space-y-8">
+            {/* Main Headline */}
+            <div className="space-y-4">
+              <h1 className="text-6xl md:text-8xl font-bold text-white leading-tight">
+                Create{' '}
+                <span 
+                  className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-400 bg-clip-text text-transparent"
                 >
-                  <div className="relative">
-                    <img
-                      src={event.image}
-                      alt={event.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <span className="inline-block px-3 py-1 bg-black/50 backdrop-blur-sm text-white rounded-full text-sm">
-                        {event.type}
-                      </span>
-                    </div>
-                    {event.featured && (
-                      <div className="absolute top-4 right-4">
-                        <span className="inline-block px-3 py-1 bg-yellow-400 text-black rounded-full text-sm font-medium">
-                          Featured
-                        </span>
-                      </div>
-                    )}
+                  Magical
+                </span>
+                <br />
+                <span className="text-5xl md:text-7xl">Moments</span>
+              </h1>
+              
+              <p className="text-xl md:text-3xl text-gray-200 leading-relaxed max-w-3xl mx-auto">
+                Premium event management platform for luxury experiences
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <button 
+                className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 shadow-xl"
+                style={{ background: THEME.gradients.button }}
+              >
+                🎪 Explore Events
+              </button>
+              <button 
+                className="w-full sm:w-auto px-8 py-4 border-2 border-white text-white rounded-full font-bold text-lg hover:bg-white hover:text-gray-900 transition-all duration-300"
+              >
+                🎬 Watch Demo
+              </button>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto pt-12">
+              {[
+                { number: '500+', label: 'Events Created' },
+                { number: '50K+', label: 'Happy Guests' },
+                { number: '100+', label: 'Premium Venues' },
+                { number: '5★', label: 'Average Rating' }
+              ].map((stat, index) => (
+                <div key={index} className="text-center group">
+                  <div className="text-4xl md:text-5xl font-bold text-yellow-400 mb-2 group-hover:scale-110 transition-transform duration-300">
+                    {stat.number}
                   </div>
-                  
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-3">{event.title}</h3>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-gray-300 text-sm">
-                        <span className="mr-2">📅</span>
-                        <span>{new Date(event.date).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex items-center text-gray-300 text-sm">
-                        <span className="mr-2">📍</span>
-                        <span>{event.location}</span>
-                      </div>
-                      <div className="flex items-center text-gray-300 text-sm">
-                        <span className="mr-2">🎫</span>
-                        <span>{event.ticketsSold} / {event.maxCapacity} sold</span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">
-                      {event.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-xl font-bold text-yellow-400">{event.price}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEventClick(event.id);
-                        }}
-                        className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-medium hover:bg-yellow-500 transition-colors"
-                      >
-                        View Details
-                      </button>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="mt-4">
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Availability</span>
-                        <span>{Math.round((event.ticketsSold / event.maxCapacity) * 100)}% sold</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-1.5">
-                        <div
-                          className="bg-yellow-400 h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${(event.ticketsSold / event.maxCapacity) * 100}%` }}
-                        />
-                      </div>
-                    </div>
+                  <div className="text-gray-300 text-sm md:text-base">
+                    {stat.label}
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to Experience Luxury?</h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join thousands of discerning individuals who trust Boujee Events for their most memorable experiences.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/signup"
-              className="bg-yellow-400 text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-yellow-500 transition-colors"
-            >
-              Create Account
-            </Link>
-            <Link
-              to="/events"
-              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-black transition-colors"
-            >
-              Browse All Events
-            </Link>
           </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-20 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-4xl md:text-5xl font-bold text-white text-center mb-16">
+              Everything You Need for{' '}
+              <span className="text-yellow-400">Premium Events</span>
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: '🎭',
+                  title: 'Luxury Experiences',
+                  description: 'Curated high-end events with premium venues, catering, and entertainment tailored to your vision.'
+                },
+                {
+                  icon: '📱',
+                  title: 'Smart Management',
+                  description: 'Advanced analytics, guest management, and real-time insights to make your events flawless.'
+                },
+                {
+                  icon: '🤝',
+                  title: 'VIP Concierge',
+                  description: 'Dedicated support team and personalized service for every detail of your special occasion.'
+                }
+              ].map((feature, index) => (
+                <div 
+                  key={index}
+                  className="p-8 rounded-2xl transition-all duration-300 hover:scale-105 backdrop-blur-lg"
+                  style={{ background: THEME.gradients.card }}
+                >
+                  <div className="text-5xl mb-6">{feature.icon}</div>
+                  <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
+                  <p className="text-gray-300 leading-relaxed">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Media Manager (Admin/Organizer Only) */}
+      <MediaManagerPanel />
+
+      {/* Scroll Indicator */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+        <div className={THEME.animations.float}>
+          <svg className="w-6 h-6 text-white opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
         </div>
-      </section>
+      </div>
     </div>
   );
 };
 
-export default HomePage;
+export default Homepage;
