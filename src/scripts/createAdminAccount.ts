@@ -1,508 +1,508 @@
-// =====================================================
-// createAdminAccount.ts - Complete Admin Account Creation Script
-// Save this as src/scripts/createAdminAccount.ts
-// =====================================================
+/**
+ * Script to create admin accounts for Boujee Events platform
+ * This script should be run in a secure environment to create initial admin users
+ */
 
 import { supabase } from '../lib/supabase';
 
-// Admin account configuration
-interface AdminAccountData {
+interface AdminUserData {
   email: string;
   password: string;
-  fullName: string;
+  full_name: string;
+  role: 'admin' | 'organizer' | 'member';
+  status: 'approved' | 'pending';
+  phone?: string;
+  bio?: string;
 }
 
-// Response interface
-interface AdminCreationResponse {
+interface CreateAdminResult {
   success: boolean;
   userId?: string;
-  email?: string;
-  password?: string;
-  profile?: any;
   error?: string;
+  message: string;
 }
 
-async function createFirstAdmin(): Promise<AdminCreationResponse> {
-  console.log('🔄 Creating first admin account...');
-  
-  const adminData: AdminAccountData = {
-    email: 'admin@boujeeevents.com',  // ⚠️ Change this to your email
-    password: 'Admin123!Secure',       // ⚠️ Change this to secure password  
-    fullName: 'Boujee Events Admin'    // ⚠️ Change this to your name
-  };
+class AdminAccountCreator {
+  private static instance: AdminAccountCreator;
 
-  try {
-    // Step 1: Check if admin already exists
-    console.log('🔍 Checking if admin already exists...');
-    const { data: existingAdmin, error: checkError } = await supabase
-      .from('user_profiles')
-      .select('email, role')
-      .eq('email', adminData.email)
-      .eq('role', 'admin')
-      .maybeSingle();
+  private constructor() {}
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('❌ Error checking existing admin:', checkError.message);
-      return { success: false, error: checkError.message };
+  public static getInstance(): AdminAccountCreator {
+    if (!AdminAccountCreator.instance) {
+      AdminAccountCreator.instance = new AdminAccountCreator();
     }
+    return AdminAccountCreator.instance;
+  }
 
-    if (existingAdmin) {
-      console.log('⚠️ Admin with this email already exists');
-      return { 
-        success: false, 
-        error: 'Admin account already exists with this email' 
-      };
-    }
-
-    // Step 2: Create user in Supabase Auth
-    console.log('📧 Creating auth user...');
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: adminData.email,
-      password: adminData.password,
-      options: {
-        data: {
-          full_name: adminData.fullName,
-        },
-        emailRedirectTo: undefined // Skip email confirmation for admin
+  /**
+   * Create a new admin account
+   */
+  async createAdminAccount(userData: AdminUserData): Promise<CreateAdminResult> {
+    try {
+      if (!supabase) {
+        return {
+          success: false,
+          error: 'Supabase not configured',
+          message: 'Database connection not available. Please configure Supabase.'
+        };
       }
-    });
 
-    if (authError) {
-      console.error('❌ Auth creation failed:', authError.message);
-      return { success: false, error: authError.message };
-    }
-
-    if (!authData.user) {
-      console.error('❌ No user created');
-      return { success: false, error: 'No user created in auth system' };
-    }
-
-    const userId = authData.user.id;
-    console.log('✅ Auth user created:', userId);
-
-    // Step 3: Wait a moment for auth to settle
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Step 4: Create admin profile in your database
-    console.log('👤 Creating admin profile...');
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: userId,
-        email: adminData.email,
-        full_name: adminData.fullName,
-        role: 'admin',
-        status: 'approved', // Pre-approved since this is first admin
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('❌ Profile creation failed:', profileError.message);
-      // Try to clean up auth user if profile creation fails
-      try {
-        await supabase.auth.admin.deleteUser(userId);
-        console.log('🧹 Cleaned up auth user after profile failure');
-      } catch (cleanupError) {
-        console.error('⚠️ Failed to cleanup auth user:', cleanupError);
+      // Validate input data
+      const validation = this.validateUserData(userData);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: 'Validation failed',
+          message: validation.errors.join(', ')
+        };
       }
-      return { success: false, error: profileError.message };
-    }
 
-    console.log('✅ Admin profile created:', profileData);
+      // Check if user already exists
+      const existingUser = await this.checkUserExists(userData.email);
+      if (existingUser) {
+        return {
+          success: false,
+          error: 'User already exists',
+          message: `A user with email ${userData.email} already exists.`
+        };
+      }
 
-    // Step 5: Create admin settings
-    console.log('⚙️ Creating admin settings...');
-    const { error: settingsError } = await supabase
-      .from('user_settings')
-      .insert({
-        user_id: userId,
-        email_notifications: true,
-        sms_notifications: false,
-        marketing_emails: false,
-        theme_preference: 'dark',
-        language: 'en',
-        timezone: 'UTC'
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.full_name,
+            role: userData.role
+          }
+        }
       });
 
-    if (settingsError) {
-      console.error('⚠️ Settings creation failed:', settingsError.message);
-      // Don't return - this is not critical for admin functionality
-    } else {
-      console.log('✅ Admin settings created');
-    }
+      if (authError || !authData.user) {
+        return {
+          success: false,
+          error: 'Auth creation failed',
+          message: authError?.message || 'Failed to create authentication user.'
+        };
+      }
 
-    // Step 6: Verify admin access
-    console.log('🔍 Verifying admin access...');
-    const { data: verification, error: verificationError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .eq('role', 'admin')
-      .eq('status', 'approved')
-      .single();
+      // Create profile in users table
+      const { error: profileError } = await supabase.from('users').insert([
+        {
+          id: authData.user.id,
+          email: userData.email,
+          full_name: userData.full_name,
+          role: userData.role,
+          status: userData.status,
+          phone: userData.phone,
+          bio: userData.bio,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]);
 
-    if (verificationError || !verification) {
-      console.error('❌ Admin verification failed');
-      return { 
-        success: false, 
-        error: 'Admin verification failed after creation' 
+      if (profileError) {
+        // If profile creation fails, we should clean up the auth user
+        await this.cleanupAuthUser(authData.user.id);
+        return {
+          success: false,
+          error: 'Profile creation failed',
+          message: profileError.message
+        };
+      }
+
+      return {
+        success: true,
+        userId: authData.user.id,
+        message: `Admin account created successfully for ${userData.email}`
+      };
+
+    } catch (error: any) {
+      console.error('Error creating admin account:', error);
+      return {
+        success: false,
+        error: 'Unexpected error',
+        message: error.message || 'An unexpected error occurred.'
       };
     }
+  }
 
-    // Step 7: Initialize system settings if they don't exist
-    console.log('🔧 Ensuring system settings exist...');
-    const defaultSettings = [
-      { key: 'site_name', value: 'Boujee Events', type: 'string', description: 'Site name', is_public: true },
-      { key: 'site_description', value: 'Creating magical moments', type: 'string', description: 'Site tagline', is_public: true },
-      { key: 'contact_email', value: adminData.email, type: 'string', description: 'Contact email', is_public: true },
-      { key: 'max_event_capacity', value: '500', type: 'number', description: 'Maximum event capacity', is_public: false },
-      { key: 'booking_fee_percentage', value: '5', type: 'number', description: 'Booking fee percentage', is_public: false },
-      { key: 'auto_approve_organizers', value: 'false', type: 'boolean', description: 'Auto-approve organizer applications', is_public: false },
-      { key: 'maintenance_mode', value: 'false', type: 'boolean', description: 'Site maintenance mode', is_public: false }
-    ];
+  /**
+   * Create multiple admin accounts in batch
+   */
+  async createMultipleAdmins(usersData: AdminUserData[]): Promise<CreateAdminResult[]> {
+    const results: CreateAdminResult[] = [];
 
-    for (const setting of defaultSettings) {
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          setting_key: setting.key,
-          setting_value: setting.value,
-          setting_type: setting.type,
-          description: setting.description,
-          is_public: setting.is_public,
-          updated_by: userId
-        }, {
-          onConflict: 'setting_key',
-          ignoreDuplicates: true
-        });
+    for (const userData of usersData) {
+      const result = await this.createAdminAccount(userData);
+      results.push(result);
+      
+      // Add delay between requests to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    return results;
+  }
+
+  /**
+   * Update existing user to admin role
+   */
+  async promoteUserToAdmin(email: string): Promise<CreateAdminResult> {
+    try {
+      if (!supabase) {
+        return {
+          success: false,
+          error: 'Supabase not configured',
+          message: 'Database connection not available.'
+        };
+      }
+
+      // Find user by email
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (userError || !userData) {
+        return {
+          success: false,
+          error: 'User not found',
+          message: `No user found with email ${email}`
+        };
+      }
+
+      // Update user role to admin
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          role: 'admin',
+          status: 'approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userData.id);
+
+      if (updateError) {
+        return {
+          success: false,
+          error: 'Update failed',
+          message: updateError.message
+        };
+      }
+
+      return {
+        success: true,
+        userId: userData.id,
+        message: `User ${email} promoted to admin successfully`
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: 'Unexpected error',
+        message: error.message || 'An unexpected error occurred.'
+      };
+    }
+  }
+
+  /**
+   * Get all admin users
+   */
+  async getAdminUsers(): Promise<{ success: boolean; admins?: any[]; error?: string }> {
+    try {
+      if (!supabase) {
+        return {
+          success: false,
+          error: 'Supabase not configured'
+        };
+      }
+
+      const { data: admins, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'admin')
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn(`⚠️ Failed to create setting ${setting.key}:`, error.message);
+        return {
+          success: false,
+          error: error.message
+        };
       }
-    }
 
-    console.log('✅ System settings initialized');
+      return {
+        success: true,
+        admins: admins || []
+      };
 
-    console.log('🎉 SUCCESS! Admin account created successfully!');
-    console.log('================================');
-    console.log('📧 Email:', adminData.email);
-    console.log('🔐 Password:', adminData.password);
-    console.log('👤 Name:', adminData.fullName);
-    console.log('🔑 Role:', verification.role);
-    console.log('✅ Status:', verification.status);
-    console.log('🆔 User ID:', userId);
-    console.log('================================');
-    console.log('🌐 Login URL: https://boujee-events.vercel.app/login');
-    console.log('🚀 Admin Dashboard: https://boujee-events.vercel.app/admin-dashboard');
-    console.log('================================');
-    console.log('⚠️  IMPORTANT: Change the default password after first login!');
-    
-    return {
-      success: true,
-      userId,
-      email: adminData.email,
-      password: adminData.password,
-      profile: verification
-    };
-
-  } catch (error: any) {
-    console.error('💥 Unexpected error:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Unknown error occurred' 
-    };
-  }
-}
-
-// Alternative: Create admin with custom details
-async function createCustomAdmin(
-  email: string,
-  password: string, 
-  fullName: string
-): Promise<AdminCreationResponse> {
-  console.log(`🔄 Creating custom admin: ${email}`);
-  
-  // Validate input parameters
-  if (!email || !email.includes('@')) {
-    return { success: false, error: 'Invalid email address' };
-  }
-
-  if (!password || password.length < 8) {
-    return { success: false, error: 'Password must be at least 8 characters long' };
-  }
-
-  if (!fullName || fullName.trim().length < 2) {
-    return { success: false, error: 'Full name must be at least 2 characters long' };
-  }
-
-  const adminData: AdminAccountData = {
-    email: email.toLowerCase().trim(),
-    password,
-    fullName: fullName.trim()
-  };
-
-  try {
-    // Step 1: Check if admin already exists
-    console.log('🔍 Checking if admin already exists...');
-    const { data: existingAdmin, error: checkError } = await supabase
-      .from('user_profiles')
-      .select('email, role')
-      .eq('email', adminData.email)
-      .eq('role', 'admin')
-      .maybeSingle();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('❌ Error checking existing admin:', checkError.message);
-      return { success: false, error: checkError.message };
-    }
-
-    if (existingAdmin) {
-      console.log('⚠️ Admin with this email already exists');
-      return { 
-        success: false, 
-        error: 'Admin account already exists with this email' 
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch admin users'
       };
     }
+  }
 
-    // Step 2: Create user in Supabase Auth
-    console.log('📧 Creating auth user...');
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: adminData.email,
-      password: adminData.password,
-      options: {
-        data: {
-          full_name: adminData.fullName,
-        },
-        emailRedirectTo: undefined
+  /**
+   * Delete admin account (use with caution)
+   */
+  async deleteAdminAccount(email: string): Promise<CreateAdminResult> {
+    try {
+      if (!supabase) {
+        return {
+          success: false,
+          error: 'Supabase not configured',
+          message: 'Database connection not available.'
+        };
       }
-    });
 
-    if (authError) {
-      console.error('❌ Auth creation failed:', authError.message);
-      return { success: false, error: authError.message };
-    }
+      // Find user
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-    if (!authData.user) {
-      console.error('❌ No user created');
-      return { success: false, error: 'No user created in auth system' };
-    }
-
-    const userId = authData.user.id;
-    console.log('✅ Auth user created:', userId);
-
-    // Step 3: Wait for auth to settle
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Step 4: Create admin profile
-    console.log('👤 Creating admin profile...');
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: userId,
-        email: adminData.email,
-        full_name: adminData.fullName,
-        role: 'admin',
-        status: 'approved',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('❌ Profile creation failed:', profileError.message);
-      try {
-        await supabase.auth.admin.deleteUser(userId);
-        console.log('🧹 Cleaned up auth user after profile failure');
-      } catch (cleanupError) {
-        console.error('⚠️ Failed to cleanup auth user:', cleanupError);
+      if (userError || !userData) {
+        return {
+          success: false,
+          error: 'User not found',
+          message: `No user found with email ${email}`
+        };
       }
-      return { success: false, error: profileError.message };
-    }
 
-    console.log('✅ Admin profile created:', profileData);
+      // Delete user profile
+      const { error: deleteError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userData.id);
 
-    // Step 5: Create admin settings
-    console.log('⚙️ Creating admin settings...');
-    const { error: settingsError } = await supabase
-      .from('user_settings')
-      .insert({
-        user_id: userId,
-        email_notifications: true,
-        sms_notifications: false,
-        marketing_emails: false,
-        theme_preference: 'dark',
-        language: 'en',
-        timezone: 'UTC'
-      });
+      if (deleteError) {
+        return {
+          success: false,
+          error: 'Delete failed',
+          message: deleteError.message
+        };
+      }
 
-    if (settingsError) {
-      console.error('⚠️ Settings creation failed:', settingsError.message);
-    } else {
-      console.log('✅ Admin settings created');
-    }
+      return {
+        success: true,
+        message: `Admin account ${email} deleted successfully`
+      };
 
-    // Step 6: Verify admin access
-    console.log('🔍 Verifying admin access...');
-    const { data: verification, error: verificationError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .eq('role', 'admin')
-      .eq('status', 'approved')
-      .single();
-
-    if (verificationError || !verification) {
-      console.error('❌ Admin verification failed');
-      return { 
-        success: false, 
-        error: 'Admin verification failed after creation' 
+    } catch (error: any) {
+      return {
+        success: false,
+        error: 'Unexpected error',
+        message: error.message || 'An unexpected error occurred.'
       };
     }
+  }
 
-    console.log('🎉 SUCCESS! Custom admin account created successfully!');
-    console.log('================================');
-    console.log('📧 Email:', adminData.email);
-    console.log('🔐 Password:', adminData.password);
-    console.log('👤 Name:', adminData.fullName);
-    console.log('🔑 Role:', verification.role);
-    console.log('✅ Status:', verification.status);
-    console.log('🆔 User ID:', userId);
-    console.log('================================');
-    
+  /**
+   * Validate user data before creation
+   */
+  private validateUserData(userData: AdminUserData): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Email validation
+    if (!userData.email || !this.isValidEmail(userData.email)) {
+      errors.push('Valid email is required');
+    }
+
+    // Password validation
+    if (!userData.password || userData.password.length < 8) {
+      errors.push('Password must be at least 8 characters long');
+    }
+
+    // Name validation
+    if (!userData.full_name || userData.full_name.trim().length < 2) {
+      errors.push('Full name is required');
+    }
+
+    // Role validation
+    const validRoles = ['admin', 'organizer', 'member'];
+    if (!validRoles.includes(userData.role)) {
+      errors.push('Invalid role specified');
+    }
+
+    // Status validation
+    const validStatuses = ['approved', 'pending'];
+    if (!validStatuses.includes(userData.status)) {
+      errors.push('Invalid status specified');
+    }
+
     return {
-      success: true,
-      userId,
-      email: adminData.email,
-      password: adminData.password,
-      profile: verification
+      valid: errors.length === 0,
+      errors
     };
+  }
 
-  } catch (error: any) {
-    console.error('💥 Unexpected error:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Unknown error occurred' 
-    };
+  /**
+   * Check if user already exists
+   */
+  private async checkUserExists(email: string): Promise<boolean> {
+    try {
+      if (!supabase) return false;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      return !error && !!data;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Clean up auth user if profile creation fails
+   */
+  private async cleanupAuthUser(userId: string): Promise<void> {
+    try {
+      if (!supabase) return;
+
+      // Note: In production, you would need admin privileges to delete auth users
+      // This is typically done through Supabase dashboard or admin API
+      console.warn(`Auth user ${userId} created but profile failed. Manual cleanup required.`);
+    } catch (error) {
+      console.error('Failed to cleanup auth user:', error);
+    }
+  }
+
+  /**
+   * Validate email format
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Generate secure random password
+   */
+  generateSecurePassword(length: number = 12): string {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
   }
 }
 
-// Function to list all admins
-async function listAdmins(): Promise<void> {
-  console.log('🔍 Listing all admin accounts...');
+// Predefined admin accounts for initial setup
+const DEFAULT_ADMIN_ACCOUNTS: AdminUserData[] = [
+  {
+    email: 'admin@nexacore-innovations.com',
+    password: 'NexaCore2024!',
+    full_name: 'Nexacore Admin',
+    role: 'admin',
+    status: 'approved',
+    bio: 'Platform administrator for Nexacore Innovations'
+  },
+  {
+    email: 'admin@boujeeevents.com',
+    password: 'BoujeeAdmin2025!',
+    full_name: 'Boujee Events Admin',
+    role: 'admin',
+    status: 'approved',
+    bio: 'Primary platform administrator'
+  },
+  {
+    email: 'superadmin@boujeeevents.com',
+    password: 'SuperBoujee2025!',
+    full_name: 'Super Administrator',
+    role: 'admin',
+    status: 'approved',
+    bio: 'Super administrator with full platform access'
+  }
+];
+
+// Export singleton instance and utility functions
+export const adminAccountCreator = AdminAccountCreator.getInstance();
+
+/**
+ * Main function to create default admin accounts
+ */
+export async function createDefaultAdmins(): Promise<void> {
+  console.log('🚀 Creating default admin accounts...');
   
-  try {
-    const { data: admins, error } = await supabase
-      .from('user_profiles')
-      .select('id, email, full_name, role, status, created_at')
-      .eq('role', 'admin')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('❌ Failed to fetch admins:', error.message);
-      return;
-    }
-
-    if (!admins || admins.length === 0) {
-      console.log('📭 No admin accounts found');
-      return;
-    }
-
-    console.log(`👥 Found ${admins.length} admin account(s):`);
-    console.log('================================');
-    
-    admins.forEach((admin, index) => {
-      console.log(`${index + 1}. ${admin.full_name || 'No Name'}`);
-      console.log(`   📧 Email: ${admin.email}`);
-      console.log(`   🆔 ID: ${admin.id}`);
-      console.log(`   ✅ Status: ${admin.status}`);
-      console.log(`   📅 Created: ${new Date(admin.created_at).toLocaleDateString()}`);
-      console.log('   ---');
-    });
-    
-  } catch (error: any) {
-    console.error('💥 Unexpected error:', error);
-  }
-}
-
-// Function to delete admin (use with caution!)
-async function deleteAdmin(email: string): Promise<AdminCreationResponse> {
-  console.log(`⚠️  Attempting to delete admin: ${email}`);
+  const results = await adminAccountCreator.createMultipleAdmins(DEFAULT_ADMIN_ACCOUNTS);
   
-  if (!email) {
-    return { success: false, error: 'Email is required' };
-  }
-
-  try {
-    // First, get the admin user
-    const { data: admin, error: fetchError } = await supabase
-      .from('user_profiles')
-      .select('id, email, role')
-      .eq('email', email.toLowerCase().trim())
-      .eq('role', 'admin')
-      .single();
-
-    if (fetchError || !admin) {
-      console.error('❌ Admin not found');
-      return { success: false, error: 'Admin account not found' };
-    }
-
-    // Delete from auth (this will cascade to user_profiles due to foreign key)
-    const { error: authError } = await supabase.auth.admin.deleteUser(admin.id);
-    
-    if (authError) {
-      console.error('❌ Failed to delete admin from auth:', authError.message);
-      return { success: false, error: authError.message };
-    }
-
-    console.log('✅ Admin account deleted successfully');
-    return { success: true };
-    
-  } catch (error: any) {
-    console.error('💥 Unexpected error:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Unknown error occurred' 
-    };
-  }
-}
-
-// Runtime execution logic
-if (typeof window === 'undefined') {
-  // Running in Node.js environment
-  console.log('🚀 Running admin creation script...');
-  createFirstAdmin().then(result => {
+  console.log('\n📊 Results:');
+  results.forEach((result, index) => {
+    const account = DEFAULT_ADMIN_ACCOUNTS[index];
     if (result.success) {
-      console.log('🎊 Script completed successfully!');
-      process.exit(0);
+      console.log(`✅ ${account.email}: ${result.message}`);
     } else {
-      console.error('💥 Script failed:', result.error);
-      process.exit(1);
+      console.log(`❌ ${account.email}: ${result.message}`);
     }
   });
-} else {
-  // Running in browser - make functions available globally
-  (window as any).createFirstAdmin = createFirstAdmin;
-  (window as any).createCustomAdmin = createCustomAdmin;
-  (window as any).listAdmins = listAdmins;
-  (window as any).deleteAdmin = deleteAdmin;
   
-  console.log('🔧 Admin management functions available:');
-  console.log('   📝 createFirstAdmin() - Create default admin');
-  console.log('   👤 createCustomAdmin(email, password, fullName) - Create custom admin');
-  console.log('   📋 listAdmins() - List all admin accounts');
-  console.log('   🗑️  deleteAdmin(email) - Delete admin account (use with caution!)');
+  const successful = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  
+  console.log(`\n📈 Summary: ${successful} successful, ${failed} failed`);
 }
 
-// Export functions for use in other modules
-export { 
-  createFirstAdmin, 
-  createCustomAdmin, 
-  listAdmins, 
-  deleteAdmin,
-  type AdminAccountData,
-  type AdminCreationResponse 
-};
+/**
+ * Create single admin account
+ */
+export async function createSingleAdmin(
+  email: string,
+  password: string,
+  fullName: string,
+  options?: { phone?: string; bio?: string }
+): Promise<CreateAdminResult> {
+  const userData: AdminUserData = {
+    email,
+    password,
+    full_name: fullName,
+    role: 'admin',
+    status: 'approved',
+    phone: options?.phone,
+    bio: options?.bio
+  };
+  
+  return await adminAccountCreator.createAdminAccount(userData);
+}
+
+/**
+ * Promote existing user to admin
+ */
+export async function promoteToAdmin(email: string): Promise<CreateAdminResult> {
+  return await adminAccountCreator.promoteUserToAdmin(email);
+}
+
+/**
+ * List all admin users
+ */
+export async function listAdmins(): Promise<void> {
+  console.log('👑 Fetching admin users...');
+  
+  const result = await adminAccountCreator.getAdminUsers();
+  
+  if (result.success && result.admins) {
+    console.log(`\n📋 Found ${result.admins.length} admin users:`);
+    result.admins.forEach((admin) => {
+      console.log(`📧 ${admin.email} - ${admin.full_name} (${admin.status})`);
+    });
+  } else {
+    console.log(`❌ Failed to fetch admins: ${result.error}`);
+  }
+}
+
+// Export types and default data
+export type { AdminUserData, CreateAdminResult };
+export { DEFAULT_ADMIN_ACCOUNTS };
+
+// If running as script (node environment)
+if (typeof window === 'undefined' && typeof process !== 'undefined') {
+  // This would be used when running the script directly
+  console.log('🎪 Boujee Events Admin Account Creator');
+  console.log('Use the exported functions to create admin accounts programmatically.');
+}
