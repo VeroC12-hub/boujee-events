@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - Complete authentication context with role management
+// src/contexts/AuthContext.tsx - Updated with proper exports to fix build error
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { 
@@ -48,6 +48,9 @@ export interface AuthContextType {
 
 // === CONTEXT CREATION ===
 const AuthContext = createContext<AuthContextType | null>(null);
+
+// Export the context for compatibility with existing hooks
+export { AuthContext };
 
 // === HOOK ===
 export function useAuth() {
@@ -482,6 +485,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
     </AuthContext.Provider>
   );
 }
+
+// === ADDITIONAL EXPORTS FOR COMPATIBILITY ===
+
+// Export everything that might be needed by existing code
+export type { UserProfile };
+
+// Hook for role-based access (commonly used pattern)
+export const useRoleAccess = () => {
+  const { profile, user } = useAuth();
+  
+  const isAdmin = profile?.role === 'admin';
+  const isOrganizer = profile?.role === 'organizer';
+  const isMember = profile?.role === 'member';
+  const isViewer = profile?.role === 'viewer';
+  
+  return {
+    isAdmin,
+    isOrganizer,
+    isMember,
+    isViewer,
+    userRole: profile?.role,
+    userId: user?.id,
+    
+    // Permission checks
+    canViewAnalytics: isAdmin || isOrganizer,
+    canManageAllEvents: isAdmin,
+    canManageOwnEvents: isAdmin || isOrganizer,
+    canDeletePaidEvents: isAdmin,
+    canManageAllUsers: isAdmin,
+    canViewEventAttendees: isAdmin || isOrganizer,
+    canManageHomepage: isAdmin || isOrganizer,
+    canAccessDashboard: isAdmin || isOrganizer,
+    canManageMedia: isAdmin || isOrganizer,
+    canManageSystem: isAdmin,
+    
+    hasElevatedAccess: isAdmin || isOrganizer,
+    getAccessLevel: () => isAdmin ? 'full' : isOrganizer ? 'limited' : 'none'
+  };
+};
 
 // === DEFAULT EXPORT ===
 export default AuthProvider;
