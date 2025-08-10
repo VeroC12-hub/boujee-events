@@ -41,6 +41,27 @@ const EventManagement: React.FC = () => {
     tags: ''
   });
 
+  // Helper function for safe tags formatting
+  const formatTags = (tags: any): string[] => {
+    if (Array.isArray(tags)) return tags;
+    if (typeof tags === 'string') return tags.split(',').map(tag => tag.trim()).filter(Boolean);
+    return [];
+  };
+
+  // Safe tags rendering function
+  const renderTags = (tags: any) => {
+    const tagArray = formatTags(tags);
+    return tagArray.length > 0 ? (
+      <div className="flex flex-wrap gap-1 mt-3">
+        {tagArray.map((tag: string, index: number) => (
+          <span key={index} className="px-2 py-1 bg-white/10 text-xs text-gray-300 rounded-full">
+            #{tag}
+          </span>
+        ))}
+      </div>
+    ) : null;
+  };
+
   useEffect(() => {
     fetchEvents();
   }, [isAdmin, userId]);
@@ -68,7 +89,7 @@ const EventManagement: React.FC = () => {
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date().toISOString(),
             image_url: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=500',
-            tags: 'luxury,festival,sunset,exclusive'
+            tags: ['luxury', 'festival', 'sunset', 'exclusive']
           },
           {
             id: 'mock-2',
@@ -86,7 +107,7 @@ const EventManagement: React.FC = () => {
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date(Date.now() - 86400000).toISOString(),
             image_url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=500',
-            tags: 'business,networking,luxury,summit'
+            tags: ['business', 'networking', 'luxury', 'summit']
           },
           {
             id: 'mock-3',
@@ -104,7 +125,7 @@ const EventManagement: React.FC = () => {
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date(Date.now() - 172800000).toISOString(),
             image_url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=500',
-            tags: 'yacht,nightlife,vip,exclusive'
+            tags: ['yacht', 'nightlife', 'vip', 'exclusive']
           },
           {
             id: 'mock-4',
@@ -122,7 +143,7 @@ const EventManagement: React.FC = () => {
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date(Date.now() - 259200000).toISOString(),
             image_url: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500',
-            tags: 'dining,michelin,exclusive,wine'
+            tags: ['dining', 'michelin', 'exclusive', 'wine']
           },
           {
             id: 'mock-5',
@@ -140,7 +161,7 @@ const EventManagement: React.FC = () => {
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date(Date.now() - 345600000).toISOString(),
             image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=500',
-            tags: 'art,gallery,exclusive,champagne'
+            tags: ['art', 'gallery', 'exclusive', 'champagne']
           }
         ];
         
@@ -170,13 +191,22 @@ const EventManagement: React.FC = () => {
     }
   };
 
+  const processFormData = (formData: any) => {
+    return {
+      ...formData,
+      // Convert comma-separated string to array for database
+      tags: formData.tags ? formData.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : []
+    };
+  };
+
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!supabase) {
         // Mock creation
+        const processedData = processFormData(newEvent);
         const newEventData = {
-          ...newEvent,
+          ...processedData,
           id: `mock-${Date.now()}`,
           organizer_id: userId,
           created_at: new Date().toISOString(),
@@ -189,9 +219,10 @@ const EventManagement: React.FC = () => {
         return;
       }
 
+      const processedData = processFormData(newEvent);
       const { data, error } = await supabase
         .from('events')
-        .insert([{ ...newEvent, organizer_id: userId }])
+        .insert([{ ...processedData, organizer_id: userId }])
         .select()
         .single();
       
@@ -213,9 +244,10 @@ const EventManagement: React.FC = () => {
     try {
       if (!supabase) {
         // Mock update
+        const processedData = processFormData(newEvent);
         setEvents(prev => prev.map(event => 
           event.id === editingEvent.id 
-            ? { ...event, ...newEvent }
+            ? { ...event, ...processedData }
             : event
         ));
         setEditingEvent(null);
@@ -223,9 +255,10 @@ const EventManagement: React.FC = () => {
         return;
       }
 
+      const processedData = processFormData(newEvent);
       const { data, error } = await supabase
         .from('events')
-        .update(newEvent)
+        .update(processedData)
         .eq('id', editingEvent.id)
         .select()
         .single();
@@ -278,7 +311,8 @@ const EventManagement: React.FC = () => {
       category: event.category,
       status: event.status,
       image_url: event.image_url || '',
-      tags: event.tags || ''
+      // Fix tags handling here:
+      tags: Array.isArray(event.tags) ? event.tags.join(',') : event.tags || ''
     });
     setShowCreateForm(true);
   };
@@ -587,16 +621,8 @@ const EventManagement: React.FC = () => {
                 </div>
               )}
 
-              {/* Tags */}
-              {event.tags && (
-                <div className="flex flex-wrap gap-1 mt-3">
-                  {event.tags.split(',').map((tag: string, index: number) => (
-                    <span key={index} className="px-2 py-1 bg-white/10 text-xs text-gray-300 rounded-full">
-                      #{tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {/* Fixed Tags Rendering */}
+              {event.tags && renderTags(event.tags)}
             </div>
           </div>
         ))}
