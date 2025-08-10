@@ -1,79 +1,133 @@
+// src/pages/LoginPage.tsx - FIXED VERSION - Prevents Auth Loops
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
-function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
+const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, profile, signIn, loading } = useAuth();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user, profile, signIn } = useAuth();
-
-  const from = location.state?.from?.pathname || '/';
-
+  // Handle navigation for already authenticated users - PREVENT LOOPS
   useEffect(() => {
-    // Only redirect if user is truly authenticated
-    if (user && profile) {
-      switch (profile.role) {
-        case 'admin':
-          navigate('/admin');
-          break;
-        case 'organizer':
-          navigate('/organizer');
-          break;
-        case 'member':
-          navigate('/member');
-          break;
-        default:
-          navigate('/');
-      }
+    console.log('🔐 LoginPage: Auth state check', { user: !!user, profile: !!profile, loading });
+    
+    if (!loading && user && profile) {
+      console.log('✅ User already authenticated, redirecting to dashboard...');
+      
+      // Use setTimeout to prevent immediate redirect loops
+      const timer = setTimeout(() => {
+        switch (profile.role) {
+          case 'admin':
+            navigate('/admin-dashboard', { replace: true });
+            break;
+          case 'organizer':
+            navigate('/organizer-dashboard', { replace: true });
+            break;
+          case 'member':
+            navigate('/member-dashboard', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, profile, navigate]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      console.log('Attempting login with:', formData.email);
-      await signIn(formData.email, formData.password);
-      // Navigation handled by useEffect
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Invalid email or password');
-      setIsLoading(false);
-    }
-  };
+  }, [user, profile, loading, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error when user starts typing
     if (error) setError('');
   };
 
-  // Don't show login form if already authenticated
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      console.log('🔐 Attempting login for:', formData.email);
+      
+      const result = await signIn(formData.email, formData.password);
+      
+      if (result?.success) {
+        console.log('✅ Login successful!');
+        // Don't manually navigate here - let the useEffect handle it
+      } else {
+        console.error('❌ Login failed:', result?.error);
+        setError(result?.error || 'Login failed. Please check your credentials.');
+      }
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
+      setError(err.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Emergency sign out function to break loops
+  const handleEmergencySignOut = async () => {
+    try {
+      console.log('🚨 Emergency sign out triggered');
+      if (useAuth().signOut) {
+        await useAuth().signOut();
+      }
+      // Force clear any stored auth data
+      localStorage.clear();
+      sessionStorage.clear();
+      // Force reload to clear all state
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Emergency sign out error:', error);
+      // Force reload as last resort
+      window.location.reload();
+    }
+  };
+
+  // Show loading if we're checking auth or redirecting
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show login form if user is NOT authenticated
   if (user && profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-          <p>Redirecting to dashboard...</p>
+        <div className="text-center bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white mb-4">You're already signed in! Redirecting...</p>
+          <button
+            onClick={handleEmergencySignOut}
+            className="text-red-400 hover:text-red-300 underline text-sm"
+          >
+            Having trouble? Click here to sign out
+          </button>
         </div>
       </div>
     );
@@ -81,91 +135,88 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-yellow-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-      </div>
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-block mb-4">
+            <div className="text-3xl font-bold text-yellow-400">✨ Boujee Events</div>
+          </Link>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <p className="text-gray-400">Sign in to access your dashboard</p>
+        </div>
 
-      <div className="relative w-full max-w-md">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 group"
-        >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-sm font-medium">Back to Home</span>
-        </button>
-
-        <div className="bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-700/50 p-8">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              <div className="text-3xl font-bold text-yellow-400">be</div>
-              <div className="text-left">
-                <h1 className="text-lg font-semibold text-white">Boujee Events</h1>
-                <p className="text-xs text-gray-400">Setting the new standard</p>
-              </div>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-gray-400">Sign in to access your dashboard</p>
+        {/* Test Credentials Info */}
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+          <h3 className="text-blue-400 font-semibold mb-2">Test Credentials:</h3>
+          <div className="text-sm text-blue-200 space-y-1">
+            <div><strong>Admin:</strong> admin@test.com / TestAdmin2025</div>
+            <div><strong>Organizer:</strong> organizer@test.com / TestOrganizer2025</div>
+            <div><strong>Member:</strong> member@test.com / TestMember2025</div>
           </div>
+        </div>
 
-          <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-            <h3 className="text-sm font-semibold text-blue-400 mb-2">Test Credentials:</h3>
-            <div className="text-xs text-gray-300 space-y-1">
-              <div><strong>Admin:</strong> admin@test.com / TestAdmin2025</div>
-              <div><strong>Organizer:</strong> organizer@test.com / TestOrganizer2025</div>
-              <div><strong>Member:</strong> member@test.com / TestMember2025</div>
-            </div>
-          </div>
-
+        {/* Login Form */}
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6">
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
               <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                Email Address
+              </label>
               <input
                 type="email"
+                id="email"
                 name="email"
-                placeholder="Email Address"
                 value={formData.email}
                 onChange={handleInputChange}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-colors"
+                placeholder="Enter your email"
+                disabled={isSubmitting}
                 required
-                disabled={isLoading}
-                className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 disabled:opacity-50"
               />
             </div>
 
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                disabled={isLoading}
-                className="w-full pl-12 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 disabled:opacity-50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-50"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-colors pr-12"
+                  placeholder="Enter your password"
+                  disabled={isSubmitting}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  disabled={isSubmitting}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-yellow-400 text-black py-3 px-6 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={isSubmitting}
+              className="w-full bg-yellow-400 text-black py-3 px-4 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
                   Signing In...
@@ -176,15 +227,39 @@ function LoginPage() {
             </button>
           </form>
 
+          {/* Sign Up Link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
-              Having trouble? Contact support for assistance.
+              Don't have an account?{' '}
+              <Link
+                to="/register"
+                className="text-yellow-400 hover:text-yellow-300 font-medium underline"
+              >
+                Sign Up
+              </Link>
             </p>
           </div>
+
+          {/* Emergency Sign Out */}
+          <div className="mt-4 text-center">
+            <button
+              onClick={handleEmergencySignOut}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Having login issues? Force sign out
+            </button>
+          </div>
+        </div>
+
+        {/* Support */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500">
+            Having trouble? Contact support for assistance.
+          </p>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default LoginPage;
