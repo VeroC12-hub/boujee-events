@@ -68,6 +68,22 @@ export interface Event {
   updated_at: string;
 }
 
+export interface Booking {
+  id: string;
+  event_id: string;
+  user_id: string;
+  booking_number: string;
+  quantity: number;
+  total_amount: number;
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_method?: string;
+  payment_intent_id?: string;
+  booking_status: 'confirmed' | 'cancelled' | 'pending';
+  special_requests?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // === MOCK DATA FOR DEVELOPMENT ===
 export const mockProfiles: UserProfile[] = [
   {
@@ -146,38 +162,33 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
     // Simple test query to check connection
     const { data, error } = await supabase!
       .from('profiles')
-      .select('count')
-      .limit(1);
-
+      .select('count', { count: 'exact', head: true });
+    
     if (error) {
-      return {
-        success: false,
-        error: `Database connection failed: ${error.message}`
-      };
+      return { success: false, error: error.message };
     }
-
+    
     return { success: true };
-
-  } catch (error: any) {
-    return {
-      success: false,
-      error: `Database connection failed: ${error.message}`
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
     };
   }
 }
 
 // Get current user profile
-export async function getUserProfile(): Promise<UserProfile | null> {
+export async function getCurrentUserProfile(userId: string): Promise<UserProfile | null> {
   try {
-    if (!supabase) return null;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!supabase) {
+      // Return mock profile for development
+      return mockProfiles.find(p => p.id === userId) || null;
+    }
 
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (error) {
@@ -187,7 +198,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
     return data;
   } catch (error) {
-    console.error('Error in getUserProfile:', error);
+    console.error('Error in getCurrentUserProfile:', error);
     return null;
   }
 }
@@ -195,11 +206,24 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 // Create user profile
 export async function createUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
   try {
-    if (!supabase) return null;
+    if (!supabase) {
+      // Mock profile creation
+      const newProfile: UserProfile = {
+        id: profile.id || `mock-${Date.now()}`,
+        email: profile.email || '',
+        full_name: profile.full_name || '',
+        role: profile.role || 'member',
+        status: profile.status || 'approved',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...profile
+      };
+      return newProfile;
+    }
 
     const { data, error } = await supabase
       .from('profiles')
-      .insert(profile)
+      .insert([profile])
       .select()
       .single();
 
@@ -215,163 +239,92 @@ export async function createUserProfile(profile: Partial<UserProfile>): Promise<
   }
 }
 
-// Sign in with email and password
-export async function signInWithEmail(email: string, password: string) {
+// Update user profile
+export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
   try {
     if (!supabase) {
-      return { success: false, error: 'Supabase not configured' };
+      // Mock profile update
+      console.log('Mock: Updated profile for user', userId, updates);
+      return null;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+      .select()
+      .single();
 
     if (error) {
-      return { success: false, error: error.message };
+      console.error('Error updating user profile:', error);
+      return null;
     }
 
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
+    return data;
+  } catch (error) {
+    console.error('Error in updateUserProfile:', error);
+    return null;
   }
 }
 
-// Sign up with email and password
-export async function signUpWithEmail(email: string, password: string, options?: { full_name?: string }) {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Supabase not configured' };
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: options?.full_name || email.split('@')[0],
-        },
-      },
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
+// Database status check
+export function getDatabaseStatus() {
+  return {
+    isConfigured: isSupabaseConfigured(),
+    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'Not configured',
+    hasAnonKey: !!supabaseAnonKey,
+    client: supabase ? 'Connected' : 'Mock mode'
+  };
 }
 
-// Sign out
-export async function signOut() {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Supabase not configured' };
-    }
+// Initialize database (for development)
+export async function initializeDatabase() {
+  if (!supabase) {
+    console.log('🔧 Database initialized in mock mode');
+    console.log('📝 Test credentials available:');
+    console.log('   Admin: admin@test.com / TestAdmin2025');
+    console.log('   Organizer: organizer@test.com / TestOrganizer2025');
+    console.log('   Member: member@test.com / TestMember2025');
+    return { success: true, mode: 'mock' };
+  }
 
-    const { error } = await supabase.auth.signOut();
+  try {
+    const { success, error } = await testConnection();
     
-    if (error) {
-      return { success: false, error: error.message };
+    if (success) {
+      console.log('✅ Database connected successfully');
+      return { success: true, mode: 'connected' };
+    } else {
+      console.warn('⚠️ Database connection failed:', error);
+      console.log('🔄 Falling back to mock mode');
+      return { success: false, error, mode: 'mock' };
     }
-
-    return { success: true };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    return { success: false, error, mode: 'mock' };
   }
 }
 
-// Sign in with Google
-export async function signInWithGoogle() {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Supabase not configured' };
-    }
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Reset password
-export async function resetPassword(email: string) {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Supabase not configured' };
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Get session
-export async function getSession() {
-  if (!supabase) return null;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
-}
-
-// Subscribe to auth changes
-export function onAuthStateChange(callback: (event: string, session: any) => void) {
-  if (!supabase) return () => {};
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
-  return () => subscription.unsubscribe();
-}
-
-// Initialize Supabase and test connection
+// Auto-initialize on import
 (async () => {
   if (typeof window !== 'undefined') {
-    console.log('🚀 Boujee Events - Initializing Supabase...');
+    const status = await initializeDatabase();
     
-    if (isSupabaseConfigured()) {
-      const connectionTest = await testConnection();
-      if (connectionTest.success) {
-        console.log('✅ Supabase connection successful');
+    if (!status.success && status.mode === 'mock') {
+      if (supabaseUrl && supabaseAnonKey) {
+        console.log('📋 Supabase configured but connection failed');
+        console.log('1. Check your Supabase project is running');
+        console.log('2. Verify your environment variables');
+        console.log('3. Ensure database schema is applied');
+        console.log('4. Check Row Level Security policies');
       } else {
-        console.error('❌ Supabase connection failed:', connectionTest.error);
-        console.log('📝 Setup instructions:');
-        console.log('1. Create a Supabase project at https://supabase.com');
-        console.log('2. Update your .env.local file with the correct credentials');
-        console.log('3. Run the database schema in your Supabase SQL editor');
+        console.warn('⚠️ Supabase not configured - using mock authentication');
+        console.log('📝 To enable real authentication:');
+        console.log('1. Add VITE_SUPABASE_URL to your .env.local');
+        console.log('2. Add VITE_SUPABASE_ANON_KEY to your .env.local');
+        console.log('3. Apply the database schema');
         console.log('4. Restart your development server');
       }
-    } else {
-      console.warn('⚠️ Supabase not configured - using mock authentication');
-      console.log('📝 To enable real authentication:');
-      console.log('1. Add VITE_SUPABASE_URL to your .env.local');
-      console.log('2. Add VITE_SUPABASE_ANON_KEY to your .env.local');
-      console.log('3. Restart your development server');
     }
   }
 })();
