@@ -1,4 +1,4 @@
-// src/components/navigation/PublicNavbar.tsx - FIXED VERSION
+// src/components/navigation/PublicNavbar.tsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,11 +46,11 @@ export const PublicNavbar: React.FC = () => {
     return profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=D4AF37&color=000`;
   };
 
-  // Smart dashboard redirect based on user role
+  // 🧠 SMART NAVIGATION: Intelligent dashboard redirect based on user role
   const getDashboardUrl = () => {
     if (!user || !profile) return '/login';
     
-    console.log('🧭 Dashboard redirect for role:', profile.role);
+    console.log('🧭 Smart dashboard redirect for role:', profile.role);
     switch (profile.role) {
       case 'admin':
         return '/admin-dashboard';
@@ -63,16 +63,18 @@ export const PublicNavbar: React.FC = () => {
     }
   };
 
+  // 🎯 SMART NAVIGATION: Handle dashboard navigation
   const handleDashboardClick = () => {
     const dashboardUrl = getDashboardUrl();
-    console.log('🎯 Navigating to dashboard:', dashboardUrl);
+    console.log('🎯 Smart navigating to dashboard:', dashboardUrl);
     navigate(dashboardUrl);
     setShowUserMenu(false);
     setMobileMenuOpen(false);
   };
 
+  // 📱 SMART NAVIGATION: Handle all navigation with mobile-friendly logic
   const handleNavigation = (path: string) => {
-    console.log('🧭 Navigating to:', path);
+    console.log('🧭 Smart navigation to:', path);
     navigate(path);
     setMobileMenuOpen(false);
   };
@@ -81,6 +83,7 @@ export const PublicNavbar: React.FC = () => {
     return location.pathname === path;
   };
 
+  // 📋 Navigation menu items
   const navigationItems = [
     { name: 'Home', path: '/', icon: '🏠' },
     { name: 'Events', path: '/events', icon: '🎪' },
@@ -93,7 +96,7 @@ export const PublicNavbar: React.FC = () => {
     <nav className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* 🎨 LOGO SECTION - Fixed (removed "be") */}
           <Link to="/" className="flex items-center space-x-3">
             <img 
               src="/logo.png" 
@@ -106,11 +109,12 @@ export const PublicNavbar: React.FC = () => {
                 if (nextElement) nextElement.style.display = 'block';
               }}
             />
-            <div className="text-xl font-bold text-yellow-400 hidden" style={{display: 'block'}}>be</div>
+            {/* ✅ FIXED: Changed from "be" to "✨" and set display to 'none' by default */}
+            <div className="text-xl font-bold text-yellow-400 hidden" style={{display: 'none'}}>✨</div>
             <span className="text-xl font-bold text-white">Boujee Events</span>
           </Link>
 
-          {/* Main Navigation - Desktop */}
+          {/* 🖥️ DESKTOP NAVIGATION */}
           <div className="hidden md:flex items-center space-x-8">
             {navigationItems.map((item) => (
               <button
@@ -130,47 +134,50 @@ export const PublicNavbar: React.FC = () => {
             ))}
           </div>
 
-          {/* User Actions */}
+          {/* 👤 USER ACTIONS SECTION */}
           <div className="flex items-center space-x-4">
             {user ? (
               <>
-                {/* Dashboard Button */}
-                <button
-                  onClick={handleDashboardClick}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
-                >
-                  Dashboard
-                </button>
-
-                {/* User Menu */}
+                {/* ✨ SMART USER MENU */}
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                    className="flex items-center space-x-3 bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                   >
                     <img
                       src={getUserAvatar()}
                       alt={getUserDisplayName()}
                       className="w-8 h-8 rounded-full"
                     />
-                    <span className="hidden sm:block text-sm font-medium">{getUserDisplayName()}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="text-white font-medium hidden md:block">
+                      {getUserDisplayName()}
+                    </span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
 
-                  {/* Dropdown Menu */}
+                  {/* 📋 USER DROPDOWN MENU */}
                   {showUserMenu && (
                     <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2 z-50">
+                      {/* User Info */}
                       <div className="px-4 py-3 border-b border-gray-700">
-                        <p className="text-sm text-gray-400">Signed in as</p>
-                        <p className="text-sm font-medium text-white truncate">{user.email}</p>
+                        <p className="text-white font-medium">{getUserDisplayName()}</p>
+                        <p className="text-gray-400 text-sm">{user.email}</p>
                         {profile?.role && (
-                          <p className="text-xs text-yellow-400 capitalize bg-yellow-400/10 px-2 py-1 rounded mt-1 inline-block">
-                            {profile.role}
+                          <p className="text-yellow-400 text-xs capitalize mt-1">
+                            Role: {profile.role}
                           </p>
                         )}
                       </div>
+                      
+                      {/* 🎯 SMART DASHBOARD BUTTON */}
+                      <button
+                        onClick={handleDashboardClick}
+                        className="block w-full text-left px-4 py-2 text-sm bg-yellow-400 text-black hover:bg-yellow-500 transition-colors font-semibold"
+                      >
+                        🎯 Dashboard
+                      </button>
                       
                       <button
                         onClick={() => {
@@ -182,7 +189,7 @@ export const PublicNavbar: React.FC = () => {
                         👤 Profile Settings
                       </button>
                       
-                      {/* Role-specific dashboard links */}
+                      {/* 🔐 ROLE-SPECIFIC NAVIGATION LINKS */}
                       {profile?.role === 'admin' && (
                         <button
                           onClick={() => {
@@ -231,7 +238,7 @@ export const PublicNavbar: React.FC = () => {
               </>
             ) : (
               <>
-                {/* Login/Register buttons for non-authenticated users */}
+                {/* 🔐 LOGIN/REGISTER BUTTONS for non-authenticated users */}
                 <button
                   onClick={() => handleNavigation('/login')}
                   className="text-gray-300 hover:text-white transition-colors font-medium"
@@ -247,7 +254,7 @@ export const PublicNavbar: React.FC = () => {
               </>
             )}
 
-            {/* Mobile menu button */}
+            {/* 📱 MOBILE MENU BUTTON */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden text-gray-300 hover:text-white p-2"
@@ -263,7 +270,7 @@ export const PublicNavbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* 📱 MOBILE NAVIGATION MENU */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-gray-800 rounded-lg mt-2 p-4">
             {/* Mobile Navigation Items */}
@@ -286,7 +293,7 @@ export const PublicNavbar: React.FC = () => {
               ))}
             </div>
 
-            {/* Mobile User Section */}
+            {/* 📱 MOBILE USER SECTION */}
             {user ? (
               <div className="mt-4 pt-4 border-t border-gray-700">
                 <div className="flex items-center space-x-3 mb-4">
@@ -305,11 +312,12 @@ export const PublicNavbar: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
+                  {/* 🎯 SMART DASHBOARD BUTTON (Mobile) */}
                   <button
                     onClick={handleDashboardClick}
                     className="block w-full text-left bg-yellow-400 text-black px-3 py-2 rounded-md font-semibold"
                   >
-                    Dashboard
+                    🎯 Dashboard
                   </button>
                   
                   <button
@@ -349,3 +357,5 @@ export const PublicNavbar: React.FC = () => {
     </nav>
   );
 };
+
+export default PublicNavbar;
