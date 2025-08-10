@@ -1,411 +1,27 @@
-// src/pages/AdminDashboard.tsx - Complete implementation
+// src/pages/AdminDashboard.tsx - Complete Implementation with EventManagement
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useRoleAccess } from '../hooks/useRoleAccess';
+import { DashboardOverview } from '../components/admin/DashboardOverview';
 import { supabase } from '../lib/supabase';
-import { 
-  Calendar, Users, DollarSign, TrendingUp, Plus, Upload, 
-  Play, Image, FileVideo, Youtube, Settings, Bell,
-  BarChart3, Eye, MapPin, MessageSquare, Mail, Database,
-  ArrowLeft, RefreshCw, Download, Share2, Edit, Trash2,
-  CheckCircle, AlertCircle, Clock, Star, Search, Filter,
-  Home, LogOut, User, Menu, X
-} from 'lucide-react';
-
-// ================ ROLE-BASED ACCESS CONTROL ================
-const useRoleAccess = () => {
-  const { profile, user } = useAuth();
-  
-  const isAdmin = profile?.role === 'admin';
-  const isOrganizer = profile?.role === 'organizer';
-  const isViewer = profile?.role === 'viewer' || profile?.role === 'member';
-  
-  return {
-    isAdmin,
-    isOrganizer,
-    isViewer,
-    userRole: profile?.role,
-    userId: user?.id,
-    
-    canViewAnalytics: isAdmin || isOrganizer,
-    canManageAllEvents: isAdmin,
-    canManageOwnEvents: isAdmin || isOrganizer,
-    canDeletePaidEvents: isAdmin,
-    canManageAllUsers: isAdmin,
-    canAccessDashboard: isAdmin || isOrganizer,
-    canManageMedia: isAdmin || isOrganizer,
-    canManageSystem: isAdmin,
-    
-    hasElevatedAccess: isAdmin || isOrganizer
-  };
-};
 
 // ================ LOADING SPINNER ================
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
-  <div className="flex items-center justify-center p-8">
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-      <p className="text-gray-400">{message}</p>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+      <p className="text-white">{message}</p>
     </div>
   </div>
 );
-
-// ================ DASHBOARD OVERVIEW COMPONENT ================
-const DashboardOverview: React.FC = () => {
-  const { user, profile } = useAuth();
-  const { isAdmin, isOrganizer, userId } = useRoleAccess();
-  
-  const [metrics, setMetrics] = useState<any[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [user, profile]);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      if (!supabase) {
-        setMetrics(getMockMetrics());
-        setRecentActivity(getMockActivity());
-        setLoading(false);
-        return;
-      }
-
-      const [metricsData, activityData] = await Promise.all([
-        fetchMetrics(),
-        fetchRecentActivity()
-      ]);
-
-      setMetrics(metricsData);
-      setRecentActivity(activityData);
-    } catch (err) {
-      console.error('Dashboard data fetch error:', err);
-      setMetrics(getMockMetrics());
-      setRecentActivity(getMockActivity());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMetrics = async () => {
-    try {
-      let eventsQuery = supabase.from('events').select('*', { count: 'exact' });
-      let bookingsQuery = supabase.from('bookings').select('total_amount, created_at');
-      
-      if (isOrganizer && userId) {
-        eventsQuery = eventsQuery.eq('organizer_id', userId);
-        
-        const { data: organizerEvents } = await supabase
-          .from('events')
-          .select('id')
-          .eq('organizer_id', userId);
-        
-        const eventIds = organizerEvents?.map(e => e.id) || [];
-        if (eventIds.length > 0) {
-          bookingsQuery = bookingsQuery.in('event_id', eventIds);
-        }
-      }
-
-      const [eventsResult, bookingsResult, usersResult] = await Promise.all([
-        eventsQuery,
-        bookingsQuery,
-        isAdmin ? supabase.from('profiles').select('*', { count: 'exact', head: true }) : { count: 0 }
-      ]);
-
-      const totalRevenue = bookingsResult.data?.reduce((sum, booking) => 
-        sum + (booking.total_amount || 0), 0) || 0;
-
-      return [
-        {
-          id: 1,
-          name: isAdmin ? 'Total Revenue' : 'My Revenue',
-          value: totalRevenue,
-          change: 15.3,
-          changeType: 'positive',
-          icon: '💰'
-        },
-        {
-          id: 2,
-          name: isAdmin ? 'Total Events' : 'My Events',
-          value: eventsResult.count || 0,
-          change: 12.3,
-          changeType: 'positive',
-          icon: '🎪'
-        },
-        {
-          id: 3,
-          name: isAdmin ? 'Total Bookings' : 'My Bookings',
-          value: bookingsResult.data?.length || 0,
-          change: 8.7,
-          changeType: 'positive',
-          icon: '🎫'
-        },
-        {
-          id: 4,
-          name: isAdmin ? 'Total Users' : 'My Attendees',
-          value: isAdmin ? (usersResult.count || 0) : (bookingsResult.data?.length || 0),
-          change: 2.1,
-          changeType: 'positive',
-          icon: '👥'
-        }
-      ];
-    } catch (error) {
-      return getMockMetrics();
-    }
-  };
-
-  const fetchRecentActivity = async () => {
-    try {
-      const activities: any[] = [];
-
-      let bookingsQuery = supabase
-        .from('bookings')
-        .select(`
-          id, created_at, booking_status, user_id,
-          events:event_id (title),
-          profiles:user_id (full_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (isOrganizer && userId) {
-        const { data: organizerEvents } = await supabase
-          .from('events')
-          .select('id')
-          .eq('organizer_id', userId);
-        
-        const eventIds = organizerEvents?.map(e => e.id) || [];
-        if (eventIds.length > 0) {
-          bookingsQuery = bookingsQuery.in('event_id', eventIds);
-        }
-      }
-
-      const { data: recentBookings } = await bookingsQuery;
-
-      recentBookings?.forEach(booking => {
-        activities.push({
-          id: `booking-${booking.id}`,
-          type: 'booking',
-          title: 'New Booking',
-          description: `${booking.profiles?.full_name || 'Guest'} booked ${booking.events?.title || 'Unknown Event'}`,
-          timestamp: booking.created_at,
-          status: booking.booking_status
-        });
-      });
-
-      return activities.slice(0, 8);
-    } catch (error) {
-      return getMockActivity();
-    }
-  };
-
-  const getMockMetrics = () => 
-    isAdmin ? [
-      { id: 1, name: 'Total Revenue', value: 45250, change: 15.3, changeType: 'positive', icon: '💰' },
-      { id: 2, name: 'Total Events', value: 17, change: 12.3, changeType: 'positive', icon: '🎪' },
-      { id: 3, name: 'Total Bookings', value: 234, change: 8.7, changeType: 'positive', icon: '🎫' },
-      { id: 4, name: 'Total Users', value: 1456, change: 2.1, changeType: 'positive', icon: '👥' }
-    ] : [
-      { id: 1, name: 'My Revenue', value: 8500, change: 12.5, changeType: 'positive', icon: '💰' },
-      { id: 2, name: 'My Events', value: 4, change: 50.0, changeType: 'positive', icon: '🎪' },
-      { id: 3, name: 'My Bookings', value: 45, change: 15.4, changeType: 'positive', icon: '🎫' },
-      { id: 4, name: 'My Attendees', value: 156, change: 8.3, changeType: 'positive', icon: '👥' }
-    ];
-
-  const getMockActivity = () => [
-    { id: '1', type: 'booking', title: 'New Booking', description: 'Sarah Johnson booked Summer Gala 2025', timestamp: '2025-08-10T14:30:00Z', status: 'confirmed' },
-    { id: '2', type: 'event', title: 'Event Created', description: 'Corporate Workshop was created', timestamp: '2025-08-10T12:15:00Z', status: 'draft' },
-    { id: '3', type: 'booking', title: 'New Booking', description: 'Michael Chen booked Tech Conference', timestamp: '2025-08-10T10:45:00Z', status: 'confirmed' }
-  ];
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diff = now.getTime() - time.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'booking': return '🎫';
-      case 'event': return '🎪';
-      case 'user': return '👤';
-      case 'media': return '📸';
-      default: return '📝';
-    }
-  };
-
-  if (loading) {
-    return <LoadingSpinner message="Loading dashboard..." />;
-  }
-
-  return (
-    <div className="p-6 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-2">
-            {isAdmin ? 'Admin' : 'Organizer'} Dashboard Overview
-          </h1>
-          <p className="text-gray-400">
-            Welcome back! Here's what's happening with your {isAdmin ? 'platform' : 'events'}.
-          </p>
-        </div>
-        <button 
-          onClick={() => fetchDashboardData()}
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </button>
-      </div>
-
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => (
-          <div
-            key={metric.id}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-2xl">{metric.icon}</div>
-              <div className={`flex items-center text-sm ${
-                metric.changeType === 'positive' ? 'text-green-400' : 'text-red-400'
-              }`}>
-                <span className="mr-1">
-                  {metric.changeType === 'positive' ? '↗️' : '↘️'}
-                </span>
-                {metric.change.toFixed(1)}%
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-white">
-                {metric.name.includes('Revenue') ? formatCurrency(metric.value) : metric.value.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-400">{metric.name}</div>
-            </div>
-            
-            <div className="mt-4">
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-1000 ${
-                    metric.changeType === 'positive' ? 'bg-green-400' : 'bg-red-400'
-                  }`}
-                  style={{ width: `${Math.min(metric.change * 2, 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">vs last month</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Data Cards Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Monthly Performance */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Monthly Performance</h3>
-          <div className="space-y-4">
-            {[
-              { month: 'March', revenue: 12500, events: 4, growth: 8 },
-              { month: 'April', revenue: 18200, events: 6, growth: 15 },
-              { month: 'May', revenue: 15800, events: 5, growth: -5 },
-              { month: 'June', revenue: 22100, events: 8, growth: 18 },
-              { month: 'July', revenue: 26400, events: 9, growth: 12 },
-              { month: 'August', revenue: 19300, events: 7, growth: -8 }
-            ].map((month) => (
-              <div key={month.month} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                  <span className="text-white font-medium">{month.month}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-white font-semibold">{formatCurrency(month.revenue)}</div>
-                  <div className="text-xs text-gray-400">{month.events} events</div>
-                </div>
-                <div className={`text-sm font-medium ${
-                  month.growth > 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {month.growth > 0 ? '+' : ''}{month.growth}%
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Recent Activity</h3>
-          <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <div className="text-2xl">{getActivityIcon(activity.type)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-white">{activity.title}</p>
-                    <span className="text-xs text-gray-400">{formatTimeAgo(activity.timestamp)}</span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1">{activity.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-6">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-center transition-colors group">
-            <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">🎪</div>
-            <div className="text-sm font-medium text-white">Create Event</div>
-          </button>
-          <button className="p-4 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded-lg text-center transition-colors group">
-            <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">📊</div>
-            <div className="text-sm font-medium text-white">View Analytics</div>
-          </button>
-          <button className="p-4 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-center transition-colors group">
-            <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">🎬</div>
-            <div className="text-sm font-medium text-white">Manage Media</div>
-          </button>
-          <button className="p-4 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded-lg text-center transition-colors group">
-            <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">👥</div>
-            <div className="text-sm font-medium text-white">User Management</div>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ================ EVENT MANAGEMENT COMPONENT ================
 const EventManagement: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { canManageOwnEvents, canManageAllEvents, isAdmin, userId } = useRoleAccess();
+  const { isAdmin, userId } = useRoleAccess();
   
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -428,6 +44,7 @@ const EventManagement: React.FC = () => {
       setLoading(true);
       
       if (!supabase) {
+        // Mock data for demonstration
         const mockEvents = [
           {
             id: 'mock-1',
@@ -443,37 +60,57 @@ const EventManagement: React.FC = () => {
             booked: 75,
             organizer_id: isAdmin ? 'admin-id' : userId,
             created_at: new Date().toISOString()
+          },
+          {
+            id: 'mock-2',
+            title: 'Elite Business Summit',
+            description: 'Exclusive networking event for industry leaders',
+            event_date: '2025-11-15',
+            event_time: '18:00',
+            venue: 'Monaco Bay Hotel',
+            capacity: 50,
+            price: 5000,
+            category: 'business',
+            status: 'draft',
+            booked: 0,
+            organizer_id: isAdmin ? 'admin-id' : userId,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'mock-3',
+            title: 'VIP Yacht Party',
+            description: 'Luxury yacht experience with premium entertainment',
+            event_date: '2025-10-20',
+            event_time: '19:00',
+            venue: 'Miami Marina',
+            capacity: 80,
+            price: 3500,
+            category: 'nightlife',
+            status: 'active',
+            booked: 65,
+            organizer_id: isAdmin ? 'admin-id' : userId,
+            created_at: new Date().toISOString()
           }
         ];
         
         const filteredEvents = isAdmin ? mockEvents : mockEvents.filter(e => e.organizer_id === userId);
         setEvents(filteredEvents);
+        setLoading(false);
         return;
       }
 
-      let query = supabase
-        .from('events')
-        .select(`
-          *,
-          bookings(id, total_amount),
-          profiles!organizer_id(full_name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (!isAdmin && userId) {
+      // Real Supabase query
+      let query = supabase.from('events').select('*').order('created_at', { ascending: false });
+      
+      if (!isAdmin) {
         query = query.eq('organizer_id', userId);
       }
-
+      
       const { data, error } = await query;
+      
       if (error) throw error;
-
-      const eventsWithBookings = data?.map(event => ({
-        ...event,
-        booked: event.bookings?.length || 0,
-        organizer_name: event.profiles?.full_name || 'Unknown'
-      })) || [];
-
-      setEvents(eventsWithBookings);
+      setEvents(data || []);
+      
     } catch (error) {
       console.error('Error fetching events:', error);
       setEvents([]);
@@ -484,227 +121,329 @@ const EventManagement: React.FC = () => {
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       if (!supabase) {
-        const mockEvent = {
-          id: 'mock-' + Date.now(),
+        // Mock creation
+        const newEventData = {
           ...newEvent,
-          capacity: parseInt(newEvent.capacity),
-          price: parseFloat(newEvent.price),
-          booked: 0,
+          id: `mock-${Date.now()}`,
           organizer_id: userId,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          booked: 0
         };
-
-        setEvents([mockEvent, ...events]);
-        setNewEvent({
-          title: '', description: '', event_date: '', event_time: '',
-          venue: '', capacity: '', price: '', category: 'nightlife', status: 'active'
-        });
+        setEvents(prev => [newEventData, ...prev]);
         setShowCreateForm(false);
-        alert('Event created successfully! (Mock mode)');
+        resetForm();
         return;
       }
 
       const { data, error } = await supabase
         .from('events')
-        .insert([{
-          ...newEvent,
-          capacity: parseInt(newEvent.capacity),
-          price: parseFloat(newEvent.price),
-          organizer_id: userId
-        }])
+        .insert([{ ...newEvent, organizer_id: userId }])
         .select()
         .single();
-
+      
       if (error) throw error;
-
-      setEvents([{ ...data, booked: 0 }, ...events]);
-      setNewEvent({
-        title: '', description: '', event_date: '', event_time: '',
-        venue: '', capacity: '', price: '', category: 'nightlife', status: 'active'
-      });
+      
+      setEvents(prev => [data, ...prev]);
       setShowCreateForm(false);
-      alert('Event created successfully!');
+      resetForm();
+      
     } catch (error) {
       console.error('Error creating event:', error);
-      alert('Error creating event. Please try again.');
     }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    
+    try {
+      if (!supabase) {
+        setEvents(prev => prev.filter(e => e.id !== eventId));
+        return;
+      }
+
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+      
+      if (error) throw error;
+      
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setNewEvent({
+      title: '',
+      description: '',
+      event_date: '',
+      event_time: '',
+      venue: '',
+      capacity: '',
+      price: '',
+      category: 'nightlife',
+      status: 'active'
+    });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'text-green-400 bg-green-400/10';
       case 'draft': return 'text-yellow-400 bg-yellow-400/10';
-      case 'ended': return 'text-gray-400 bg-gray-400/10';
+      case 'cancelled': return 'text-red-400 bg-red-400/10';
       default: return 'text-gray-400 bg-gray-400/10';
     }
   };
-
-  if (!canManageOwnEvents) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-8 text-center">
-          <div className="text-6xl mb-4">🚫</div>
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Access Restricted</h2>
-          <p className="text-gray-300">Event management is only available to administrators and organizers.</p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return <LoadingSpinner message="Loading events..." />;
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">
-            {isAdmin ? 'All Events Management' : 'My Events Management'}
-          </h2>
-          <p className="text-gray-400">
-            {isAdmin ? 'Manage all events in the system' : 'Create and manage your events'}
-          </p>
+          <h1 className="text-2xl font-bold text-white">Event Management</h1>
+          <p className="text-gray-400">Create and manage your luxury events</p>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors flex items-center"
+          className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          <Plus className="h-5 w-5 mr-2" />
+          <span>+</span>
           Create Event
         </button>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
+          <div className="text-2xl mb-2">🎪</div>
+          <div className="text-2xl font-bold text-white">{events.length}</div>
+          <div className="text-sm text-gray-400">Total Events</div>
+        </div>
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
+          <div className="text-2xl mb-2">✅</div>
+          <div className="text-2xl font-bold text-green-400">{events.filter(e => e.status === 'active').length}</div>
+          <div className="text-sm text-gray-400">Active Events</div>
+        </div>
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
+          <div className="text-2xl mb-2">📝</div>
+          <div className="text-2xl font-bold text-yellow-400">{events.filter(e => e.status === 'draft').length}</div>
+          <div className="text-sm text-gray-400">Draft Events</div>
+        </div>
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
+          <div className="text-2xl mb-2">👥</div>
+          <div className="text-2xl font-bold text-blue-400">{events.reduce((sum, e) => sum + (e.booked || 0), 0)}</div>
+          <div className="text-sm text-gray-400">Total Bookings</div>
+        </div>
+      </div>
+
+      {/* Events Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events.map((event) => (
+          <div key={event.id} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
+                {event.status}
+              </div>
+              <div className="flex gap-2">
+                <button className="text-gray-400 hover:text-white">
+                  <span>✏️</span>
+                </button>
+                <button 
+                  onClick={() => handleDeleteEvent(event.id)}
+                  className="text-gray-400 hover:text-red-400"
+                >
+                  <span>🗑️</span>
+                </button>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-white mb-2">{event.title}</h3>
+            <p className="text-gray-400 text-sm mb-4 line-clamp-2">{event.description}</p>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 text-gray-300">
+                <span>📅</span>
+                {event.event_date} at {event.event_time}
+              </div>
+              <div className="flex items-center gap-2 text-gray-300">
+                <span>📍</span>
+                {event.venue}
+              </div>
+              <div className="flex items-center gap-2 text-gray-300">
+                <span>👥</span>
+                {event.booked || 0} / {event.capacity} attendees
+              </div>
+              <div className="flex items-center gap-2 text-green-400">
+                <span>💰</span>
+                ${event.price}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Bookings</span>
+                <span>{((event.booked || 0) / event.capacity * 100).toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-yellow-400 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((event.booked || 0) / event.capacity * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Create Event Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Create New Event</h3>
+          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-white/10 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-white">Create New Event</h2>
               <button
                 onClick={() => setShowCreateForm(false)}
                 className="text-gray-400 hover:text-white"
               >
-                <X className="h-6 w-6" />
+                ✕
               </button>
             </div>
 
             <form onSubmit={handleCreateEvent} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white font-medium mb-2">Event Title</label>
-                  <input
-                    type="text"
-                    value={newEvent.title}
-                    onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Category</label>
-                  <select
-                    value={newEvent.category}
-                    onChange={(e) => setNewEvent({...newEvent, category: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                  >
-                    <option value="nightlife">Nightlife</option>
-                    <option value="festival">Festival</option>
-                    <option value="conference">Conference</option>
-                    <option value="party">Party</option>
-                    <option value="cultural">Cultural</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={newEvent.event_date}
-                    onChange={(e) => setNewEvent({...newEvent, event_date: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Time</label>
-                  <input
-                    type="time"
-                    value={newEvent.event_time}
-                    onChange={(e) => setNewEvent({...newEvent, event_time: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Venue</label>
-                  <input
-                    type="text"
-                    value={newEvent.venue}
-                    onChange={(e) => setNewEvent({...newEvent, venue: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Capacity</label>
-                  <input
-                    type="number"
-                    value={newEvent.capacity}
-                    onChange={(e) => setNewEvent({...newEvent, capacity: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Price (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newEvent.price}
-                    onChange={(e) => setNewEvent({...newEvent, price: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white font-medium mb-2">Status</label>
-                  <select
-                    value={newEvent.status}
-                    onChange={(e) => setNewEvent({...newEvent, status: e.target.value})}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                  >
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="ended">Ended</option>
-                  </select>
-                </div>
-              </div>
-              
               <div>
-                <label className="block text-white font-medium mb-2">Description</label>
-                <textarea
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
-                  rows={4}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-400"
-                  placeholder="Describe your event..."
+                <label className="block text-sm font-medium text-gray-300 mb-2">Event Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Enter event title"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                <textarea
+                  required
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent h-20"
+                  placeholder="Describe your event"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={newEvent.event_date}
+                    onChange={(e) => setNewEvent({...newEvent, event_date: e.target.value})}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Time</label>
+                  <input
+                    type="time"
+                    required
+                    value={newEvent.event_time}
+                    onChange={(e) => setNewEvent({...newEvent, event_time: e.target.value})}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Venue</label>
+                <input
+                  type="text"
+                  required
+                  value={newEvent.venue}
+                  onChange={(e) => setNewEvent({...newEvent, venue: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  placeholder="Event location"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Capacity</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={newEvent.capacity}
+                    onChange={(e) => setNewEvent({...newEvent, capacity: e.target.value})}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    placeholder="Max attendees"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Price ($)</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={newEvent.price}
+                    onChange={(e) => setNewEvent({...newEvent, price: e.target.value})}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    placeholder="Ticket price"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                <select
+                  value={newEvent.category}
+                  onChange={(e) => setNewEvent({...newEvent, category: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                >
+                  <option value="nightlife">Nightlife</option>
+                  <option value="festival">Festival</option>
+                  <option value="business">Business</option>
+                  <option value="cultural">Cultural</option>
+                  <option value="sports">Sports</option>
+                  <option value="food">Food & Dining</option>
+                  <option value="art">Art & Exhibition</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                <select
+                  value={newEvent.status}
+                  onChange={(e) => setNewEvent({...newEvent, status: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-6 py-2 text-gray-400 hover:text-white transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+                  className="flex-1 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-medium transition-colors"
                 >
                   Create Event
                 </button>
@@ -714,64 +453,12 @@ const EventManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Events List */}
-      {events.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <div key={event.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-yellow-400 transition-colors">
-              <div className="aspect-video bg-gradient-to-br from-yellow-400/20 to-blue-500/20 flex items-center justify-center">
-                <Calendar className="h-12 w-12 text-gray-400" />
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
-                    {event.status}
-                  </span>
-                </div>
-                
-                <div className="space-y-2 text-sm text-gray-400 mb-4">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    {event.event_date} at {event.event_time}
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {event.venue}
-                  </div>
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    {event.booked}/{event.capacity} attendees
-                  </div>
-                  <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    €{event.price}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex space-x-2">
-                    <button className="text-gray-400 hover:text-white" title="Edit Event">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="text-gray-400 hover:text-white" title="View Details">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {Math.round((event.booked / event.capacity) * 100)}% filled
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
+      {/* Empty State */}
+      {events.length === 0 && (
         <div className="text-center py-12">
-          <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <div className="text-6xl mb-4">🎪</div>
           <h3 className="text-xl font-semibold text-white mb-2">No Events Yet</h3>
-          <p className="text-gray-400 mb-6">Create your first event to get started</p>
+          <p className="text-gray-400 mb-6">Create your first luxury event to get started</p>
           <button
             onClick={() => setShowCreateForm(true)}
             className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
@@ -863,7 +550,7 @@ const AdminDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':
-        return <DashboardOverview />;
+        return <DashboardOverview setActiveSection={setActiveSection} />;
       case 'events':
         return <EventManagement />;
       case 'analytics':
@@ -873,6 +560,14 @@ const AdminDashboard: React.FC = () => {
               <div className="text-4xl mb-4">📈</div>
               <h2 className="text-xl font-bold text-white mb-2">Advanced Analytics</h2>
               <p className="text-green-300">Analytics dashboard coming soon...</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -883,6 +578,14 @@ const AdminDashboard: React.FC = () => {
               <div className="text-4xl mb-4">🎬</div>
               <h2 className="text-xl font-bold text-white mb-2">Media Management</h2>
               <p className="text-purple-300">Media management coming soon...</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -893,6 +596,14 @@ const AdminDashboard: React.FC = () => {
               <div className="text-4xl mb-4">👥</div>
               <h2 className="text-xl font-bold text-white mb-2">User Management</h2>
               <p className="text-orange-300">User management coming soon...</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -901,16 +612,32 @@ const AdminDashboard: React.FC = () => {
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
               <p className="text-red-300">This section is only available to administrators.</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         );
       case 'settings':
         return isAdmin ? (
           <div className="p-6">
-            <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-8 text-center">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">⚙️</div>
               <h2 className="text-xl font-bold text-white mb-2">System Settings</h2>
-              <p className="text-gray-300">Settings coming soon...</p>
+              <p className="text-blue-300">Settings panel coming soon...</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -919,92 +646,72 @@ const AdminDashboard: React.FC = () => {
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
               <p className="text-red-300">This section is only available to administrators.</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Back to Overview
+                </button>
+              </div>
             </div>
           </div>
         );
       default:
-        return <DashboardOverview />;
+        return <DashboardOverview setActiveSection={setActiveSection} />;
     }
-  };
-
-  const userInfo = {
-    name: profile?.full_name || user?.email?.split('@')[0] || 'User',
-    email: user?.email || 'user@example.com',
-    role: profile?.role || 'member',
-    avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'User')}&background=D4AF37&color=000`
   };
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Mobile Sidebar Overlay */}
+      {/* Sidebar Overlay (Mobile) */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 border-r border-gray-700 transform transition-transform lg:translate-x-0 lg:static lg:inset-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         {/* Logo */}
-        <div className="h-16 px-6 border-b border-gray-700 flex items-center">
-          <Link to="/" className="flex items-center space-x-3">
-            <img 
-              src="/logo.png" 
-              alt="Boujee Events" 
-              className="h-8 w-8"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const nextElement = target.nextElementSibling as HTMLElement;
-                if (nextElement) nextElement.style.display = 'block';
-              }}
-            />
-            <div className="text-xl font-bold text-yellow-400 hidden">be</div>
-            <span className="text-lg font-bold text-white">Boujee Events</span>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700">
+          <Link to="/" className="text-xl font-bold text-yellow-400">
+            Boujee Events
           </Link>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="text-gray-400 hover:text-white lg:hidden"
+          >
+            ✕
+          </button>
         </div>
 
         {/* User Info */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center">
-            <img
-              src={userInfo.avatar}
-              alt={userInfo.name}
-              className="w-10 h-10 rounded-full"
-            />
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium text-white">{userInfo.name}</p>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-gray-400 capitalize">{userInfo.role}</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  isAdmin 
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                }`}>
-                  {isAdmin ? '👑' : '🎯'}
-                </span>
-              </div>
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+              <span className="text-black font-bold">{profile.full_name?.[0]?.toUpperCase() || 'U'}</span>
+            </div>
+            <div>
+              <p className="text-white font-medium">{profile.full_name || 'User'}</p>
+              <p className="text-gray-400 text-sm capitalize">{profile.role || 'Member'}</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 p-4">
           {getNavigationItems().map((item) => {
-            const isActive = activeSection === item.section;
             return (
               <button
-                key={item.name}
+                key={item.section}
                 onClick={() => {
                   setActiveSection(item.section);
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                  isActive
+                className={`w-full flex items-center px-4 py-3 mb-2 rounded-lg transition-colors ${
+                  activeSection === item.section
                     ? 'bg-yellow-400 text-black font-semibold'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
@@ -1022,14 +729,14 @@ const AdminDashboard: React.FC = () => {
             to="/"
             className="w-full flex items-center px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <Home className="h-4 w-4 mr-3" />
+            <span className="mr-3">🏠</span>
             Go to Homepage
           </Link>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center px-4 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
           >
-            <LogOut className="h-4 w-4 mr-3" />
+            <span className="mr-3">🚪</span>
             Sign Out
           </button>
         </div>
@@ -1045,68 +752,49 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden text-gray-400 hover:text-white mr-4"
               >
-                <Menu className="h-6 w-6" />
+                ☰
               </button>
               <h1 className="text-xl font-semibold text-white">
                 {getNavigationItems().find(item => item.section === activeSection)?.name || 'Dashboard'}
               </h1>
             </div>
 
-            <div className="flex items-center space-x-4">
-              {/* Quick Home Button */}
-              <Link
-                to="/"
-                className="hidden sm:flex items-center px-3 py-2 text-gray-400 hover:text-white transition-colors"
-                title="Go to Homepage"
-              >
-                <Home className="h-5 w-5 mr-2" />
-                <span className="text-sm">Home</span>
-              </Link>
-
-              {/* User Menu */}
+            {/* Header Actions */}
+            <div className="flex items-center gap-4">
+              <button className="text-gray-400 hover:text-white">
+                <span className="text-xl">🔔</span>
+              </button>
+              
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                  className="flex items-center gap-2 text-gray-300 hover:text-white"
                 >
-                  <img
-                    src={userInfo.avatar}
-                    alt={userInfo.name}
-                    className="w-8 h-8 rounded-full border-2 border-gray-600"
-                  />
-                  <span className="hidden sm:block font-medium">{userInfo.name}</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
+                    <span className="text-black font-bold text-sm">{profile.full_name?.[0]?.toUpperCase() || 'U'}</span>
+                  </div>
+                  <span className="hidden md:block">{profile.full_name || 'User'}</span>
                 </button>
 
-                {/* Dropdown Menu */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2 z-50">
-                    <div className="px-4 py-3 border-b border-gray-700">
-                      <p className="text-sm text-gray-400">Signed in as</p>
-                      <p className="text-sm font-medium text-white truncate">{userInfo.email}</p>
-                      <p className="text-xs text-yellow-400 capitalize mt-1">{userInfo.role}</p>
-                    </div>
-                    
-                    <Link
-                      to="/"
-                      className="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <Home className="h-4 w-4 mr-3" />
-                      Go to Homepage
-                    </Link>
-                    
-                    <div className="border-t border-gray-700 mt-2 pt-2">
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                    <div className="p-2">
+                      <Link
+                        to="/profile"
+                        className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <span>👤</span>
+                        Profile
+                      </Link>
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
                           handleSignOut();
                         }}
-                        className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/20 rounded"
                       >
-                        <LogOut className="h-4 w-4 mr-3" />
+                        <span>🚪</span>
                         Sign Out
                       </button>
                     </div>
@@ -1117,22 +805,10 @@ const AdminDashboard: React.FC = () => {
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900">
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-auto">
           {renderContent()}
         </main>
-
-        {/* Footer */}
-        <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <span>Boujee Events {isAdmin ? 'Admin' : 'Organizer'} Dashboard | Status: Connected</span>
-            </div>
-            <div>
-              User: {userInfo.name} | {new Date().toLocaleString()}
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   );
