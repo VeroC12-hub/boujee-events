@@ -1,4 +1,4 @@
-// src/App.tsx - Simple working version
+// src/App.tsx - Fixed version
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -6,24 +6,14 @@ import { AuthProvider } from './contexts/AuthContext';
 // Import only the pages that exist
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage'; // ✅ Changed from RegisterPage to SignupPage
 import AdminDashboard from './pages/AdminDashboard';
 
-// Simple placeholder components for pages that don't exist yet
-const RegisterPage: React.FC = () => (
-  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center max-w-md w-full mx-4">
-      <h1 className="text-2xl font-bold text-white mb-4">Register</h1>
-      <p className="text-gray-400 mb-6">Registration page coming soon...</p>
-      <button
-        onClick={() => window.location.href = '/login'}
-        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-      >
-        Go to Login
-      </button>
-    </div>
-  </div>
-);
+// If you have other existing pages, import them here
+// import EventsPage from './pages/EventsPage';
+// import ProfilePage from './pages/ProfilePage';
 
+// Simple placeholder components for pages that don't exist yet
 const EventsPage: React.FC = () => (
   <div className="min-h-screen bg-gray-900 flex items-center justify-center">
     <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center max-w-md w-full mx-4">
@@ -99,7 +89,8 @@ function App() {
             
             {/* Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register" element={<SignupPage />} /> {/* ✅ Use SignupPage */}
+            <Route path="/signup" element={<SignupPage />} /> {/* ✅ Also support /signup route */}
             
             {/* Dashboard Routes */}
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
