@@ -1,19 +1,10 @@
-// src/lib/supabase.ts - Complete Supabase configuration
+// src/lib/supabase.ts - Complete Supabase configuration with mock auth
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
 // Environment variables with validation
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Validate environment variables
-if (!supabaseUrl) {
-  console.error('❌ Missing VITE_SUPABASE_URL environment variable');
-}
-
-if (!supabaseAnonKey) {
-  console.error('❌ Missing VITE_SUPABASE_ANON_KEY environment variable');
-}
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = (): boolean => {
@@ -77,43 +68,68 @@ export interface Event {
   updated_at: string;
 }
 
-export interface Booking {
-  id: string;
-  event_id: string;
-  user_id: string;
-  booking_number: string;
-  quantity: number;
-  total_amount: number;
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
-  payment_method?: string;
-  payment_intent_id?: string;
-  booking_status: 'confirmed' | 'cancelled' | 'pending';
-  special_requests?: string;
-  created_at: string;
-  updated_at: string;
-}
+// === MOCK DATA FOR DEVELOPMENT ===
+export const mockProfiles: UserProfile[] = [
+  {
+    id: 'admin-1',
+    email: 'admin@test.com',
+    full_name: 'System Administrator',
+    role: 'admin',
+    status: 'approved',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'organizer-1',
+    email: 'organizer@test.com',
+    full_name: 'Event Organizer',
+    role: 'organizer',
+    status: 'approved',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'member-1',
+    email: 'member@test.com',
+    full_name: 'Premium Member',
+    role: 'member',
+    status: 'approved',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
 
-export interface MediaFile {
-  id: string;
-  name: string;
-  original_name: string;
-  mime_type: string;
-  file_size: number;
-  google_drive_file_id: string;
-  google_drive_folder_id?: string;
-  thumbnail_url?: string;
-  preview_url?: string;
-  download_url?: string;
-  web_view_link?: string;
-  file_type: 'image' | 'video' | 'document' | 'other';
-  uploaded_by: string;
-  tags?: string[];
-  description?: string;
-  is_public: boolean;
-  is_archived: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Mock authentication for development
+export const mockAuth = {
+  signIn: async (email: string, password: string) => {
+    const profile = mockProfiles.find(p => p.email === email);
+    if (profile && password.includes('Test')) {
+      return {
+        success: true,
+        data: {
+          user: {
+            id: profile.id,
+            email: profile.email,
+            user_metadata: { full_name: profile.full_name }
+          },
+          session: { access_token: 'mock-token' }
+        }
+      };
+    }
+    return { success: false, error: 'Invalid credentials' };
+  },
+  
+  getCurrentUser: async () => {
+    const storedUser = localStorage.getItem('mock-user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  },
+  
+  signOut: async () => {
+    localStorage.removeItem('mock-user');
+    localStorage.removeItem('mock-profile');
+    return { success: true };
+  }
+};
 
 // === HELPER FUNCTIONS ===
 
@@ -134,19 +150,15 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
       .limit(1);
 
     if (error) {
-      console.error('Supabase connection test failed:', error);
       return {
         success: false,
         error: `Database connection failed: ${error.message}`
       };
     }
 
-    return {
-      success: true
-    };
+    return { success: true };
 
   } catch (error: any) {
-    console.error('Supabase connection test error:', error);
     return {
       success: false,
       error: `Database connection failed: ${error.message}`
@@ -155,7 +167,7 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 }
 
 // Get current user profile
-export async function getCurrentUserProfile(): Promise<UserProfile | null> {
+export async function getUserProfile(): Promise<UserProfile | null> {
   try {
     if (!supabase) return null;
 
@@ -175,77 +187,150 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
 
     return data;
   } catch (error) {
-    console.error('Error in getCurrentUserProfile:', error);
+    console.error('Error in getUserProfile:', error);
     return null;
   }
 }
 
-// Create or update user profile
-export async function upsertUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
+// Create user profile
+export async function createUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
   try {
     if (!supabase) return null;
 
     const { data, error } = await supabase
       .from('profiles')
-      .upsert(profile)
+      .insert(profile)
       .select()
       .single();
 
     if (error) {
-      console.error('Error upserting user profile:', error);
+      console.error('Error creating user profile:', error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in upsertUserProfile:', error);
+    console.error('Error in createUserProfile:', error);
     return null;
   }
 }
 
 // Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
-  if (!supabase) {
-    throw new Error('Supabase not configured');
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) throw error;
-  return data;
 }
 
 // Sign up with email and password
-export async function signUpWithEmail(email: string, password: string, full_name?: string) {
-  if (!supabase) {
-    throw new Error('Supabase not configured');
-  }
+export async function signUpWithEmail(email: string, password: string, options?: { full_name?: string }) {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase not configured' };
+    }
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: full_name || email,
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: options?.full_name || email.split('@')[0],
+        },
       },
-    },
-  });
+    });
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
 // Sign out
 export async function signOut() {
-  if (!supabase) {
-    throw new Error('Supabase not configured');
-  }
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase not configured' };
+    }
 
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Sign in with Google
+export async function signInWithGoogle() {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Reset password
+export async function resetPassword(email: string) {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
 // Get session
