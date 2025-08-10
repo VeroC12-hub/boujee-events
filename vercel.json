@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "framework": "vite",
-  "buildCommand": "npm run build",
+  "framework": null,
+  "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include=dev",
   "devCommand": "npm run dev",
   "rewrites": [
     {
@@ -36,10 +36,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
   }
 }
