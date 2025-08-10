@@ -1,6 +1,6 @@
-// src/pages/AdminDashboard.tsx - Complete implementation (No charts - Deploy ready)
+// src/pages/AdminDashboard.tsx - Complete implementation
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
@@ -8,10 +8,11 @@ import {
   Play, Image, FileVideo, Youtube, Settings, Bell,
   BarChart3, Eye, MapPin, MessageSquare, Mail, Database,
   ArrowLeft, RefreshCw, Download, Share2, Edit, Trash2,
-  CheckCircle, AlertCircle, Clock, Star, Search, Filter
+  CheckCircle, AlertCircle, Clock, Star, Search, Filter,
+  Home, LogOut, User, Menu, X
 } from 'lucide-react';
 
-// ================ ENHANCED ROLE-BASED ACCESS CONTROL ================
+// ================ ROLE-BASED ACCESS CONTROL ================
 const useRoleAccess = () => {
   const { profile, user } = useAuth();
   
@@ -26,29 +27,22 @@ const useRoleAccess = () => {
     userRole: profile?.role,
     userId: user?.id,
     
-    // Granular permissions
     canViewAnalytics: isAdmin || isOrganizer,
     canManageAllEvents: isAdmin,
     canManageOwnEvents: isAdmin || isOrganizer,
     canDeletePaidEvents: isAdmin,
     canManageAllUsers: isAdmin,
-    canViewEventAttendees: isAdmin || isOrganizer,
-    canManageHomepage: isAdmin || isOrganizer,
     canAccessDashboard: isAdmin || isOrganizer,
     canManageMedia: isAdmin || isOrganizer,
     canManageSystem: isAdmin,
     
-    hasElevatedAccess: isAdmin || isOrganizer,
-    getAccessLevel: () => isAdmin ? 'full' : isOrganizer ? 'limited' : 'none'
+    hasElevatedAccess: isAdmin || isOrganizer
   };
 };
 
 // ================ LOADING SPINNER ================
-const LoadingSpinner: React.FC<{ fullScreen?: boolean; message?: string }> = ({ 
-  fullScreen = false, 
-  message = 'Loading...' 
-}) => (
-  <div className={fullScreen ? 'min-h-screen flex items-center justify-center bg-gray-900' : 'flex items-center justify-center p-8'}>
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
+  <div className="flex items-center justify-center p-8">
     <div className="text-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
       <p className="text-gray-400">{message}</p>
@@ -56,7 +50,7 @@ const LoadingSpinner: React.FC<{ fullScreen?: boolean; message?: string }> = ({
   </div>
 );
 
-// ================ DASHBOARD OVERVIEW COMPONENT (Chart-Free) ================
+// ================ DASHBOARD OVERVIEW COMPONENT ================
 const DashboardOverview: React.FC = () => {
   const { user, profile } = useAuth();
   const { isAdmin, isOrganizer, userId } = useRoleAccess();
@@ -64,7 +58,6 @@ const DashboardOverview: React.FC = () => {
   const [metrics, setMetrics] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -73,11 +66,8 @@ const DashboardOverview: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Check if Supabase is available
+      
       if (!supabase) {
-        console.log('📊 Using mock data - Supabase not configured');
         setMetrics(getMockMetrics());
         setRecentActivity(getMockActivity());
         setLoading(false);
@@ -91,10 +81,8 @@ const DashboardOverview: React.FC = () => {
 
       setMetrics(metricsData);
       setRecentActivity(activityData);
-
     } catch (err) {
-      console.error('❌ Dashboard data fetch error:', err);
-      setError('Failed to load dashboard data');
+      console.error('Dashboard data fetch error:', err);
       setMetrics(getMockMetrics());
       setRecentActivity(getMockActivity());
     } finally {
@@ -107,7 +95,6 @@ const DashboardOverview: React.FC = () => {
       let eventsQuery = supabase.from('events').select('*', { count: 'exact' });
       let bookingsQuery = supabase.from('bookings').select('total_amount, created_at');
       
-      // Organizers see only their data
       if (isOrganizer && userId) {
         eventsQuery = eventsQuery.eq('organizer_id', userId);
         
@@ -119,8 +106,6 @@ const DashboardOverview: React.FC = () => {
         const eventIds = organizerEvents?.map(e => e.id) || [];
         if (eventIds.length > 0) {
           bookingsQuery = bookingsQuery.in('event_id', eventIds);
-        } else {
-          bookingsQuery = bookingsQuery.eq('event_id', 'no-events');
         }
       }
 
@@ -133,16 +118,11 @@ const DashboardOverview: React.FC = () => {
       const totalRevenue = bookingsResult.data?.reduce((sum, booking) => 
         sum + (booking.total_amount || 0), 0) || 0;
 
-      const revenue = totalRevenue;
-      const events = eventsResult.count || 0;
-      const bookings = bookingsResult.data?.length || 0;
-      const users = isAdmin ? (usersResult.count || 0) : bookings;
-
       return [
         {
           id: 1,
           name: isAdmin ? 'Total Revenue' : 'My Revenue',
-          value: revenue,
+          value: totalRevenue,
           change: 15.3,
           changeType: 'positive',
           icon: '💰'
@@ -150,7 +130,7 @@ const DashboardOverview: React.FC = () => {
         {
           id: 2,
           name: isAdmin ? 'Total Events' : 'My Events',
-          value: events,
+          value: eventsResult.count || 0,
           change: 12.3,
           changeType: 'positive',
           icon: '🎪'
@@ -158,7 +138,7 @@ const DashboardOverview: React.FC = () => {
         {
           id: 3,
           name: isAdmin ? 'Total Bookings' : 'My Bookings',
-          value: bookings,
+          value: bookingsResult.data?.length || 0,
           change: 8.7,
           changeType: 'positive',
           icon: '🎫'
@@ -166,14 +146,13 @@ const DashboardOverview: React.FC = () => {
         {
           id: 4,
           name: isAdmin ? 'Total Users' : 'My Attendees',
-          value: users,
+          value: isAdmin ? (usersResult.count || 0) : (bookingsResult.data?.length || 0),
           change: 2.1,
           changeType: 'positive',
           icon: '👥'
         }
       ];
     } catch (error) {
-      console.warn('📊 Metrics fetch failed, using mock data:', error);
       return getMockMetrics();
     }
   };
@@ -182,7 +161,6 @@ const DashboardOverview: React.FC = () => {
     try {
       const activities: any[] = [];
 
-      // Fetch recent bookings
       let bookingsQuery = supabase
         .from('bookings')
         .select(`
@@ -207,7 +185,6 @@ const DashboardOverview: React.FC = () => {
 
       const { data: recentBookings } = await bookingsQuery;
 
-      // Convert to activity format
       recentBookings?.forEach(booking => {
         activities.push({
           id: `booking-${booking.id}`,
@@ -220,14 +197,11 @@ const DashboardOverview: React.FC = () => {
       });
 
       return activities.slice(0, 8);
-
     } catch (error) {
-      console.warn('📊 Activity fetch failed, using mock data:', error);
       return getMockActivity();
     }
   };
 
-  // Mock data functions
   const getMockMetrics = () => 
     isAdmin ? [
       { id: 1, name: 'Total Revenue', value: 45250, change: 15.3, changeType: 'positive', icon: '💰' },
@@ -244,9 +218,7 @@ const DashboardOverview: React.FC = () => {
   const getMockActivity = () => [
     { id: '1', type: 'booking', title: 'New Booking', description: 'Sarah Johnson booked Summer Gala 2025', timestamp: '2025-08-10T14:30:00Z', status: 'confirmed' },
     { id: '2', type: 'event', title: 'Event Created', description: 'Corporate Workshop was created', timestamp: '2025-08-10T12:15:00Z', status: 'draft' },
-    { id: '3', type: 'booking', title: 'New Booking', description: 'Michael Chen booked Tech Conference', timestamp: '2025-08-10T10:45:00Z', status: 'confirmed' },
-    { id: '4', type: 'user', title: 'New User', description: 'Alex Rivera joined the platform', timestamp: '2025-08-10T09:20:00Z' },
-    { id: '5', type: 'media', title: 'Media Upload', description: '15 photos uploaded to Summer Gala', timestamp: '2025-08-09T16:30:00Z' }
+    { id: '3', type: 'booking', title: 'New Booking', description: 'Michael Chen booked Tech Conference', timestamp: '2025-08-10T10:45:00Z', status: 'confirmed' }
   ];
 
   const formatCurrency = (amount: number) => {
@@ -281,61 +253,8 @@ const DashboardOverview: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status?: string) => {
-    if (!status) return null;
-    
-    const statusConfig = {
-      confirmed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Confirmed' },
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-      cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' },
-      active: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Active' },
-      draft: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Draft' },
-      ended: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Ended' }
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig];
-    if (!config) return null;
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        {config.label}
-      </span>
-    );
-  };
-
   if (loading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white/5 rounded-xl p-6 h-32" />
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white/5 rounded-xl h-80" />
-            <div className="bg-white/5 rounded-xl h-80" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !metrics.length) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
-          <div className="text-red-400 text-lg mb-2">⚠️ Dashboard Error</div>
-          <p className="text-red-300 mb-4">{error}</p>
-          <button
-            onClick={() => fetchDashboardData()}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading dashboard..." />;
   }
 
   return (
@@ -350,17 +269,13 @@ const DashboardOverview: React.FC = () => {
             Welcome back! Here's what's happening with your {isAdmin ? 'platform' : 'events'}.
           </p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-medium transition-colors">
-            📊 Export Data
-          </button>
-          <button 
-            onClick={() => fetchDashboardData()}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-          >
-            🔄 Refresh
-          </button>
-        </div>
+        <button 
+          onClick={() => fetchDashboardData()}
+          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
       </div>
 
       {/* Metrics Cards */}
@@ -388,7 +303,6 @@ const DashboardOverview: React.FC = () => {
               <div className="text-sm text-gray-400">{metric.name}</div>
             </div>
             
-            {/* Simple progress bar instead of chart */}
             <div className="mt-4">
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
@@ -404,9 +318,9 @@ const DashboardOverview: React.FC = () => {
         ))}
       </div>
 
-      {/* Data Cards Row - Simple version without charts */}
+      {/* Data Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Monthly Stats */}
+        {/* Monthly Performance */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-6">Monthly Performance</h3>
           <div className="space-y-4">
@@ -437,37 +351,8 @@ const DashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Event Status */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Event Status Distribution</h3>
-          <div className="space-y-4">
-            {[
-              { name: 'Active', value: 8, color: 'bg-green-400', percentage: 47 },
-              { name: 'Draft', value: 3, color: 'bg-yellow-400', percentage: 18 },
-              { name: 'Ended', value: 5, color: 'bg-gray-400', percentage: 29 },
-              { name: 'Cancelled', value: 1, color: 'bg-red-400', percentage: 6 }
-            ].map((status) => (
-              <div key={status.name} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-white">{status.name}</span>
-                  <span className="text-gray-400">{status.value} events ({status.percentage}%)</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${status.color} transition-all duration-1000`}
-                    style={{ width: `${status.percentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-6">Recent Activity</h3>
           <div className="space-y-4">
             {recentActivity.map((activity) => (
@@ -479,41 +364,9 @@ const DashboardOverview: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-white">{activity.title}</p>
-                    <div className="flex items-center gap-2">
-                      {activity.status && getStatusBadge(activity.status)}
-                      <span className="text-xs text-gray-400">{formatTimeAgo(activity.timestamp)}</span>
-                    </div>
+                    <span className="text-xs text-gray-400">{formatTimeAgo(activity.timestamp)}</span>
                   </div>
                   <p className="text-sm text-gray-400 mt-1">{activity.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top Events */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Top Events</h3>
-          <div className="space-y-4">
-            {[
-              { name: 'Summer Gala 2025', bookings: 45, revenue: 12500 },
-              { name: 'Tech Conference', bookings: 38, revenue: 9800 },
-              { name: 'Corporate Workshop', bookings: 25, revenue: 7200 },
-              { name: 'Art Exhibition', bookings: 32, revenue: 6400 },
-              { name: 'Music Festival', bookings: 28, revenue: 5900 }
-            ].map((event, index) => (
-              <div key={event.name} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-yellow-400 text-black rounded-full flex items-center justify-center text-sm font-bold">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white truncate">{event.name}</p>
-                    <p className="text-xs text-gray-400">{event.bookings} bookings</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-green-400">{formatCurrency(event.revenue)}</p>
                 </div>
               </div>
             ))}
@@ -547,12 +400,12 @@ const DashboardOverview: React.FC = () => {
   );
 };
 
-// ================ EVENT MANAGEMENT COMPONENT (Your existing logic) ================
-const ProtectedEventManagement: React.FC = () => {
+// ================ EVENT MANAGEMENT COMPONENT ================
+const EventManagement: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { canManageOwnEvents, canManageAllEvents, canDeletePaidEvents, isAdmin, userId } = useRoleAccess();
+  const { canManageOwnEvents, canManageAllEvents, isAdmin, userId } = useRoleAccess();
   
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -566,25 +419,15 @@ const ProtectedEventManagement: React.FC = () => {
     status: 'active'
   });
 
-  // Access control
-  if (!canManageOwnEvents) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-500/10 backdrop-blur-sm rounded-2xl p-8 border border-red-500/20 text-center">
-          <div className="text-6xl mb-4">🚫</div>
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Event Management Access Restricted</h2>
-          <p className="text-gray-300">Event management is only available to administrators and event organizers.</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchEvents();
+  }, [isAdmin, userId]);
 
   const fetchEvents = async () => {
     try {
       setLoading(true);
       
       if (!supabase) {
-        // Mock events for development
         const mockEvents = [
           {
             id: 'mock-1',
@@ -599,34 +442,15 @@ const ProtectedEventManagement: React.FC = () => {
             status: 'active',
             booked: 75,
             organizer_id: isAdmin ? 'admin-id' : userId,
-            created_at: new Date().toISOString(),
-            has_paid_bookings: true
-          },
-          {
-            id: 'mock-2',
-            title: 'VIP Luxury Gala',
-            description: 'An exclusive black-tie event in Monaco',
-            event_date: '2025-09-15',
-            event_time: '19:30',
-            venue: 'Monaco Casino',
-            capacity: 50,
-            price: 5000,
-            category: 'gala',
-            status: 'active',
-            booked: 30,
-            organizer_id: isAdmin ? 'different-organizer' : userId,
-            created_at: new Date().toISOString(),
-            has_paid_bookings: false
+            created_at: new Date().toISOString()
           }
         ];
         
-        // Filter for organizers
         const filteredEvents = isAdmin ? mockEvents : mockEvents.filter(e => e.organizer_id === userId);
         setEvents(filteredEvents);
         return;
       }
 
-      // Role-based event query
       let query = supabase
         .from('events')
         .select(`
@@ -636,19 +460,16 @@ const ProtectedEventManagement: React.FC = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Organizers see only their events
       if (!isAdmin && userId) {
         query = query.eq('organizer_id', userId);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       const eventsWithBookings = data?.map(event => ({
         ...event,
         booked: event.bookings?.length || 0,
-        has_paid_bookings: event.bookings?.some((b: any) => b.total_amount > 0) || false,
         organizer_name: event.profiles?.full_name || 'Unknown'
       })) || [];
 
@@ -661,16 +482,11 @@ const ProtectedEventManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [isAdmin, userId]);
-
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (!supabase) {
-        // Mock event creation
         const mockEvent = {
           id: 'mock-' + Date.now(),
           ...newEvent,
@@ -678,7 +494,6 @@ const ProtectedEventManagement: React.FC = () => {
           price: parseFloat(newEvent.price),
           booked: 0,
           organizer_id: userId,
-          has_paid_bookings: false,
           created_at: new Date().toISOString()
         };
 
@@ -705,7 +520,7 @@ const ProtectedEventManagement: React.FC = () => {
 
       if (error) throw error;
 
-      setEvents([{ ...data, booked: 0, has_paid_bookings: false }, ...events]);
+      setEvents([{ ...data, booked: 0 }, ...events]);
       setNewEvent({
         title: '', description: '', event_date: '', event_time: '',
         venue: '', capacity: '', price: '', category: 'nightlife', status: 'active'
@@ -718,40 +533,6 @@ const ProtectedEventManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteEvent = async (eventId: string, hasPaidBookings: boolean, eventTitle: string) => {
-    if (hasPaidBookings && !canDeletePaidEvents) {
-      alert('Cannot delete events with paid bookings. Please contact an administrator.');
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to delete "${eventTitle}"?${hasPaidBookings ? ' This event has paid bookings!' : ''}`)) return;
-
-    try {
-      if (!supabase) {
-        setEvents(events.filter(event => event.id !== eventId));
-        alert('Event deleted successfully! (Mock mode)');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-
-      if (error) throw error;
-
-      setEvents(events.filter(event => event.id !== eventId));
-      alert('Event deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      alert('Error deleting event. Please try again.');
-    }
-  };
-
-  const canModifyEvent = (event: any) => {
-    return isAdmin || event.organizer_id === userId;
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'text-green-400 bg-green-400/10';
@@ -760,6 +541,18 @@ const ProtectedEventManagement: React.FC = () => {
       default: return 'text-gray-400 bg-gray-400/10';
     }
   };
+
+  if (!canManageOwnEvents) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-2xl font-bold text-red-400 mb-4">Access Restricted</h2>
+          <p className="text-gray-300">Event management is only available to administrators and organizers.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <LoadingSpinner message="Loading events..." />;
@@ -795,7 +588,7 @@ const ProtectedEventManagement: React.FC = () => {
                 onClick={() => setShowCreateForm(false)}
                 className="text-gray-400 hover:text-white"
               >
-                ✕
+                <X className="h-6 w-6" />
               </button>
             </div>
 
@@ -933,24 +726,10 @@ const ProtectedEventManagement: React.FC = () => {
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
-                      {event.status}
-                    </span>
-                    {event.has_paid_bookings && (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                        💰 Paid
-                      </span>
-                    )}
-                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
+                    {event.status}
+                  </span>
                 </div>
-                
-                {/* Show organizer name for admins */}
-                {isAdmin && event.organizer_name && (
-                  <div className="text-xs text-blue-400 mb-2">
-                    Organizer: {event.organizer_name}
-                  </div>
-                )}
                 
                 <div className="space-y-2 text-sm text-gray-400 mb-4">
                   <div className="flex items-center">
@@ -973,30 +752,12 @@ const ProtectedEventManagement: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="flex space-x-2">
-                    {canModifyEvent(event) && (
-                      <>
-                        <button className="text-gray-400 hover:text-white" title="Edit Event">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button className="text-gray-400 hover:text-white" title="View Details">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteEvent(event.id, event.has_paid_bookings, event.title)}
-                          className={`text-gray-400 hover:text-red-400 ${
-                            event.has_paid_bookings && !canDeletePaidEvents ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                          title={
-                            event.has_paid_bookings && !canDeletePaidEvents 
-                              ? 'Cannot delete events with paid bookings' 
-                              : 'Delete Event'
-                          }
-                          disabled={event.has_paid_bookings && !canDeletePaidEvents}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
+                    <button className="text-gray-400 hover:text-white" title="Edit Event">
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button className="text-gray-400 hover:text-white" title="View Details">
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </div>
                   <div className="text-xs text-gray-500">
                     {Math.round((event.booked / event.capacity) * 100)}% filled
@@ -1009,12 +770,8 @@ const ProtectedEventManagement: React.FC = () => {
       ) : (
         <div className="text-center py-12">
           <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">
-            {isAdmin ? 'No Events in System' : 'No Events Created Yet'}
-          </h3>
-          <p className="text-gray-400 mb-6">
-            {isAdmin ? 'No events have been created in the system' : 'Create your first event to get started'}
-          </p>
+          <h3 className="text-xl font-semibold text-white mb-2">No Events Yet</h3>
+          <p className="text-gray-400 mb-6">Create your first event to get started</p>
           <button
             onClick={() => setShowCreateForm(true)}
             className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
@@ -1027,48 +784,23 @@ const ProtectedEventManagement: React.FC = () => {
   );
 };
 
-// ================ BOUJEE LOGO COMPONENT ================
-const BoujeeLogo: React.FC<{ onClick?: () => void; className?: string }> = ({ 
-  onClick, 
-  className = "" 
-}) => (
-  <div 
-    className={`flex items-center cursor-pointer transition-all duration-200 hover:scale-105 ${className}`}
-    onClick={onClick}
-  >
-    <img 
-      src="/logo.png"
-      alt="Boujee Events" 
-      className="h-8 w-8 mr-3 transition-all duration-200 hover:drop-shadow-lg"
-      onError={(e) => {
-        const target = e.target as HTMLImageElement;
-        target.style.display = 'none';
-        const nextElement = target.nextElementSibling as HTMLElement;
-        if (nextElement) nextElement.style.display = 'block';
-      }}
-    />
-    <div className="text-2xl font-bold text-yellow-400 hover:text-yellow-300 transition-colors hidden">
-      be
-    </div>
-    <div className="ml-3">
-      <h1 className="text-lg font-semibold text-white">Boujee Events</h1>
-      <p className="text-xs text-gray-400">Premium Events Platform</p>
-    </div>
-  </div>
-);
-
-// ================ MAIN INTEGRATED DASHBOARD ================
-const IntegratedAdminDashboard: React.FC = () => {
+// ================ MAIN ADMIN DASHBOARD COMPONENT ================
+const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
-  const { canAccessDashboard, isAdmin, hasElevatedAccess } = useRoleAccess();
+  const { canAccessDashboard, isAdmin } = useRoleAccess();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Access control
   if (!user || !profile) {
-    return <LoadingSpinner fullScreen message="Loading dashboard..." />;
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <LoadingSpinner message="Loading dashboard..." />
+      </div>
+    );
   }
 
   if (!canAccessDashboard) {
@@ -1076,8 +808,8 @@ const IntegratedAdminDashboard: React.FC = () => {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="max-w-md w-full bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
           <div className="text-6xl mb-6">🚫</div>
-          <h2 className="text-3xl font-bold text-white mb-4">Dashboard Access Restricted</h2>
-          <p className="text-gray-300 mb-6 leading-relaxed">
+          <h2 className="text-3xl font-bold text-white mb-4">Access Restricted</h2>
+          <p className="text-gray-300 mb-6">
             This dashboard is only available to administrators and event organizers.
           </p>
           
@@ -1103,17 +835,20 @@ const IntegratedAdminDashboard: React.FC = () => {
     );
   }
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
-  // Role-based navigation
   const getNavigationItems = () => {
     const baseItems = [
       { name: 'Overview', section: 'overview', icon: '🏠' },
-      { name: 'Analytics', section: 'analytics', icon: '📊' },
       { name: 'Events', section: 'events', icon: '📅' },
+      { name: 'Analytics', section: 'analytics', icon: '📊' },
       { name: 'Media', section: 'media', icon: '🎬' }
     ];
 
@@ -1129,106 +864,64 @@ const IntegratedAdminDashboard: React.FC = () => {
     switch (activeSection) {
       case 'overview':
         return <DashboardOverview />;
-        
       case 'events':
-        return <ProtectedEventManagement />;
-        
+        return <EventManagement />;
       case 'analytics':
         return (
           <div className="p-6">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-6 text-center">
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">📈</div>
               <h2 className="text-xl font-bold text-white mb-2">Advanced Analytics</h2>
-              <p className="text-green-300 mb-4">
-                Detailed analytics dashboard coming soon. This will include:
-              </p>
-              <div className="text-left text-green-200 space-y-1 max-w-md mx-auto">
-                <div>• Revenue analytics and forecasting</div>
-                <div>• Event performance metrics</div>
-                <div>• User behavior analysis</div>
-                <div>• Booking conversion rates</div>
-                <div>• Geographic distribution</div>
-              </div>
+              <p className="text-green-300">Analytics dashboard coming soon...</p>
             </div>
           </div>
         );
-        
       case 'media':
         return (
           <div className="p-6">
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-6 text-center">
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">🎬</div>
-              <h2 className="text-xl font-bold text-white mb-2">Enhanced Media Management</h2>
-              <p className="text-purple-300 mb-4">
-                Your comprehensive media management system is ready. Features include:
-              </p>
-              <div className="text-left text-purple-200 space-y-1 max-w-md mx-auto">
-                <div>• Google Drive integration</div>
-                <div>• Drag & drop upload interface</div>
-                <div>• Event media organization</div>
-                <div>• Homepage media management</div>
-                <div>• Automatic folder structure</div>
-              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Media Management</h2>
+              <p className="text-purple-300">Media management coming soon...</p>
             </div>
           </div>
         );
-        
       case 'users':
         return isAdmin ? (
           <div className="p-6">
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-6 text-center">
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">👥</div>
               <h2 className="text-xl font-bold text-white mb-2">User Management</h2>
-              <p className="text-orange-300 mb-4">
-                Comprehensive user management coming soon. This will include:
-              </p>
-              <div className="text-left text-orange-200 space-y-1 max-w-md mx-auto">
-                <div>• User role management</div>
-                <div>• Account verification</div>
-                <div>• User activity monitoring</div>
-                <div>• Bulk user operations</div>
-                <div>• Permission management</div>
-              </div>
+              <p className="text-orange-300">User management coming soon...</p>
             </div>
           </div>
         ) : (
           <div className="p-6">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
               <p className="text-red-300">This section is only available to administrators.</p>
             </div>
           </div>
         );
-        
       case 'settings':
         return isAdmin ? (
           <div className="p-6">
-            <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-6 text-center">
+            <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">⚙️</div>
               <h2 className="text-xl font-bold text-white mb-2">System Settings</h2>
-              <p className="text-gray-300 mb-4">
-                Platform configuration options coming soon. This will include:
-              </p>
-              <div className="text-left text-gray-200 space-y-1 max-w-md mx-auto">
-                <div>• Platform configuration</div>
-                <div>• Email settings</div>
-                <div>• Payment gateway setup</div>
-                <div>• Theme customization</div>
-                <div>• API key management</div>
-              </div>
+              <p className="text-gray-300">Settings coming soon...</p>
             </div>
           </div>
         ) : (
           <div className="p-6">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-8 text-center">
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
               <p className="text-red-300">This section is only available to administrators.</p>
             </div>
           </div>
         );
-        
       default:
         return <DashboardOverview />;
     }
@@ -1256,12 +949,23 @@ const IntegratedAdminDashboard: React.FC = () => {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         
-        {/* Logo Section with your logo */}
+        {/* Logo */}
         <div className="h-16 px-6 border-b border-gray-700 flex items-center">
-          <BoujeeLogo 
-            onClick={() => navigate('/')}
-            className="w-full"
-          />
+          <Link to="/" className="flex items-center space-x-3">
+            <img 
+              src="/logo.png" 
+              alt="Boujee Events" 
+              className="h-8 w-8"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const nextElement = target.nextElementSibling as HTMLElement;
+                if (nextElement) nextElement.style.display = 'block';
+              }}
+            />
+            <div className="text-xl font-bold text-yellow-400 hidden">be</div>
+            <span className="text-lg font-bold text-white">Boujee Events</span>
+          </Link>
         </div>
 
         {/* User Info */}
@@ -1312,13 +1016,20 @@ const IntegratedAdminDashboard: React.FC = () => {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="p-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-colors"
+        {/* Bottom Actions */}
+        <div className="p-4 space-y-2 border-t border-gray-700">
+          <Link
+            to="/"
+            className="w-full flex items-center px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <span className="mr-2">🚪</span>
+            <Home className="h-4 w-4 mr-3" />
+            Go to Homepage
+          </Link>
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center px-4 py-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+          >
+            <LogOut className="h-4 w-4 mr-3" />
             Sign Out
           </button>
         </div>
@@ -1334,7 +1045,7 @@ const IntegratedAdminDashboard: React.FC = () => {
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden text-gray-400 hover:text-white mr-4"
               >
-                ☰
+                <Menu className="h-6 w-6" />
               </button>
               <h1 className="text-xl font-semibold text-white">
                 {getNavigationItems().find(item => item.section === activeSection)?.name || 'Dashboard'}
@@ -1342,15 +1053,65 @@ const IntegratedAdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-400">
-                {new Date().toLocaleString()}
-              </div>
-              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                isAdmin 
-                  ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-blue-500/20 text-blue-400'
-              }`}>
-                {isAdmin ? 'Administrator' : 'Event Organizer'}
+              {/* Quick Home Button */}
+              <Link
+                to="/"
+                className="hidden sm:flex items-center px-3 py-2 text-gray-400 hover:text-white transition-colors"
+                title="Go to Homepage"
+              >
+                <Home className="h-5 w-5 mr-2" />
+                <span className="text-sm">Home</span>
+              </Link>
+
+              {/* User Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  <img
+                    src={userInfo.avatar}
+                    alt={userInfo.name}
+                    className="w-8 h-8 rounded-full border-2 border-gray-600"
+                  />
+                  <span className="hidden sm:block font-medium">{userInfo.name}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2 z-50">
+                    <div className="px-4 py-3 border-b border-gray-700">
+                      <p className="text-sm text-gray-400">Signed in as</p>
+                      <p className="text-sm font-medium text-white truncate">{userInfo.email}</p>
+                      <p className="text-xs text-yellow-400 capitalize mt-1">{userInfo.role}</p>
+                    </div>
+                    
+                    <Link
+                      to="/"
+                      className="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Home className="h-4 w-4 mr-3" />
+                      Go to Homepage
+                    </Link>
+                    
+                    <div className="border-t border-gray-700 mt-2 pt-2">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleSignOut();
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4 mr-3" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1365,19 +1126,7 @@ const IntegratedAdminDashboard: React.FC = () => {
         <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between text-sm text-gray-400">
             <div className="flex items-center gap-2">
-              <img 
-                src="/logo.png" 
-                alt="BE" 
-                className="h-4 w-4"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const nextElement = target.nextElementSibling as HTMLElement;
-                  if (nextElement) nextElement.style.display = 'inline';
-                }}
-              />
-              <div className="text-yellow-400 font-bold text-sm hidden">be</div>
-              <span>Boujee Events {isAdmin ? 'Admin' : 'Organizer'} Dashboard v2.0 | Status: Connected</span>
+              <span>Boujee Events {isAdmin ? 'Admin' : 'Organizer'} Dashboard | Status: Connected</span>
             </div>
             <div>
               User: {userInfo.name} | {new Date().toLocaleString()}
@@ -1389,4 +1138,4 @@ const IntegratedAdminDashboard: React.FC = () => {
   );
 };
 
-export default IntegratedAdminDashboard;
+export default AdminDashboard;
