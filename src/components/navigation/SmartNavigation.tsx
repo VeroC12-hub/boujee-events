@@ -1,29 +1,28 @@
-// src/components/navigation/SmartNavigation.tsx
+// src/components/navigation/SmartNavigation.tsx - Simple Dashboard Button
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface SmartDashboardButtonProps {
+  children: React.ReactNode;
   className?: string;
-  children?: React.ReactNode;
 }
 
 export const SmartDashboardButton: React.FC<SmartDashboardButtonProps> = ({ 
-  className = "", 
-  children = "Dashboard" 
+  children, 
+  className = "" 
 }) => {
-  const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
 
-  const handleDashboardClick = () => {
-    if (!user) {
-      // Not logged in - go to login
+  const handleClick = () => {
+    if (!user || !profile) {
       navigate('/login');
       return;
     }
 
-    // Route based on user role
-    switch (profile?.role) {
+    // Smart dashboard redirect based on user role
+    switch (profile.role) {
       case 'admin':
         navigate('/admin-dashboard');
         break;
@@ -34,15 +33,14 @@ export const SmartDashboardButton: React.FC<SmartDashboardButtonProps> = ({
         navigate('/member-dashboard');
         break;
       default:
-        // Fallback for users without proper role
-        navigate('/profile');
+        navigate('/member-dashboard');
         break;
     }
   };
 
   return (
     <button
-      onClick={handleDashboardClick}
+      onClick={handleClick}
       className={className}
     >
       {children}
