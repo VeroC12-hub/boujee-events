@@ -1,10 +1,11 @@
+// src/hooks/useAuth.ts - FIXED VERSION
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
 
 // Main useAuth hook that components are importing
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (context === null) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
@@ -12,24 +13,24 @@ export function useAuth(): AuthContextType {
 
 // Hook for components that require authentication
 export function useRequireAuth(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   
-  const hasAccess = user && (
+  const hasAccess = user && profile && (
     !requiredRole || 
-    user.role === requiredRole || 
-    user.role === 'admin'  // Admin has access to everything
+    profile.role === requiredRole || 
+    profile.role === 'admin'  // Admin has access to everything
   );
 
   return {
     user,
-    profile: user,
+    profile,
     loading,
     hasAccess: Boolean(hasAccess),
     isAuthenticated: Boolean(user),
-    isAdmin: user?.role === 'admin',
-    isOrganizer: user?.role === 'organizer',
-    isMember: user?.role === 'member',
-    isAttendee: user?.role === 'attendee'
+    isAdmin: profile?.role === 'admin',
+    isOrganizer: profile?.role === 'organizer',
+    isMember: profile?.role === 'member',
+    isAttendee: profile?.role === 'attendee'
   };
 }
 
@@ -62,7 +63,7 @@ export function useSignUp() {
   const handleSignUp = async (email: string, password: string, fullName: string) => {
     try {
       setIsSubmitting(true);
-      const result = await signUp(email, password, fullName);
+      const result = await signUp(email, password, { full_name: fullName });
       return result;
     } finally {
       setIsSubmitting(false);
@@ -125,28 +126,28 @@ export function useIsAuthenticated() {
 }
 
 export function useIsAdmin() {
-  const { user } = useAuth();
-  return user?.role === 'admin';
+  const { profile } = useAuth();
+  return profile?.role === 'admin';
 }
 
 export function useIsOrganizer() {
-  const { user } = useAuth();
-  return user?.role === 'organizer';
+  const { profile } = useAuth();
+  return profile?.role === 'organizer';
 }
 
 export function useIsMember() {
-  const { user } = useAuth();
-  return user?.role === 'member';
+  const { profile } = useAuth();
+  return profile?.role === 'member';
 }
 
 export function useIsAttendee() {
-  const { user } = useAuth();
-  return user?.role === 'attendee';
+  const { profile } = useAuth();
+  return profile?.role === 'attendee';
 }
 
 // Hook for protected routes
 export function useProtectedRoute(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
@@ -156,28 +157,28 @@ export function useProtectedRoute(requiredRole?: 'admin' | 'organizer' | 'member
         return;
       }
 
-      if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
+      if (requiredRole && profile?.role !== requiredRole && profile?.role !== 'admin') {
         setShouldRedirect(true);
         return;
       }
 
       setShouldRedirect(false);
     }
-  }, [user, loading, requiredRole]);
+  }, [user, profile, loading, requiredRole]);
 
   return {
     shouldRedirect,
     loading,
     user,
-    profile: user,
+    profile,
     isAuthenticated: Boolean(user),
-    hasRequiredRole: !requiredRole || user?.role === requiredRole || user?.role === 'admin'
+    hasRequiredRole: !requiredRole || profile?.role === requiredRole || profile?.role === 'admin'
   };
 }
 
 // Hook for user profile management
 export function useUserProfile() {
-  const { user, updateProfile, loading } = useAuth();
+  const { user, profile, updateProfile, loading } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleUpdateProfile = async (updates: any) => {
@@ -192,7 +193,7 @@ export function useUserProfile() {
 
   return {
     user,
-    profile: user,
+    profile,
     loading: loading || isUpdating,
     updateProfile: handleUpdateProfile,
     isUpdating
