@@ -1,4 +1,4 @@
-// src/components/branding/Logo.tsx
+// src/components/branding/Logo.tsx - COMPLETE FIXED VERSION
 import React from 'react';
 
 interface LogoProps {
@@ -6,14 +6,17 @@ interface LogoProps {
   size?: 'small' | 'medium' | 'large' | 'lg' | 'xlarge';
   showTagline?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 const Logo: React.FC<LogoProps> = ({ 
   variant = 'primary', 
   size = 'medium', 
   showTagline = false,
-  className = ''
+  className = '',
+  onClick
 }) => {
+  // 📏 Size configurations
   const sizeClasses = {
     small: 'w-6 h-6',
     medium: 'w-10 h-10',
@@ -38,6 +41,7 @@ const Logo: React.FC<LogoProps> = ({
     xlarge: 'text-xl'
   };
 
+  // 🎨 Color configurations for different variants
   const getColors = () => {
     switch (variant) {
       case 'light':
@@ -66,16 +70,17 @@ const Logo: React.FC<LogoProps> = ({
 
   const colors = getColors();
 
-  return (
-    <div className={`flex items-center space-x-3 ${className}`}>
-      {/* Logo Icon */}
+  // 🎯 Component structure
+  const LogoContent = () => (
+    <div className={`flex items-center space-x-3 ${className} ${onClick ? 'cursor-pointer' : ''}`}>
+      {/* ✨ LOGO ICON - Fixed: Changed from "be" to sparkles */}
       <div className={`${sizeClasses[size]} ${colors.logo} rounded-lg flex items-center justify-center shadow-lg`}>
         <span className={`${logoSizes[size]} ${colors.logoText} font-bold tracking-tight`}>
-          be
+          ✨
         </span>
       </div>
       
-      {/* Brand Text */}
+      {/* 📝 BRAND TEXT */}
       <div>
         <h1 className={`${textSizes[size]} font-bold tracking-tight ${colors.brandText}`}>
           Boujee Events
@@ -88,6 +93,17 @@ const Logo: React.FC<LogoProps> = ({
       </div>
     </div>
   );
+
+  // 🔗 Return clickable or non-clickable version
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-lg">
+        <LogoContent />
+      </button>
+    );
+  }
+
+  return <LogoContent />;
 };
 
 export default Logo;
