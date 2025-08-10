@@ -1,12 +1,14 @@
 // ===========================================================================
-// BOUJEE EVENTS HOMEPAGE - EVENTS + MEDIA GALLERY
+// BOUJEE EVENTS HOMEPAGE - FUNCTIONAL WITH NAVIGATION
 // File: src/pages/HomePage.tsx
-// Complete homepage with events display, media gallery, and premium styling
+// Complete homepage with working buttons, navigation, and your logo
 // ===========================================================================
 
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useHomepageMedia } from '../hooks/useHomepageMedia';
+import Logo from '../components/branding/Logo';
 
 // ===========================================================================
 // PREMIUM COLOR SCHEME
@@ -89,6 +91,7 @@ const FloatingConfetti: React.FC = () => {
 
 const Navigation: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -99,58 +102,79 @@ const Navigation: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Get dashboard path based on user role
+  const getDashboardPath = () => {
+    if (!user) return '/login';
+    switch (user.role) {
+      case 'admin': return '/admin-dashboard';
+      case 'organizer': return '/organizer-dashboard';
+      case 'member': return '/member-dashboard';
+      default: return '/member-dashboard';
+    }
+  };
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
       isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg py-4' : 'bg-transparent py-6'
     }`}>
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Logo Section */}
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">BE</span>
-            </div>
-            <div>
-              <div className={`text-xl font-bold ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
-                Boujee Events
-              </div>
-              <div className="text-orange-500 text-xs font-medium">
-                Creating magical moments
-              </div>
-            </div>
-          </div>
-        </div>
+        <Link to="/" className="flex items-center">
+          <Logo 
+            variant={isScrolled ? 'dark' : 'light'} 
+            size="large" 
+            showTagline={true} 
+          />
+        </Link>
 
         {/* Navigation Links */}
         <div className="hidden lg:flex items-center space-x-8">
-          <button className={`px-6 py-2 rounded-full font-medium transition-all ${
-            isScrolled 
-              ? 'bg-gray-900 text-white' 
-              : 'bg-white/20 text-white backdrop-blur-sm'
-          }`}>
+          <Link 
+            to="/index"
+            className={`px-6 py-2 rounded-full font-medium transition-all hover:scale-105 ${
+              isScrolled 
+                ? 'bg-gray-900 text-white hover:bg-gray-800' 
+                : 'bg-white/20 text-white backdrop-blur-sm hover:bg-white/30'
+            }`}
+          >
             🏠 Events
-          </button>
-          <button className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}>
+          </Link>
+          <a 
+            href="#gallery"
+            className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}
+          >
             🖼️ Gallery
-          </button>
-          <button className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}>
+          </a>
+          <a 
+            href="#about"
+            className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}
+          >
             ℹ️ About
-          </button>
-          <button className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}>
+          </a>
+          <a 
+            href="#contact"
+            className={`${isScrolled ? 'text-gray-600 hover:text-gray-800' : 'text-white/80 hover:text-white'} transition-colors font-medium`}
+          >
             📞 Contact
-          </button>
+          </a>
         </div>
 
         {/* Auth Button */}
         <div>
           {user ? (
-            <button className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors">
+            <Link 
+              to={getDashboardPath()}
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+            >
               Dashboard
-            </button>
+            </Link>
           ) : (
-            <button className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors">
+            <Link 
+              to="/login"
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+            >
               Sign Up
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -166,6 +190,8 @@ const HeroSection: React.FC<{ backgroundVideo?: any, heroImage?: any }> = ({
   backgroundVideo, 
   heroImage 
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="relative h-screen flex items-center justify-center text-center overflow-hidden">
       {/* Background Video */}
@@ -223,10 +249,19 @@ const HeroSection: React.FC<{ backgroundVideo?: any, heroImage?: any }> = ({
         </p>
 
         <div className="flex flex-col sm:flex-row gap-6 justify-center">
-          <button className="bg-orange-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-orange-600 transition-all transform hover:scale-105 shadow-xl">
+          <button 
+            onClick={() => navigate('/index')}
+            className="bg-orange-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-orange-600 transition-all transform hover:scale-105 shadow-xl"
+          >
             📅 Explore Premium Events
           </button>
-          <button className="border-2 border-white/50 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-gray-900 transition-all shadow-xl backdrop-blur-sm">
+          <button 
+            onClick={() => {
+              const aboutSection = document.getElementById('about');
+              aboutSection?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="border-2 border-white/50 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-gray-900 transition-all shadow-xl backdrop-blur-sm"
+          >
             ✨ Learn More
           </button>
         </div>
@@ -275,10 +310,20 @@ const EventCategories: React.FC<{ activeCategory: string, onCategoryChange: (cat
 // ===========================================================================
 
 const EventCard: React.FC<{ event: any }> = ({ event }) => {
+  const navigate = useNavigate();
+
+  const handleBookNow = () => {
+    navigate(`/book/${event.id}`);
+  };
+
+  const handleEventClick = () => {
+    navigate(`/book/${event.id}`);
+  };
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer">
       {/* Event Image */}
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-48 overflow-hidden" onClick={handleEventClick}>
         <img 
           src={event.image} 
           alt={event.title}
@@ -290,10 +335,29 @@ const EventCard: React.FC<{ event: any }> = ({ event }) => {
           </span>
         </div>
         <div className="absolute top-4 right-4 flex space-x-2">
-          <button className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              // Add to favorites logic
+            }}
+            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
             ❤️
           </button>
-          <button className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              // Share logic
+              if (navigator.share) {
+                navigator.share({
+                  title: event.title,
+                  text: event.description,
+                  url: window.location.href
+                });
+              }
+            }}
+            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
             📤
           </button>
         </div>
@@ -301,7 +365,9 @@ const EventCard: React.FC<{ event: any }> = ({ event }) => {
 
       {/* Event Details */}
       <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-3">{event.title}</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-3 cursor-pointer hover:text-orange-600 transition-colors" onClick={handleEventClick}>
+          {event.title}
+        </h3>
         
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-gray-600">
@@ -326,7 +392,10 @@ const EventCard: React.FC<{ event: any }> = ({ event }) => {
           <div className="text-2xl font-bold text-orange-500">
             {event.price}
           </div>
-          <button className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors">
+          <button 
+            onClick={handleBookNow}
+            className="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+          >
             Book Now
           </button>
         </div>
@@ -341,6 +410,7 @@ const EventCard: React.FC<{ event: any }> = ({ event }) => {
 
 const EventsSection: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('all');
+  const navigate = useNavigate();
 
   // Sample events data (replace with real data from your API)
   const events = [
@@ -423,9 +493,16 @@ const EventsSection: React.FC = () => {
           <h2 className="text-5xl md:text-6xl font-bold text-white mb-8">
             Premium <span className="text-orange-400">Events</span>
           </h2>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
             Discover handpicked luxury experiences that define sophisticated entertainment
           </p>
+          
+          <button 
+            onClick={() => navigate('/index')}
+            className="bg-orange-500/20 border border-orange-500/50 text-orange-400 px-6 py-3 rounded-lg hover:bg-orange-500/30 transition-all transform hover:scale-105 font-semibold"
+          >
+            View All Events →
+          </button>
         </div>
 
         <EventCategories 
@@ -434,7 +511,7 @@ const EventsSection: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredEvents.map((event) => (
+          {filteredEvents.slice(0, 6).map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
         </div>
@@ -459,7 +536,7 @@ const MediaGallerySection: React.FC<{ galleryMedia: any[] }> = ({ galleryMedia }
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
 
   return (
-    <div className="py-20 px-6" style={{ backgroundColor: THEME.colors.secondary[800] }}>
+    <div id="gallery" className="py-20 px-6" style={{ backgroundColor: THEME.colors.secondary[800] }}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-5xl md:text-6xl font-bold text-white mb-8">
@@ -569,6 +646,23 @@ const MediaGallerySection: React.FC<{ galleryMedia: any[] }> = ({ galleryMedia }
 // ===========================================================================
 
 const CTASection: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleJoinPremium = () => {
+    if (user) {
+      // Redirect to subscription or upgrade page
+      navigate('/member-dashboard'); // Replace with subscription page when available
+    } else {
+      navigate('/login');
+    }
+  };
+
+  const handleLearnMore = () => {
+    const aboutSection = document.getElementById('about');
+    aboutSection?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div 
       className="py-24 px-6 relative overflow-hidden"
@@ -589,11 +683,15 @@ const CTASection: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row gap-8 justify-center mb-16">
           <button 
+            onClick={handleJoinPremium}
             className="px-12 py-5 rounded-xl font-semibold text-xl transition-all transform hover:scale-105 shadow-xl bg-orange-500 text-white hover:bg-orange-600"
           >
-            Join Premium - €99/month
+            {user ? 'Upgrade to Premium' : 'Join Premium - €99/month'}
           </button>
-          <button className="border-2 border-white text-white px-12 py-5 rounded-xl font-semibold text-xl hover:bg-white hover:text-gray-900 transition-all shadow-xl">
+          <button 
+            onClick={handleLearnMore}
+            className="border-2 border-white text-white px-12 py-5 rounded-xl font-semibold text-xl hover:bg-white hover:text-gray-900 transition-all shadow-xl"
+          >
             Learn More
           </button>
         </div>
@@ -622,32 +720,35 @@ const CTASection: React.FC = () => {
 // ===========================================================================
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
-    <footer className="py-16 px-6" style={{ backgroundColor: THEME.colors.secondary[900] }}>
+    <footer id="contact" className="py-16 px-6" style={{ backgroundColor: THEME.colors.secondary[900] }}>
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
-                <span className="text-white font-bold text-xl">BE</span>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white">Boujee Events</div>
-                <div className="text-orange-400 text-sm">Creating magical moments</div>
-              </div>
-            </div>
+            <Logo variant="light" size="large" showTagline={true} className="mb-6" />
             <p className="text-gray-400 mb-8 leading-relaxed text-lg">
               Curating extraordinary experiences for the discerning few. 
               Where luxury meets lifestyle, and every event is a masterpiece.
             </p>
             <div className="flex space-x-6">
-              <button className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110">
+              <button 
+                onClick={() => window.open('mailto:contact@boujeeevents.com')}
+                className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110"
+              >
                 📧
               </button>
-              <button className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110">
+              <button 
+                onClick={() => window.open('tel:+1234567890')}
+                className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110"
+              >
                 📱
               </button>
-              <button className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110">
+              <button 
+                onClick={() => window.open('https://linkedin.com/company/boujeeevents')}
+                className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center hover:bg-orange-500 transition-all transform hover:scale-110"
+              >
                 🌐
               </button>
             </div>
@@ -656,20 +757,64 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="text-white font-semibold mb-6 text-xl">Quick Links</h4>
             <ul className="space-y-4 text-gray-400">
-              <li><a href="#events" className="hover:text-orange-400 transition-colors text-lg">Events</a></li>
-              <li><a href="#gallery" className="hover:text-orange-400 transition-colors text-lg">Gallery</a></li>
-              <li><a href="#about" className="hover:text-orange-400 transition-colors text-lg">About</a></li>
-              <li><a href="#contact" className="hover:text-orange-400 transition-colors text-lg">Contact</a></li>
+              <li>
+                <Link to="/index" className="hover:text-orange-400 transition-colors text-lg">
+                  Events
+                </Link>
+              </li>
+              <li>
+                <a href="#gallery" className="hover:text-orange-400 transition-colors text-lg">
+                  Gallery
+                </a>
+              </li>
+              <li>
+                <a href="#about" className="hover:text-orange-400 transition-colors text-lg">
+                  About
+                </a>
+              </li>
+              <li>
+                <a href="#contact" className="hover:text-orange-400 transition-colors text-lg">
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-6 text-xl">Support</h4>
             <ul className="space-y-4 text-gray-400">
-              <li><a href="#" className="hover:text-orange-400 transition-colors text-lg">Help Center</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors text-lg">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors text-lg">Terms</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors text-lg">Concierge</a></li>
+              <li>
+                <button 
+                  onClick={() => navigate('/help')}
+                  className="hover:text-orange-400 transition-colors text-lg text-left"
+                >
+                  Help Center
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigate('/privacy')}
+                  className="hover:text-orange-400 transition-colors text-lg text-left"
+                >
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigate('/terms')}
+                  className="hover:text-orange-400 transition-colors text-lg text-left"
+                >
+                  Terms
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => window.open('mailto:concierge@boujeeevents.com')}
+                  className="hover:text-orange-400 transition-colors text-lg text-left"
+                >
+                  Concierge
+                </button>
+              </li>
             </ul>
           </div>
         </div>
@@ -707,7 +852,7 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div id="about" className="min-h-screen">
       <Navigation />
       <HeroSection backgroundVideo={backgroundVideo} heroImage={heroImage} />
       <EventsSection />
