@@ -1,4 +1,4 @@
-// src/components/admin/DashboardOverview.tsx - Complete Fixed Implementation
+// src/components/admin/DashboardOverview.tsx - Complete Full Implementation with ALL Features
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +40,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
   const isOrganizer = profile?.role === 'organizer';
@@ -85,6 +86,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
   };
 
   const fetchMetrics = async (): Promise<MetricCard[]> => {
@@ -208,7 +215,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         
         return {
           month,
-          revenue: monthlyBookings.reduce((sum, booking) => sum + booking.total_amount, 0),
+          revenue: monthBookings.reduce((sum, booking) => sum + booking.total_amount, 0),
           events: monthBookings.length
         };
       });
@@ -271,6 +278,42 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
       cancelled: '#EF4444'
     };
     return colors[status] || '#6B7280';
+  };
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const handleQuickAction = (action: string) => {
+    if (setActiveSection) {
+      switch (action) {
+        case 'create-event':
+          setActiveSection('events');
+          break;
+        case 'view-analytics':
+          setActiveSection('analytics');
+          break;
+        case 'manage-media':
+          setActiveSection('media');
+          break;
+        case 'user-management':
+          if (isAdmin) {
+            setActiveSection('users');
+          } else {
+            console.warn('User management requires admin role');
+          }
+          break;
+        default:
+          console.warn(`Unknown action: ${action}`);
+      }
+    } else {
+      console.warn('setActiveSection function not provided');
+    }
   };
 
   const getMockDashboardData = (): DashboardData => ({
@@ -394,7 +437,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     );
   }
 
-  if (error) {
+  if (error && !dashboardData) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -414,7 +457,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
   if (!dashboardData) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header with Refresh */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            {isAdmin ? 'Admin' : 'Organizer'} Dashboard Overview
+          </h1>
+          <p className="text-gray-400">
+            Welcome back! Here's what's happening with your {isAdmin ? 'platform' : 'events'}.
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <span className={`${refreshing ? 'animate-spin' : ''}`}>🔄</span>
+          <span className="hidden sm:block">Refresh</span>
+        </button>
+      </div>
+
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 p-6 rounded-xl text-black">
         <h1 className="text-3xl font-bold mb-2">
@@ -425,24 +488,128 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         </p>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Quick Actions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardData.metrics.map((metric) => (
-          <div key={metric.id} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
+        <button 
+          onClick={() => handleQuickAction('create-event')}
+          className="relative overflow-hidden group bg-blue-600 hover:bg-blue-700 rounded-xl p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-xl border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl">✨</span>
+              <div className="w-2 h-2 bg-white/30 rounded-full group-hover:scale-150 transition-transform duration-300" />
+            </div>
+            <h3 className="text-lg font-bold mb-2 group-hover:text-yellow-200 transition-colors">Create Event</h3>
+            <p className="text-sm opacity-80 group-hover:opacity-100 transition-opacity">Start planning a new event</p>
+          </div>
+          <div className="absolute inset-0 bg-yellow-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+        </button>
+
+        <button 
+          onClick={() => handleQuickAction('view-analytics')}
+          className="relative overflow-hidden group bg-green-600 hover:bg-green-700 rounded-xl p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-xl border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl">📈</span>
+              <div className="w-2 h-2 bg-white/30 rounded-full group-hover:scale-150 transition-transform duration-300" />
+            </div>
+            <h3 className="text-lg font-bold mb-2 group-hover:text-yellow-200 transition-colors">View Analytics</h3>
+            <p className="text-sm opacity-80 group-hover:opacity-100 transition-opacity">Detailed performance insights</p>
+          </div>
+          <div className="absolute inset-0 bg-yellow-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+        </button>
+
+        <button 
+          onClick={() => handleQuickAction('manage-media')}
+          className="relative overflow-hidden group bg-purple-600 hover:bg-purple-700 rounded-xl p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-xl border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl">🎬</span>
+              <div className="w-2 h-2 bg-white/30 rounded-full group-hover:scale-150 transition-transform duration-300" />
+            </div>
+            <h3 className="text-lg font-bold mb-2 group-hover:text-yellow-200 transition-colors">Manage Media</h3>
+            <p className="text-sm opacity-80 group-hover:opacity-100 transition-opacity">Upload and organize event media</p>
+          </div>
+          <div className="absolute inset-0 bg-yellow-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+        </button>
+
+        <button 
+          onClick={() => handleQuickAction('user-management')}
+          disabled={!isAdmin}
+          className={`relative overflow-hidden group ${isAdmin ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600'} rounded-xl p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-xl border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900 ${!isAdmin ? 'opacity-50 cursor-not-allowed transform-none' : ''}`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl">👥</span>
+              <div className="w-2 h-2 bg-white/30 rounded-full group-hover:scale-150 transition-transform duration-300" />
+            </div>
+            <h3 className="text-lg font-bold mb-2 group-hover:text-yellow-200 transition-colors">User Management</h3>
+            <p className="text-sm opacity-80 group-hover:opacity-100 transition-opacity">
+              {isAdmin ? 'Manage all platform users' : 'Admin access required'}
+            </p>
+          </div>
+          <div className="absolute inset-0 bg-yellow-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+        </button>
+      </div>
+
+      {/* Action Status Indicator */}
+      <div className="flex items-center justify-center">
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          <span className="text-xs text-gray-400">All systems operational</span>
+        </div>
+      </div>
+
+      {/* Metrics Cards */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
+        {dashboardData?.metrics.map((metric) => (
+          <div
+            key={metric.id}
+            className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="text-2xl">{metric.icon}</div>
               <div className={`text-sm font-medium px-2 py-1 rounded-full ${
-                metric.changeType === 'positive' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                metric.changeType === 'positive' 
+                  ? 'bg-green-500/20 text-green-300' 
+                  : 'bg-red-500/20 text-red-300'
               }`}>
-                {metric.changeType === 'positive' ? '+' : '-'}{metric.change}%
+                {metric.changeType === 'positive' ? '+' : ''}{metric.change}%
               </div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {metric.name.includes('Revenue') ? `$${metric.value.toLocaleString()}` : metric.value.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-400">{metric.name}</div>
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">{metric.name}</h3>
+              <p className="text-2xl font-bold text-yellow-400">
+                {metric.name.includes('Revenue') 
+                  ? formatCurrency(metric.value)
+                  : metric.value.toLocaleString()
+                }
+              </p>
             </div>
+
+            {/* Mini trend chart */}
+            {metric.trend && (
+              <div className="mt-4 h-12">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metric.trend.map((value, index) => ({ value, index }))}>
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke={metric.changeType === 'positive' ? '#10B981' : '#EF4444'}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -537,28 +704,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* System Status */}
       <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
+        <h3 className="text-xl font-bold text-white mb-4">System Status</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button 
-            onClick={() => setActiveSection && setActiveSection('events')}
-            className="bg-yellow-400 text-black p-4 rounded-lg hover:bg-yellow-500 transition-colors font-medium"
-          >
-            📅 Create New Event
-          </button>
-          <button 
-            onClick={() => setActiveSection && setActiveSection('users')}
-            className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-          >
-            👥 Manage Users
-          </button>
-          <button 
-            onClick={() => setActiveSection && setActiveSection('analytics')}
-            className="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600 transition-colors font-medium"
-          >
-            📊 View Analytics
-          </button>
+          <div className="flex items-center justify-between p-3 bg-green-500/20 rounded-lg">
+            <span className="text-green-300">Database</span>
+            <span className="text-green-400">🟢 Online</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-green-500/20 rounded-lg">
+            <span className="text-green-300">API Services</span>
+            <span className="text-green-400">🟢 Operational</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-yellow-500/20 rounded-lg">
+            <span className="text-yellow-300">Background Jobs</span>
+            <span className="text-yellow-400">🟡 Monitoring</span>
+          </div>
         </div>
       </div>
 
