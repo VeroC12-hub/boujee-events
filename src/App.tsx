@@ -1,4 +1,4 @@
-// src/App.tsx - Complete application with role-based routing
+// src/App.tsx - Simplified version with only essential routes
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -10,31 +10,112 @@ import {
   getRoleBasedRedirect 
 } from './components/auth/ProtectedRoute';
 
-// === PAGE IMPORTS ===
-
-// Public pages
+// === IMPORT EXISTING PAGES ===
+// Only import pages that exist in your project
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import EventsPage from './pages/EventsPage';
-import EventDetailPage from './pages/EventDetailPage';
 
-// Auth pages
-import AuthCallback from './pages/AuthCallback';
-import ResetPasswordPage from './pages/ResetPasswordPage';
+// Import your existing dashboard
+import AdminDashboard from './pages/AdminDashboard'; // Your existing dashboard
 
-// Dashboard pages
-import IntegratedAdminDashboard from './pages/IntegratedAdminDashboard';
-import MemberDashboard from './pages/MemberDashboard';
-import IndexPage from './pages/IndexPage';
+// === SIMPLE PLACEHOLDER COMPONENTS ===
+// These replace missing pages with simple placeholders
 
-// Profile and settings
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
+const RegisterPage: React.FC = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+      <h1 className="text-2xl font-bold text-white mb-4">Register</h1>
+      <p className="text-gray-400 mb-6">Registration page coming soon...</p>
+      <button
+        onClick={() => window.location.href = '/login'}
+        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold"
+      >
+        Go to Login
+      </button>
+    </div>
+  </div>
+);
 
-// Error pages
-import NotFoundPage from './pages/NotFoundPage';
-import UnauthorizedPage from './pages/UnauthorizedPage';
+const EventsPage: React.FC = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+      <h1 className="text-2xl font-bold text-white mb-4">Events</h1>
+      <p className="text-gray-400 mb-6">Events page coming soon...</p>
+      <button
+        onClick={() => window.location.href = '/'}
+        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold"
+      >
+        Go Home
+      </button>
+    </div>
+  </div>
+);
+
+const AuthCallback: React.FC = () => {
+  const { user, profile } = useAuth();
+  
+  React.useEffect(() => {
+    if (user && profile) {
+      const redirectPath = getRoleBasedRedirect(profile.role);
+      window.location.href = redirectPath;
+    }
+  }, [user, profile]);
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+        <p className="text-gray-400">Completing authentication...</p>
+      </div>
+    </div>
+  );
+};
+
+const MemberDashboard: React.FC = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+      <h1 className="text-2xl font-bold text-white mb-4">Member Dashboard</h1>
+      <p className="text-gray-400 mb-6">Member dashboard coming soon...</p>
+      <button
+        onClick={() => window.location.href = '/'}
+        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold"
+      >
+        Go Home
+      </button>
+    </div>
+  </div>
+);
+
+const IndexPage: React.FC = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+      <h1 className="text-2xl font-bold text-white mb-4">Dashboard</h1>
+      <p className="text-gray-400 mb-6">Welcome to your dashboard!</p>
+      <button
+        onClick={() => window.location.href = '/'}
+        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold"
+      >
+        Go Home
+      </button>
+    </div>
+  </div>
+);
+
+const NotFoundPage: React.FC = () => (
+  <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+      <div className="text-6xl mb-4">🔍</div>
+      <h1 className="text-2xl font-bold text-white mb-4">Page Not Found</h1>
+      <p className="text-gray-400 mb-6">The page you're looking for doesn't exist.</p>
+      <button
+        onClick={() => window.location.href = '/'}
+        className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold"
+      >
+        Go Home
+      </button>
+    </div>
+  </div>
+);
 
 // === DASHBOARD REDIRECT COMPONENT ===
 const DashboardRedirect: React.FC = () => {
@@ -57,24 +138,6 @@ const DashboardRedirect: React.FC = () => {
   
   const redirectPath = getRoleBasedRedirect(profile.role);
   return <Navigate to={redirectPath} replace />;
-};
-
-// === ROLE-BASED NAVIGATION GUARD ===
-const RoleBasedDashboard: React.FC = () => {
-  const { profile } = useAuth();
-  
-  // For admin and organizer, use the integrated dashboard
-  if (profile?.role === 'admin' || profile?.role === 'organizer') {
-    return <IntegratedAdminDashboard />;
-  }
-  
-  // For members, use the member dashboard
-  if (profile?.role === 'member') {
-    return <MemberDashboard />;
-  }
-  
-  // Default fallback
-  return <Navigate to="/login" replace />;
 };
 
 // === ERROR BOUNDARY COMPONENT ===
@@ -110,28 +173,12 @@ class ErrorBoundary extends React.Component<
             <p className="text-gray-300 mb-6">
               An unexpected error occurred. Please refresh the page to try again.
             </p>
-            <div className="space-y-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full bg-yellow-400 text-black py-2 px-4 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-              >
-                Refresh Page
-              </button>
-              <button
-                onClick={() => window.location.href = '/'}
-                className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Go Home
-              </button>
-            </div>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-6 text-left">
-                <summary className="text-red-400 cursor-pointer">Error Details</summary>
-                <pre className="text-red-300 text-xs mt-2 overflow-auto">
-                  {this.state.error.stack}
-                </pre>
-              </details>
-            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-yellow-400 text-black py-2 px-4 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+            >
+              Refresh Page
+            </button>
           </div>
         </div>
       );
@@ -152,14 +199,11 @@ function App() {
               {/* === PUBLIC ROUTES === */}
               <Route path="/" element={<HomePage />} />
               <Route path="/events" element={<EventsPage />} />
-              <Route path="/events/:id" element={<EventDetailPage />} />
               
               {/* === AUTHENTICATION ROUTES === */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/unauthorized" element={<UnauthorizedPage />} />
               
               {/* === PROTECTED INDEX ROUTE === */}
               <Route 
@@ -183,12 +227,12 @@ function App() {
                 } 
               />
               
-              {/* Admin Dashboard Routes */}
+              {/* Admin Dashboard - Use your existing dashboard */}
               <Route 
                 path="/admin" 
                 element={
                   <AdminOnlyRoute>
-                    <IntegratedAdminDashboard />
+                    <AdminDashboard />
                   </AdminOnlyRoute>
                 } 
               />
@@ -197,26 +241,17 @@ function App() {
                 path="/admin-dashboard" 
                 element={
                   <AdminOnlyRoute>
-                    <IntegratedAdminDashboard />
+                    <AdminDashboard />
                   </AdminOnlyRoute>
                 } 
               />
               
-              <Route 
-                path="/admin/*" 
-                element={
-                  <AdminOnlyRoute>
-                    <IntegratedAdminDashboard />
-                  </AdminOnlyRoute>
-                } 
-              />
-              
-              {/* Organizer Dashboard Routes */}
+              {/* Organizer Dashboard - Use your existing dashboard */}
               <Route 
                 path="/organizer" 
                 element={
                   <RoleProtectedRoute allowedRoles={['organizer', 'admin']}>
-                    <IntegratedAdminDashboard />
+                    <AdminDashboard />
                   </RoleProtectedRoute>
                 } 
               />
@@ -225,21 +260,12 @@ function App() {
                 path="/organizer-dashboard" 
                 element={
                   <RoleProtectedRoute allowedRoles={['organizer', 'admin']}>
-                    <IntegratedAdminDashboard />
+                    <AdminDashboard />
                   </RoleProtectedRoute>
                 } 
               />
               
-              <Route 
-                path="/organizer/*" 
-                element={
-                  <RoleProtectedRoute allowedRoles={['organizer', 'admin']}>
-                    <IntegratedAdminDashboard />
-                  </RoleProtectedRoute>
-                } 
-              />
-              
-              {/* Member Dashboard Routes */}
+              {/* Member Dashboard */}
               <Route 
                 path="/member" 
                 element={
@@ -258,145 +284,6 @@ function App() {
                 } 
               />
               
-              <Route 
-                path="/member/*" 
-                element={
-                  <RoleProtectedRoute allowedRoles={['member']}>
-                    <MemberDashboard />
-                  </RoleProtectedRoute>
-                } 
-              />
-              
-              {/* Dynamic role-based dashboard */}
-              <Route 
-                path="/my-dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <RoleBasedDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* === ELEVATED ACCESS ROUTES === */}
-              
-              {/* Homepage Media Management - Admin & Organizer Only */}
-              <Route 
-                path="/manage/homepage" 
-                element={
-                  <ElevatedAccessRoute>
-                    <div>Homepage Media Management Component</div>
-                  </ElevatedAccessRoute>
-                } 
-              />
-              
-              {/* Event Management - Admin & Organizer Only */}
-              <Route 
-                path="/manage/events" 
-                element={
-                  <ElevatedAccessRoute>
-                    <div>Event Management Component</div>
-                  </ElevatedAccessRoute>
-                } 
-              />
-              
-              {/* Media Management - Admin & Organizer Only */}
-              <Route 
-                path="/manage/media" 
-                element={
-                  <ElevatedAccessRoute>
-                    <div>Media Management Component</div>
-                  </ElevatedAccessRoute>
-                } 
-              />
-              
-              {/* === USER PROFILE ROUTES === */}
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/profile/edit" 
-                element={
-                  <ProtectedRoute>
-                    <div>Edit Profile Component</div>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/settings" 
-                element={
-                  <ProtectedRoute>
-                    <SettingsPage />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* === ADMIN-ONLY ROUTES === */}
-              
-              {/* User Management */}
-              <Route 
-                path="/admin/users" 
-                element={
-                  <AdminOnlyRoute>
-                    <div>User Management Component</div>
-                  </AdminOnlyRoute>
-                } 
-              />
-              
-              {/* System Analytics */}
-              <Route 
-                path="/admin/analytics" 
-                element={
-                  <AdminOnlyRoute>
-                    <div>System Analytics Component</div>
-                  </AdminOnlyRoute>
-                } 
-              />
-              
-              {/* System Settings */}
-              <Route 
-                path="/admin/settings" 
-                element={
-                  <AdminOnlyRoute>
-                    <div>System Settings Component</div>
-                  </AdminOnlyRoute>
-                } 
-              />
-              
-              {/* System Logs */}
-              <Route 
-                path="/admin/logs" 
-                element={
-                  <AdminOnlyRoute>
-                    <div>System Logs Component</div>
-                  </AdminOnlyRoute>
-                } 
-              />
-              
-              {/* === DEVELOPMENT ROUTES === */}
-              {process.env.NODE_ENV === 'development' && (
-                <>
-                  <Route 
-                    path="/dev/auth-test" 
-                    element={<div>Auth Test Component</div>} 
-                  />
-                  <Route 
-                    path="/dev/role-test" 
-                    element={
-                      <ProtectedRoute>
-                        <div>Role Test Component</div>
-                      </ProtectedRoute>
-                    } 
-                  />
-                </>
-              )}
-              
               {/* === CATCH-ALL ROUTES === */}
               
               {/* 404 Not Found */}
@@ -410,18 +297,6 @@ function App() {
       </AuthProvider>
     </ErrorBoundary>
   );
-}
-
-// === ROUTE DEBUGGING (Development only) ===
-if (process.env.NODE_ENV === 'development') {
-  console.log('🛣️ Boujee Events - Route Configuration Loaded');
-  console.log('Available routes:');
-  console.log('  Public: /, /events, /events/:id');
-  console.log('  Auth: /login, /register, /auth/callback');
-  console.log('  Admin: /admin, /admin-dashboard, /admin/*');
-  console.log('  Organizer: /organizer, /organizer-dashboard, /organizer/*');
-  console.log('  Member: /member, /member-dashboard, /member/*');
-  console.log('  Protected: /profile, /settings, /manage/*');
 }
 
 export default App;
