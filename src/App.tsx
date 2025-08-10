@@ -66,7 +66,7 @@ function App() {
             <Route path="/contact" element={<ContactPage />} />
             
             {/* Event specific routes */}
-            <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/booking/:eventId" element={<BookingPage />} />
             
             {/* ===== AUTH ROUTES ===== */}
