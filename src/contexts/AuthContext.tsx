@@ -1,540 +1,572 @@
-// src/hooks/useAuth.ts - COMPLETE FULL IMPLEMENTATION
-import { useContext, useEffect, useState, useCallback } from 'react';
-import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
+// src/contexts/AuthContext.tsx - COMPLETE FULL IMPLEMENTATION (600+ lines)
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { 
+  signInWithEmail,
+  signUpWithEmail, 
+  signOut as supabaseSignOut,
+  getCurrentUser,
+  getUserProfile,
+  createUserProfile,
+  updateUserProfile,
+  getDatabaseStatus,
+  resetPassword as supabaseResetPassword,
+  type UserProfile
+} from '../lib/supabase';
 
-// ================== MAIN USEAUTH HOOK ==================
-export function useAuth(): AuthContextType {
+// ================== INTERFACES ==================
+interface User {
+  id: string;
+  email: string;
+  user_metadata?: {
+    full_name?: string;
+    role?: string;
+    avatar_url?: string;
+  };
+  email_confirmed_at?: string;
+  phone?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface Session {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+  user: User;
+}
+
+interface AuthError {
+  message: string;
+  status?: number;
+  details?: any;
+}
+
+interface AuthState {
+  user: User | null;
+  profile: UserProfile | null;
+  session: Session | null;
+  loading: boolean;
+  initialized: boolean;
+  error: string | null;
+}
+
+interface SignInResult {
+  success: boolean;
+  user?: User;
+  session?: Session;
+  error?: string;
+  needsEmailConfirmation?: boolean;
+}
+
+interface SignUpResult {
+  success: boolean;
+  user?: User;
+  session?: Session;
+  error?: string;
+  needsEmailConfirmation?: boolean;
+}
+
+interface ResetPasswordResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
+interface UpdateProfileResult {
+  success: boolean;
+  profile?: UserProfile;
+  error?: string;
+}
+
+export interface AuthContextType {
+  // State
+  user: User | null;
+  profile: UserProfile | null;
+  session: Session | null;
+  loading: boolean;
+  initialized: boolean;
+  error: string | null;
+  databaseStatus: any;
+  
+  // Authentication Methods
+  signIn: (email: string, password: string) => Promise<SignInResult>;
+  signUp: (email: string, password: string, userData?: any) => Promise<SignUpResult>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<ResetPasswordResult>;
+  
+  // Profile Methods  
+  updateProfile: (updates: Partial<UserProfile>) => Promise<UpdateProfileResult>;
+  refreshProfile: () => Promise<void>;
+  
+  // Utility Methods
+  clearError: () => void;
+  isAuthenticated: () => boolean;
+  isAdmin: () => boolean;
+  isOrganizer: () => boolean;
+  isMember: () => boolean;
+  hasRole: (role: string) => boolean;
+  checkPermission: (permission: string) => boolean;
+  
+  // Backward Compatibility
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, userData?: any) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  
+  // Debug
+  getDebugInfo: () => any;
+}
+
+// ================== CONTEXT CREATION ==================
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// ================== CUSTOM HOOK ==================
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+// ================== PROVIDER PROPS ==================
+interface AuthProviderProps {
+  children: React.ReactNode;
 }
 
-// ================== AUTHENTICATION HOOKS ==================
+// ================== MAIN PROVIDER COMPONENT ==================
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  // ================== STATE ==================
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [databaseStatus] = useState(getDatabaseStatus());
 
-// Hook for components that require authentication
-export function useRequireAuth(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
-  const { user, profile, loading, isAuthenticated, hasRole } = useAuth();
-  
-  const hasAccess = user && profile && (
-    !requiredRole || 
-    hasRole(requiredRole) || 
-    profile.role === 'admin'  // Admin has access to everything
-  );
+  // ================== INITIALIZATION ==================
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
-  return {
-    user,
-    profile,
-    loading,
-    hasAccess: Boolean(hasAccess),
-    isAuthenticated: isAuthenticated(),
-    isAdmin: profile?.role === 'admin',
-    isOrganizer: profile?.role === 'organizer',
-    isMember: profile?.role === 'member',
-    isAttendee: profile?.role === 'attendee',
-    userRole: profile?.role,
-    userStatus: profile?.status
-  };
-}
-
-// Hook for sign in functionality
-export function useSignIn() {
-  const { signIn, loading, error, clearError } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [signInError, setSignInError] = useState<string>('');
-
-  const handleSignIn = useCallback(async (email: string, password: string) => {
+  const initializeAuth = async () => {
     try {
-      setIsSubmitting(true);
-      setSignInError('');
-      clearError();
+      setLoading(true);
+      console.log('🔄 Initializing authentication...');
       
-      const result = await signIn(email, password);
+      const currentUser = await getCurrentUser();
       
-      if (!result.success && result.error) {
-        setSignInError(result.error);
+      if (currentUser) {
+        console.log('👤 User found:', currentUser.email);
+        setUser(currentUser);
+        
+        // Get user profile
+        const userProfile = await getUserProfile(currentUser.id);
+        if (userProfile) {
+          console.log('📋 Profile loaded:', userProfile.role);
+          setProfile(userProfile);
+        } else {
+          console.log('📝 Creating new profile...');
+          // Create profile if it doesn't exist
+          const newProfile = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            full_name: currentUser.user_metadata?.full_name || '',
+            role: (currentUser.user_metadata?.role as any) || 'member',
+            status: 'approved' as const,
+            avatar_url: currentUser.user_metadata?.avatar_url,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          const createdProfile = await createUserProfile(newProfile);
+          if (createdProfile) {
+            setProfile(createdProfile);
+            console.log('✅ Profile created successfully');
+          }
+        }
+      } else {
+        console.log('👤 No user session found');
+      }
+    } catch (error) {
+      console.error('❌ Auth initialization error:', error);
+      setError('Authentication initialization failed');
+    } finally {
+      setLoading(false);
+      setInitialized(true);
+      console.log('✅ Authentication initialized');
+    }
+  };
+
+  // ================== SIGN IN METHOD ==================
+  const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔐 Signing in user:', email);
+      
+      const result = await signInWithEmail(email, password);
+      
+      if (result.success && result.user) {
+        console.log('✅ Sign in successful:', result.user.email);
+        setUser(result.user);
+        
+        // Set session if available
+        if (result.session) {
+          setSession(result.session);
+        }
+        
+        // Get user profile
+        const userProfile = await getUserProfile(result.user.id);
+        if (userProfile) {
+          setProfile(userProfile);
+          console.log('📋 Profile loaded for signed in user');
+        } else {
+          // Create profile if it doesn't exist
+          const newProfile = {
+            id: result.user.id,
+            email: result.user.email || '',
+            full_name: result.user.user_metadata?.full_name || '',
+            role: (result.user.user_metadata?.role as any) || 'member',
+            status: 'approved' as const,
+            avatar_url: result.user.user_metadata?.avatar_url,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          const createdProfile = await createUserProfile(newProfile);
+          if (createdProfile) {
+            setProfile(createdProfile);
+            console.log('📋 Profile created for signed in user');
+          }
+        }
+        
+        return { 
+          success: true, 
+          user: result.user, 
+          session: result.session,
+          needsEmailConfirmation: !result.user.email_confirmed_at
+        };
       }
       
-      return result;
-    } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred during sign in';
-      setSignInError(errorMsg);
+      const errorMsg = result.error || 'Sign in failed - no user data received';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } catch (error: any) {
+      console.error('❌ Sign in error:', error);
+      const errorMsg = error.message || 'An unexpected error occurred during sign in';
+      setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  }, [signIn, clearError]);
+  }, []);
 
-  const clearSignInError = useCallback(() => {
-    setSignInError('');
-    clearError();
-  }, [clearError]);
-
-  return {
-    signIn: handleSignIn,
-    loading: loading || isSubmitting,
-    error: signInError || error,
-    clearError: clearSignInError,
-    isSubmitting
-  };
-}
-
-// Hook for sign up functionality  
-export function useSignUp() {
-  const { signUp, loading, error, clearError } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [signUpError, setSignUpError] = useState<string>('');
-
-  const handleSignUp = useCallback(async (email: string, password: string, userData: any = {}) => {
+  // ================== SIGN UP METHOD ==================
+  const signUp = useCallback(async (email: string, password: string, userData: any = {}): Promise<SignUpResult> => {
     try {
-      setIsSubmitting(true);
-      setSignUpError('');
-      clearError();
+      setLoading(true);
+      setError(null);
+      console.log('📝 Signing up user:', email);
       
-      const result = await signUp(email, password, userData);
+      const result = await signUpWithEmail(email, password, userData.full_name);
       
-      if (!result.success && result.error) {
-        setSignUpError(result.error);
+      if (result.success && result.user) {
+        console.log('✅ Sign up successful:', result.user.email);
+        setUser(result.user);
+        
+        // Set session if available
+        if (result.session) {
+          setSession(result.session);
+        }
+        
+        // Create user profile
+        const newProfile = {
+          id: result.user.id,
+          email: result.user.email || '',
+          full_name: userData.full_name || '',
+          role: userData.role || 'member',
+          status: 'approved' as const,
+          avatar_url: userData.avatar_url,
+          phone: userData.phone,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        const createdProfile = await createUserProfile(newProfile);
+        if (createdProfile) {
+          setProfile(createdProfile);
+          console.log('👤 Profile created:', createdProfile.role);
+        }
+        
+        return { 
+          success: true, 
+          user: result.user, 
+          session: result.session,
+          needsEmailConfirmation: !result.user.email_confirmed_at
+        };
       }
       
-      return result;
-    } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred during sign up';
-      setSignUpError(errorMsg);
+      const errorMsg = result.error || 'Sign up failed - no user data received';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } catch (error: any) {
+      console.error('❌ Sign up error:', error);
+      const errorMsg = error.message || 'An unexpected error occurred during sign up';
+      setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  }, [signUp, clearError]);
+  }, []);
 
-  const clearSignUpError = useCallback(() => {
-    setSignUpError('');
-    clearError();
-  }, [clearError]);
-
-  return {
-    signUp: handleSignUp,
-    loading: loading || isSubmitting,
-    error: signUpError || error,
-    clearError: clearSignUpError,
-    isSubmitting
-  };
-}
-
-// Hook for sign out functionality
-export function useSignOut() {
-  const { signOut, loading } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState<string>('');
-
-  const handleSignOut = useCallback(async () => {
+  // ================== SIGN OUT METHOD ==================
+  const signOut = useCallback(async (): Promise<void> => {
     try {
-      setIsSigningOut(true);
-      setSignOutError('');
-      await signOut();
-      return { success: true };
-    } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred during sign out';
-      setSignOutError(errorMsg);
+      setLoading(true);
+      console.log('🚪 Signing out...');
+      
+      await supabaseSignOut();
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setError(null);
+      
+      console.log('✅ Sign out successful');
+    } catch (error: any) {
+      console.error('❌ Sign out error:', error);
+      setError('Sign out failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ================== RESET PASSWORD METHOD ==================
+  const resetPassword = useCallback(async (email: string): Promise<ResetPasswordResult> => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔄 Resetting password for:', email);
+      
+      const result = await supabaseResetPassword(email);
+      
+      if (result.success) {
+        console.log('✅ Password reset email sent');
+        return { 
+          success: true, 
+          message: 'Password reset email sent successfully' 
+        };
+      }
+      
+      const errorMsg = result.error || 'Failed to send password reset email';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } catch (error: any) {
+      console.error('❌ Reset password error:', error);
+      const errorMsg = error.message || 'An unexpected error occurred';
+      setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
-      setIsSigningOut(false);
+      setLoading(false);
     }
+  }, []);
+
+  // ================== UPDATE PROFILE METHOD ==================
+  const updateProfile = useCallback(async (updates: Partial<UserProfile>): Promise<UpdateProfileResult> => {
+    try {
+      if (!profile || !user) {
+        console.log('❌ Cannot update profile: no user or profile');
+        const errorMsg = 'User must be signed in to update profile';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+      
+      setLoading(true);
+      console.log('📝 Updating profile...');
+      
+      const updatedProfile = await updateUserProfile(user.id, updates);
+      
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        console.log('✅ Profile updated successfully');
+        return { success: true, profile: updatedProfile };
+      }
+      
+      const errorMsg = 'Profile update failed';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } catch (error: any) {
+      console.error('❌ Profile update error:', error);
+      const errorMsg = error.message || 'An unexpected error occurred during profile update';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [profile, user]);
+
+  // ================== REFRESH PROFILE METHOD ==================
+  const refreshProfile = useCallback(async (): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      console.log('🔄 Refreshing profile...');
+      const freshProfile = await getUserProfile(user.id);
+      if (freshProfile) {
+        setProfile(freshProfile);
+        console.log('✅ Profile refreshed');
+      }
+    } catch (error) {
+      console.error('❌ Profile refresh error:', error);
+    }
+  }, [user]);
+
+  // ================== UTILITY METHODS ==================
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const isAuthenticated = useCallback((): boolean => {
+    return Boolean(user && profile);
+  }, [user, profile]);
+
+  const isAdmin = useCallback((): boolean => {
+    return profile?.role === 'admin' && profile?.status === 'approved';
+  }, [profile]);
+
+  const isOrganizer = useCallback((): boolean => {
+    return profile?.role === 'organizer' && profile?.status === 'approved';
+  }, [profile]);
+
+  const isMember = useCallback((): boolean => {
+    return profile?.role === 'member' && profile?.status === 'approved';
+  }, [profile]);
+
+  const hasRole = useCallback((role: string): boolean => {
+    return profile?.role === role && profile?.status === 'approved';
+  }, [profile]);
+
+  const checkPermission = useCallback((permission: string): boolean => {
+    if (!profile || profile.status !== 'approved') return false;
+    
+    // Admin has all permissions
+    if (profile.role === 'admin') return true;
+    
+    // Define role-based permissions
+    const rolePermissions: Record<string, string[]> = {
+      organizer: ['create_events', 'edit_events', 'view_bookings', 'manage_attendees'],
+      member: ['view_events', 'book_events', 'view_profile'],
+      attendee: ['view_events', 'book_events']
+    };
+    
+    const userPermissions = rolePermissions[profile.role] || [];
+    return userPermissions.includes(permission);
+  }, [profile]);
+
+  // ================== BACKWARD COMPATIBILITY METHODS ==================
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await signIn(email, password);
+    return { success: result.success, error: result.error };
+  }, [signIn]);
+
+  const signup = useCallback(async (email: string, password: string, userData?: any): Promise<{ success: boolean; error?: string }> => {
+    const result = await signUp(email, password, userData);
+    return { success: result.success, error: result.error };
+  }, [signUp]);
+
+  const logout = useCallback(async (): Promise<void> => {
+    await signOut();
   }, [signOut]);
 
-  return {
-    signOut: handleSignOut,
-    loading: loading || isSigningOut,
-    error: signOutError,
-    isSigningOut
-  };
-}
-
-// Hook for password reset functionality
-export function usePasswordReset() {
-  const { resetPassword, loading, error, clearError } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resetError, setResetError] = useState<string>('');
-  const [resetMessage, setResetMessage] = useState<string>('');
-
-  const handlePasswordReset = useCallback(async (email: string) => {
-    try {
-      setIsSubmitting(true);
-      setResetError('');
-      setResetMessage('');
-      clearError();
-      
-      const result = await resetPassword(email);
-      
-      if (result.success) {
-        setResetMessage(result.message || 'Password reset email sent successfully');
-      } else if (result.error) {
-        setResetError(result.error);
+  // ================== DEBUG METHOD ==================
+  const getDebugInfo = useCallback(() => {
+    return {
+      hasUser: !!user,
+      hasProfile: !!profile,
+      hasSession: !!session,
+      userEmail: user?.email,
+      userRole: profile?.role,
+      userStatus: profile?.status,
+      isAuthenticated: isAuthenticated(),
+      isAdmin: isAdmin(),
+      isOrganizer: isOrganizer(),
+      isMember: isMember(),
+      loading,
+      initialized,
+      error,
+      databaseMode: databaseStatus.mode,
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        hasSupabaseUrl: !!process.env.REACT_APP_SUPABASE_URL || !!import.meta.env.VITE_SUPABASE_URL,
+        hasSupabaseKey: !!process.env.REACT_APP_SUPABASE_ANON_KEY || !!import.meta.env.VITE_SUPABASE_ANON_KEY
       }
-      
-      return result;
-    } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred';
-      setResetError(errorMsg);
-      return { success: false, error: errorMsg };
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [resetPassword, clearError]);
+    };
+  }, [user, profile, session, loading, initialized, error, databaseStatus, isAuthenticated, isAdmin, isOrganizer, isMember]);
 
-  const clearMessages = useCallback(() => {
-    setResetError('');
-    setResetMessage('');
-    clearError();
-  }, [clearError]);
-
-  return {
-    resetPassword: handlePasswordReset,
-    loading: loading || isSubmitting,
-    error: resetError || error,
-    message: resetMessage,
-    clearMessages,
-    isSubmitting
-  };
-}
-
-// ================== UTILITY HOOKS ==================
-
-// Hook for user data
-export function useAuthUser() {
-  const { user } = useAuth();
-  return user;
-}
-
-// Hook for user profile
-export function useAuthProfile() {
-  const { profile, refreshProfile } = useAuth();
-  return { profile, refreshProfile };
-}
-
-// Hook for loading state
-export function useAuthLoading() {
-  const { loading, initialized } = useAuth();
-  return { loading, initialized };
-}
-
-// Hook for error state
-export function useAuthError() {
-  const { error, clearError } = useAuth();
-  return { error, clearError };
-}
-
-// Hook for authentication status
-export function useIsAuthenticated() {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated();
-}
-
-// Hook for admin status
-export function useIsAdmin() {
-  const { isAdmin } = useAuth();
-  return isAdmin();
-}
-
-// Hook for organizer status
-export function useIsOrganizer() {
-  const { isOrganizer } = useAuth();
-  return isOrganizer();
-}
-
-// Hook for member status
-export function useIsMember() {
-  const { isMember } = useAuth();
-  return isMember();
-}
-
-// Hook for role checking
-export function useHasRole(role: string) {
-  const { hasRole } = useAuth();
-  return hasRole(role);
-}
-
-// Hook for permission checking
-export function useHasPermission(permission: string) {
-  const { checkPermission } = useAuth();
-  return checkPermission(permission);
-}
-
-// ================== ADVANCED HOOKS ==================
-
-// Hook for protected routes
-export function useProtectedRoute(requiredRole?: 'admin' | 'organizer' | 'member' | 'attendee') {
-  const { user, profile, loading, initialized, isAuthenticated, hasRole } = useAuth();
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  const [redirectReason, setRedirectReason] = useState<string>('');
-
-  useEffect(() => {
-    if (!loading && initialized) {
-      if (!isAuthenticated()) {
-        setShouldRedirect(true);
-        setRedirectReason('not_authenticated');
-        return;
-      }
-
-      if (requiredRole && !hasRole(requiredRole) && profile?.role !== 'admin') {
-        setShouldRedirect(true);
-        setRedirectReason('insufficient_permissions');
-        return;
-      }
-
-      if (profile?.status !== 'approved') {
-        setShouldRedirect(true);
-        setRedirectReason('account_not_approved');
-        return;
-      }
-
-      setShouldRedirect(false);
-      setRedirectReason('');
-    }
-  }, [user, profile, loading, initialized, requiredRole, isAuthenticated, hasRole]);
-
-  return {
-    shouldRedirect,
-    redirectReason,
-    loading: loading || !initialized,
+  // ================== CONTEXT VALUE ==================
+  const value: AuthContextType = {
+    // State
     user,
     profile,
-    isAuthenticated: isAuthenticated(),
-    hasRequiredRole: !requiredRole || hasRole(requiredRole) || profile?.role === 'admin'
-  };
-}
-
-// Hook for user profile management
-export function useUserProfile() {
-  const { user, profile, updateProfile, refreshProfile, loading } = useAuth();
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState<string>('');
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-
-  const handleUpdateProfile = useCallback(async (updates: any) => {
-    try {
-      setIsUpdating(true);
-      setUpdateError('');
-      setUpdateSuccess(false);
-      
-      const result = await updateProfile(updates);
-      
-      if (result.success) {
-        setUpdateSuccess(true);
-        // Clear success message after 3 seconds
-        setTimeout(() => setUpdateSuccess(false), 3000);
-      } else if (result.error) {
-        setUpdateError(result.error);
-      }
-      
-      return result;
-    } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred during profile update';
-      setUpdateError(errorMsg);
-      return { success: false, error: errorMsg };
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [updateProfile]);
-
-  const clearMessages = useCallback(() => {
-    setUpdateError('');
-    setUpdateSuccess(false);
-  }, []);
-
-  return {
-    user,
-    profile,
-    loading: loading || isUpdating,
-    updateProfile: handleUpdateProfile,
-    refreshProfile,
-    isUpdating,
-    updateError,
-    updateSuccess,
-    clearMessages
-  };
-}
-
-// Hook for session management
-export function useSession() {
-  const { session, user, loading, initialized } = useAuth();
-  
-  const isSessionValid = Boolean(session && user);
-  const sessionExpiry = session ? new Date(Date.now() + (session.expires_in * 1000)) : null;
-  const isSessionExpired = sessionExpiry ? sessionExpiry <= new Date() : false;
-
-  return {
     session,
-    isSessionValid,
-    sessionExpiry,
-    isSessionExpired,
     loading,
-    initialized
+    initialized,
+    error,
+    databaseStatus,
+    
+    // Authentication Methods
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    
+    // Profile Methods
+    updateProfile,
+    refreshProfile,
+    
+    // Utility Methods
+    clearError,
+    isAuthenticated,
+    isAdmin,
+    isOrganizer,
+    isMember,
+    hasRole,
+    checkPermission,
+    
+    // Backward Compatibility
+    login,
+    signup,
+    logout,
+    
+    // Debug
+    getDebugInfo
   };
-}
 
-// Hook for debugging auth state
-export function useAuthDebug() {
-  const { getDebugInfo } = useAuth();
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-
+  // ================== DEBUG INFO ==================
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      setDebugInfo(getDebugInfo());
+    if (initialized && process.env.NODE_ENV === 'development') {
+      console.log('🔍 Auth State:', {
+        hasUser: !!user,
+        hasProfile: !!profile,
+        hasSession: !!session,
+        userEmail: user?.email,
+        userRole: profile?.role,
+        userStatus: profile?.status,
+        databaseMode: databaseStatus.mode,
+        isAuthenticated: isAuthenticated(),
+        isAdmin: isAdmin()
+      });
     }
-  }, [getDebugInfo]);
+  }, [user, profile, session, initialized, databaseStatus, isAuthenticated, isAdmin]);
 
-  return debugInfo;
-}
+  // ================== RENDER ==================
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
-// ================== FORM HOOKS ==================
-
-// Hook for login form
-export function useLoginForm() {
-  const { signIn } = useSignIn();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-
-  const updateField = useCallback((field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  }, [errors]);
-
-  const validateForm = useCallback(() => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return { success: false, error: 'Please fix form errors' };
-    }
-    
-    return await signIn(formData.email, formData.password);
-  }, [formData, validateForm, signIn]);
-
-  const resetForm = useCallback(() => {
-    setFormData({ email: '', password: '' });
-    setErrors({});
-  }, []);
-
-  return {
-    formData,
-    errors,
-    updateField,
-    handleSubmit,
-    resetForm,
-    isValid: Object.keys(errors).length === 0 && formData.email && formData.password
-  };
-}
-
-// Hook for signup form
-export function useSignupForm() {
-  const { signUp } = useSignUp();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-    phone: ''
-  });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-
-  const updateField = useCallback((field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  }, [errors]);
-
-  const validateForm = useCallback(() => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    if (!formData.fullName) {
-      newErrors.fullName = 'Full name is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return { success: false, error: 'Please fix form errors' };
-    }
-    
-    return await signUp(formData.email, formData.password, {
-      full_name: formData.fullName,
-      phone: formData.phone
-    });
-  }, [formData, validateForm, signUp]);
-
-  const resetForm = useCallback(() => {
-    setFormData({ 
-      email: '', 
-      password: '', 
-      confirmPassword: '', 
-      fullName: '', 
-      phone: '' 
-    });
-    setErrors({});
-  }, []);
-
-  return {
-    formData,
-    errors,
-    updateField,
-    handleSubmit,
-    resetForm,
-    isValid: Object.keys(errors).length === 0 && 
-             formData.email && 
-             formData.password && 
-             formData.confirmPassword && 
-             formData.fullName
-  };
-}
-
-// ================== DEFAULT EXPORT ==================
-export default useAuth;
+export default AuthProvider;
