@@ -1,4 +1,4 @@
-// src/lib/supabase.ts - Complete Supabase configuration with mock auth
+// src/lib/supabase.ts - Full Featured Implementation
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
@@ -115,36 +115,252 @@ export const mockProfiles: UserProfile[] = [
   }
 ];
 
-// Mock authentication for development
-export const mockAuth = {
-  signIn: async (email: string, password: string) => {
-    const profile = mockProfiles.find(p => p.email === email);
-    if (profile && password.includes('Test')) {
-      return {
-        success: true,
-        data: {
-          user: {
-            id: profile.id,
-            email: profile.email,
-            user_metadata: { full_name: profile.full_name }
-          },
-          session: { access_token: 'mock-token' }
+// === AUTH FUNCTIONS (Required by AuthContext) ===
+
+export const signInWithEmail = async (email: string, password: string) => {
+  if (!supabase) {
+    // Enhanced mock authentication for development
+    const mockUsers = [
+      { 
+        email: 'admin@test.com', 
+        password: 'TestAdmin2025', 
+        role: 'admin', 
+        name: 'System Administrator',
+        id: 'admin-1'
+      },
+      { 
+        email: 'organizer@test.com', 
+        password: 'TestOrganizer2025', 
+        role: 'organizer', 
+        name: 'Event Organizer',
+        id: 'organizer-1'
+      },
+      { 
+        email: 'member@test.com', 
+        password: 'TestMember2025', 
+        role: 'member', 
+        name: 'Premium Member',
+        id: 'member-1'
+      }
+    ];
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const user = mockUsers.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+      const mockSession = {
+        user: {
+          id: user.id,
+          email: user.email,
+          user_metadata: { 
+            full_name: user.name, 
+            role: user.role 
+          }
+        },
+        session: { 
+          access_token: 'mock-token',
+          expires_at: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
         }
       };
+      
+      // Store in localStorage for persistence
+      localStorage.setItem('mock-user', JSON.stringify(mockSession.user));
+      localStorage.setItem('mock-profile', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        full_name: user.name,
+        role: user.role,
+        status: 'approved',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+      
+      console.log(`✅ Mock login successful: ${user.name} (${user.role})`);
+      return { data: mockSession, error: null };
+    } else {
+      console.log('❌ Mock login failed: Invalid credentials');
+      return { data: null, error: { message: 'Invalid email or password' } };
     }
-    return { success: false, error: 'Invalid credentials' };
-  },
+  }
+
+  // Real Supabase authentication
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
   
-  getCurrentUser: async () => {
-    const storedUser = localStorage.getItem('mock-user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  },
+  return { data, error };
+};
+
+export const signUpWithEmail = async (email: string, password: string, metadata: any = {}) => {
+  if (!supabase) {
+    // Mock signup for development
+    const mockUser = {
+      id: `mock-${Date.now()}`,
+      email,
+      user_metadata: { 
+        full_name: metadata.full_name || '',
+        role: metadata.role || 'member'
+      }
+    };
+    
+    // Store mock user
+    localStorage.setItem('mock-user', JSON.stringify(mockUser));
+    localStorage.setItem('mock-profile', JSON.stringify({
+      id: mockUser.id,
+      email,
+      full_name: metadata.full_name || '',
+      role: metadata.role || 'member',
+      status: 'approved',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+    
+    console.log('✅ Mock signup successful');
+    return { 
+      data: { 
+        user: mockUser, 
+        session: { access_token: 'mock-token' } 
+      }, 
+      error: null 
+    };
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: metadata
+    }
+  });
   
-  signOut: async () => {
+  return { data, error };
+};
+
+export const signOut = async () => {
+  if (!supabase) {
+    // Mock signout
     localStorage.removeItem('mock-user');
     localStorage.removeItem('mock-profile');
-    return { success: true };
+    console.log('✅ Mock logout successful');
+    return { error: null };
   }
+
+  const { error } = await supabase.auth.signOut();
+  return { error };
+};
+
+export const getCurrentUser = async () => {
+  if (!supabase) {
+    // Mock get current user
+    const storedUser = localStorage.getItem('mock-user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      console.log('📋 Mock user retrieved:', user.email);
+      return user;
+    }
+    return null;
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+};
+
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  if (!supabase) {
+    // Mock get profile
+    const storedProfile = localStorage.getItem('mock-profile');
+    if (storedProfile) {
+      const profile = JSON.parse(storedProfile);
+      console.log('👤 Mock profile retrieved:', profile.role);
+      return profile;
+    }
+    
+    // Fallback to mock profiles
+    const mockProfile = mockProfiles.find(p => p.id === userId);
+    return mockProfile || null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const createUserProfile = async (profile: Partial<UserProfile>): Promise<UserProfile | null> => {
+  if (!supabase) {
+    // Mock create profile
+    const fullProfile: UserProfile = {
+      id: profile.id || `mock-${Date.now()}`,
+      email: profile.email || '',
+      full_name: profile.full_name || '',
+      role: profile.role || 'member',
+      status: profile.status || 'approved',
+      created_at: profile.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...profile
+    };
+    
+    localStorage.setItem('mock-profile', JSON.stringify(fullProfile));
+    console.log('✅ Mock profile created');
+    return fullProfile;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert([profile])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating user profile:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+  if (!supabase) {
+    // Mock profile update
+    const storedProfile = localStorage.getItem('mock-profile');
+    if (storedProfile) {
+      const currentProfile = JSON.parse(storedProfile);
+      const updatedProfile = {
+        ...currentProfile,
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+      localStorage.setItem('mock-profile', JSON.stringify(updatedProfile));
+      console.log('✅ Mock profile updated');
+      return updatedProfile;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating user profile:', error);
+    return null;
+  }
+
+  return data;
 };
 
 // === HELPER FUNCTIONS ===
@@ -177,103 +393,14 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   }
 }
 
-// Get current user profile
-export async function getCurrentUserProfile(userId: string): Promise<UserProfile | null> {
-  try {
-    if (!supabase) {
-      // Return mock profile for development
-      return mockProfiles.find(p => p.id === userId) || null;
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error in getCurrentUserProfile:', error);
-    return null;
-  }
-}
-
-// Create user profile
-export async function createUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
-  try {
-    if (!supabase) {
-      // Mock profile creation
-      const newProfile: UserProfile = {
-        id: profile.id || `mock-${Date.now()}`,
-        email: profile.email || '',
-        full_name: profile.full_name || '',
-        role: profile.role || 'member',
-        status: profile.status || 'approved',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...profile
-      };
-      return newProfile;
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert([profile])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating user profile:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error in createUserProfile:', error);
-    return null;
-  }
-}
-
-// Update user profile
-export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
-  try {
-    if (!supabase) {
-      // Mock profile update
-      console.log('Mock: Updated profile for user', userId, updates);
-      return null;
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating user profile:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error in updateUserProfile:', error);
-    return null;
-  }
-}
-
 // Database status check
 export function getDatabaseStatus() {
   return {
     isConfigured: isSupabaseConfigured(),
     url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'Not configured',
     hasAnonKey: !!supabaseAnonKey,
-    client: supabase ? 'Connected' : 'Mock mode'
+    client: supabase ? 'Connected' : 'Mock mode',
+    mode: supabase ? '🟢 Database Mode' : '🟡 Mock Mode'
   };
 }
 
@@ -304,6 +431,13 @@ export async function initializeDatabase() {
     return { success: false, error, mode: 'mock' };
   }
 }
+
+// Test credentials for easy reference
+export const testCredentials = {
+  admin: { email: 'admin@test.com', password: 'TestAdmin2025' },
+  organizer: { email: 'organizer@test.com', password: 'TestOrganizer2025' },
+  member: { email: 'member@test.com', password: 'TestMember2025' }
+};
 
 // Auto-initialize on import
 (async () => {
