@@ -1,4 +1,4 @@
-// src/pages/AdminDashboard.tsx - COMPLETE FULL Implementation with ALL Features
+// src/pages/AdminDashboard.tsx - COMPLETE FULL IMPLEMENTATION
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
