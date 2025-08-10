@@ -1,12 +1,10 @@
-// src/pages/SignupPage.tsx - CORRECTED VERSION
+// src/pages/SignupPage.tsx - FIXED VERSION (No PublicUser dependency)
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { usePublicUser } from '../contexts/PublicUserContext';
 
 const SignupPage: React.FC = () => {
   const { signUp } = useAuth();
-  const { register } = usePublicUser();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -85,14 +83,8 @@ const SignupPage: React.FC = () => {
     try {
       console.log('🚀 Starting signup process for:', formData.email);
       
-      // Try main authentication signup first
       if (signUp) {
-        const result = await signUp({
-          email: formData.email,
-          password: formData.password,
-          fullName: formData.fullName,
-          phone: formData.phone
-        });
+        const result = await signUp(formData.email, formData.password, formData.fullName);
 
         if (result?.success) {
           console.log('✅ Signup successful!');
@@ -105,24 +97,8 @@ const SignupPage: React.FC = () => {
         } else {
           throw new Error(result?.error || 'Signup failed');
         }
-      } else if (register) {
-        // Fallback to public user registration
-        await register({
-          email: formData.email,
-          password: formData.password,
-          name: formData.fullName,
-          fullName: formData.fullName,
-          phone: formData.phone
-        });
-
-        console.log('✅ Public registration successful!');
-        navigate('/', { 
-          state: { 
-            message: 'Account created successfully! Welcome to Boujee Events!' 
-          }
-        });
       } else {
-        throw new Error('No authentication method available');
+        throw new Error('Authentication service not available');
       }
     } catch (error: any) {
       console.error('❌ Signup error:', error);
