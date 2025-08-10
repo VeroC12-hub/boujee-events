@@ -101,7 +101,7 @@ export const PublicNavbar: React.FC = () => {
             <img 
               src="/logo.png" 
               alt="Boujee Events" 
-              className="h-8 w-10"
+              className="h-10 w-12"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
