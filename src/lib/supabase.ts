@@ -2,16 +2,25 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
-// Environment variables
+// Environment variables with validation
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Validate environment variables
+if (!supabaseUrl) {
+  console.error('❌ Missing VITE_SUPABASE_URL environment variable');
+}
+
+if (!supabaseAnonKey) {
+  console.error('❌ Missing VITE_SUPABASE_ANON_KEY environment variable');
+}
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = (): boolean => {
   return !!(supabaseUrl && supabaseAnonKey);
 };
 
-// Create Supabase client
+// Create Supabase client with proper configuration
 export const supabase = isSupabaseConfigured() 
   ? createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
       auth: {
@@ -26,17 +35,24 @@ export const supabase = isSupabaseConfigured()
           eventsPerSecond: 10,
         },
       },
+      global: {
+        headers: {
+          'x-my-custom-header': 'boujee-events',
+        },
+      },
     })
   : null;
 
-// Database Types (you can expand these based on your schema)
+// Database Types
 export interface UserProfile {
   id: string;
   email: string;
   full_name?: string;
-  role: 'admin' | 'organizer' | 'member' | 'viewer';
   avatar_url?: string;
-  status?: 'approved' | 'pending' | 'suspended';
+  phone?: string;
+  bio?: string;
+  role: 'admin' | 'organizer' | 'member' | 'viewer';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   created_at: string;
   updated_at: string;
   last_login?: string;
@@ -49,11 +65,14 @@ export interface Event {
   event_date: string;
   event_time: string;
   venue: string;
+  address?: string;
   capacity: number;
   price: number;
   category: string;
   status: 'active' | 'draft' | 'ended' | 'cancelled';
   organizer_id: string;
+  featured: boolean;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -62,9 +81,36 @@ export interface Booking {
   id: string;
   event_id: string;
   user_id: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  booking_number: string;
   quantity: number;
-  amount: number;
+  total_amount: number;
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_method?: string;
+  payment_intent_id?: string;
+  booking_status: 'confirmed' | 'cancelled' | 'pending';
+  special_requests?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MediaFile {
+  id: string;
+  name: string;
+  original_name: string;
+  mime_type: string;
+  file_size: number;
+  google_drive_file_id: string;
+  google_drive_folder_id?: string;
+  thumbnail_url?: string;
+  preview_url?: string;
+  download_url?: string;
+  web_view_link?: string;
+  file_type: 'image' | 'video' | 'document' | 'other';
+  uploaded_by: string;
+  tags?: string[];
+  description?: string;
+  is_public: boolean;
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -81,348 +127,152 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
       };
     }
 
+    // Simple test query to check connection
     const { data, error } = await supabase!
       .from('profiles')
       .select('count')
       .limit(1);
-    
+
     if (error) {
+      console.error('Supabase connection test failed:', error);
       return {
         success: false,
         error: `Database connection failed: ${error.message}`
       };
     }
 
-    return { success: true };
+    return {
+      success: true
+    };
 
   } catch (error: any) {
+    console.error('Supabase connection test error:', error);
     return {
       success: false,
-      error: `Connection test failed: ${error.message}`
+      error: `Database connection failed: ${error.message}`
     };
   }
 }
 
-// Get current user
-export async function getCurrentUser() {
+// Get current user profile
+export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   try {
-    if (!supabase) {
-      console.warn('Supabase not configured');
-      return null;
-    }
+    if (!supabase) return null;
 
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      console.error('Error getting current user:', error);
-      return null;
-    }
-
-    return user;
-
-  } catch (error) {
-    console.error('Error in getCurrentUser:', error);
-    return null;
-  }
-}
-
-// Get current session
-export async function getCurrentSession() {
-  try {
-    if (!supabase) {
-      console.warn('Supabase not configured');
-      return null;
-    }
-
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('Error getting current session:', error);
-      return null;
-    }
-
-    return session;
-
-  } catch (error) {
-    console.error('Error in getCurrentSession:', error);
-    return null;
-  }
-}
-
-// Get user profile
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  try {
-    if (!supabase) {
-      console.warn('Supabase not configured');
-      return null;
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single();
 
     if (error) {
-      console.error('Error getting user profile:', error);
+      console.error('Error fetching user profile:', error);
       return null;
     }
 
-    return data as UserProfile;
-
+    return data;
   } catch (error) {
-    console.error('Error in getUserProfile:', error);
+    console.error('Error in getCurrentUserProfile:', error);
     return null;
   }
 }
 
-// Create user profile
-export async function createUserProfile(user: any): Promise<UserProfile | null> {
+// Create or update user profile
+export async function upsertUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
   try {
-    if (!supabase) {
-      console.warn('Supabase not configured');
-      return null;
-    }
-
-    // Determine default role based on email
-    let defaultRole: 'admin' | 'organizer' | 'member' = 'member';
-    if (user.email?.includes('admin')) {
-      defaultRole = 'admin';
-    } else if (user.email?.includes('organizer')) {
-      defaultRole = 'organizer';
-    }
-
-    const profileData = {
-      id: user.id,
-      email: user.email!,
-      full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-      role: defaultRole,
-      avatar_url: user.user_metadata?.avatar_url,
-      status: 'approved',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    if (!supabase) return null;
 
     const { data, error } = await supabase
       .from('profiles')
-      .insert(profileData)
+      .upsert(profile)
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating profile:', error);
+      console.error('Error upserting user profile:', error);
       return null;
     }
 
-    console.log('✅ Profile created:', data);
-    return data as UserProfile;
-  } catch (error: any) {
-    console.error('Error creating profile:', error);
+    return data;
+  } catch (error) {
+    console.error('Error in upsertUserProfile:', error);
     return null;
   }
 }
 
-// === AUTHENTICATION FUNCTIONS ===
-
+// Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
-  try {
-    if (!supabase) {
-      return { 
-        success: false, 
-        error: 'Supabase not configured. Using mock authentication.' 
-      };
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  if (!supabase) {
+    throw new Error('Supabase not configured');
   }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+  return data;
 }
 
-export async function signUpWithEmail(email: string, password: string, metadata: any = {}) {
-  try {
-    if (!supabase) {
-      return { 
-        success: false, 
-        error: 'Supabase not configured. Please check your environment variables.' 
-      };
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata
-      }
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
+// Sign up with email and password
+export async function signUpWithEmail(email: string, password: string, full_name?: string) {
+  if (!supabase) {
+    throw new Error('Supabase not configured');
   }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: full_name || email,
+      },
+    },
+  });
+
+  if (error) throw error;
+  return data;
 }
 
+// Sign out
 export async function signOut() {
-  try {
-    if (!supabase) {
-      console.warn('Supabase not configured');
-      return { success: true };
-    }
-
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  if (!supabase) {
+    throw new Error('Supabase not configured');
   }
+
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
-export async function signInWithGoogle() {
-  try {
-    if (!supabase) {
-      return { 
-        success: false, 
-        error: 'Supabase not configured' 
-      };
-    }
+// Get session
+export async function getSession() {
+  if (!supabase) return null;
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 }
 
-export async function resetPassword(email: string) {
-  try {
-    if (!supabase) {
-      return { 
-        success: false, 
-        error: 'Supabase not configured' 
-      };
-    }
+// Subscribe to auth changes
+export function onAuthStateChange(callback: (event: string, session: any) => void) {
+  if (!supabase) return () => {};
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  return () => subscription.unsubscribe();
 }
 
-// === MOCK DATA FOR DEVELOPMENT ===
-
-export const mockProfiles: UserProfile[] = [
-  {
-    id: 'admin-1',
-    email: 'admin@test.com',
-    full_name: 'System Administrator',
-    role: 'admin',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'organizer-1',
-    email: 'organizer@test.com',
-    full_name: 'Event Organizer',
-    role: 'organizer',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'member-1',
-    email: 'member@test.com',
-    full_name: 'Premium Member',
-    role: 'member',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
-
-// Mock authentication for development
-export const mockAuth = {
-  signIn: async (email: string, password: string) => {
-    const profile = mockProfiles.find(p => p.email === email);
-    if (profile && password.includes('Test')) {
-      return {
-        success: true,
-        data: {
-          user: {
-            id: profile.id,
-            email: profile.email,
-            user_metadata: { full_name: profile.full_name }
-          },
-          session: { access_token: 'mock-token' }
-        }
-      };
-    }
-    return { success: false, error: 'Invalid credentials' };
-  },
-  
-  getCurrentUser: async () => {
-    const storedUser = localStorage.getItem('mock-user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  },
-  
-  signOut: async () => {
-    localStorage.removeItem('mock-user');
-    return { success: true };
-  }
-};
-
-// === INITIALIZATION ===
-
-// Initialize and check connection on import
+// Initialize Supabase and test connection
 (async () => {
   if (typeof window !== 'undefined') {
     console.log('🚀 Boujee Events - Initializing Supabase...');
     
     if (isSupabaseConfigured()) {
       const connectionTest = await testConnection();
-      
       if (connectionTest.success) {
-        console.log('✅ Supabase connection successful!');
+        console.log('✅ Supabase connection successful');
       } else {
         console.error('❌ Supabase connection failed:', connectionTest.error);
         console.log('📝 Setup instructions:');
