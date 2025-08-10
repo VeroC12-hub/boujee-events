@@ -1,347 +1,388 @@
-// src/pages/SignupPage.tsx - FIXED VERSION (No PublicUser dependency)
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+// src/lib/supabase.ts
+import { createClient } from '@supabase/supabase-js'
 
-const SignupPage: React.FC = () => {
-  const { signUp } = useAuth();
-  const navigate = useNavigate();
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-    phone: '',
-    agreeToTerms: false
-  });
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+// src/types/auth.ts
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  phone?: string;
+  role?: string;
+  status?: string;
+  avatar_url?: string;
+  bio?: string;
+  website?: string;
+  location?: string;
+  date_of_birth?: string;
+  preferences?: any;
+  last_sign_in_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+export interface AuthResult {
+  success: boolean;
+  error?: string;
+  user?: User;
+}
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    }
+// src/lib/authService.ts
+import { supabase } from './supabase';
+import { AuthResult, User } from '../types/auth';
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (!formData.agreeToTerms) {
-      newErrors.agreeToTerms = 'You must agree to the terms and conditions';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    // Clear specific error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setGeneralError(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-
+class AuthService {
+  async signUp(email: string, password: string, fullName: string): Promise<AuthResult> {
     try {
-      console.log('🚀 Starting signup process for:', formData.email);
-      
-      if (signUp) {
-        const result = await signUp(formData.email, formData.password, formData.fullName);
+      console.log('🚀 Starting signup for:', email);
 
-        if (result?.success) {
-          console.log('✅ Signup successful!');
-          navigate('/', { 
-            state: { 
-              message: 'Account created successfully! Welcome to Boujee Events!' 
-            }
-          });
-          return;
-        } else {
-          throw new Error(result?.error || 'Signup failed');
+      // Step 1: Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
         }
-      } else {
-        throw new Error('Authentication service not available');
+      });
+
+      if (authError) {
+        console.error('❌ Auth signup error:', authError);
+        return {
+          success: false,
+          error: authError.message
+        };
       }
+
+      if (!authData.user) {
+        return {
+          success: false,
+          error: 'Failed to create user account'
+        };
+      }
+
+      console.log('✅ Auth user created:', authData.user.id);
+
+      // Step 2: Create profile in profiles table
+      const profileData = {
+        id: authData.user.id, // Use the auth user's ID as primary key
+        email: email,
+        full_name: fullName,
+        role: 'member', // Default role
+        status: 'active', // Default status
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: profileResult, error: profileError } = await supabase
+        .from('profiles')
+        .insert(profileData)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('❌ Profile creation error:', profileError);
+        
+        // If profile creation fails, we should clean up the auth user
+        // But Supabase handles this automatically in most cases
+        return {
+          success: false,
+          error: `Failed to create user profile: ${profileError.message}`
+        };
+      }
+
+      console.log('✅ Profile created successfully:', profileResult);
+
+      return {
+        success: true,
+        user: profileResult as User
+      };
+
     } catch (error: any) {
-      console.error('❌ Signup error:', error);
-      setGeneralError(
-        error.message || 
-        'Failed to create account. Please try again.'
-      );
+      console.error('❌ Signup service error:', error);
+      return {
+        success: false,
+        error: error.message || 'An unexpected error occurred during signup'
+      };
+    }
+  }
+
+  async signIn(email: string, password: string): Promise<AuthResult> {
+    try {
+      console.log('🚀 Starting signin for:', email);
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        console.error('❌ Auth signin error:', authError);
+        return {
+          success: false,
+          error: authError.message
+        };
+      }
+
+      if (!authData.user) {
+        return {
+          success: false,
+          error: 'Failed to sign in'
+        };
+      }
+
+      // Update last_sign_in_at in profiles
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          last_sign_in_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', authData.user.id);
+
+      if (updateError) {
+        console.warn('⚠️ Failed to update last sign in time:', updateError);
+      }
+
+      // Get full profile data
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('❌ Failed to fetch profile:', profileError);
+        return {
+          success: false,
+          error: 'Failed to load user profile'
+        };
+      }
+
+      console.log('✅ Signin successful');
+
+      return {
+        success: true,
+        user: profile as User
+      };
+
+    } catch (error: any) {
+      console.error('❌ Signin service error:', error);
+      return {
+        success: false,
+        error: error.message || 'An unexpected error occurred during signin'
+      };
+    }
+  }
+
+  async signOut(): Promise<AuthResult> {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to sign out'
+      };
+    }
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        return null;
+      }
+
+      // Get profile data
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch profile:', error);
+        return null;
+      }
+
+      return profile as User;
+    } catch (error) {
+      console.error('Failed to get current user:', error);
+      return null;
+    }
+  }
+
+  // Listen to auth state changes
+  onAuthStateChange(callback: (user: User | null) => void) {
+    return supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const user = await this.getCurrentUser();
+        callback(user);
+      } else if (event === 'SIGNED_OUT') {
+        callback(null);
+      }
+    });
+  }
+}
+
+export const authService = new AuthService();
+
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, AuthResult } from '../types/auth';
+import { authService } from '../lib/authService';
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  signUp: (email: string, password: string, fullName: string) => Promise<AuthResult>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signOut: () => Promise<AuthResult>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get initial user
+    const initializeAuth = async () => {
+      try {
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen to auth changes
+    const { data: { subscription } } = authService.onAuthStateChange((user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const signUp = async (email: string, password: string, fullName: string): Promise<AuthResult> => {
+    setLoading(true);
+    try {
+      const result = await authService.signUp(email, password, fullName);
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      return result;
     } finally {
       setLoading(false);
     }
   };
 
+  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+    setLoading(true);
+    try {
+      const result = await authService.signIn(email, password);
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async (): Promise<AuthResult> => {
+    setLoading(true);
+    try {
+      const result = await authService.signOut();
+      if (result.success) {
+        setUser(null);
+      }
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-block mb-6">
-            <div className="text-3xl font-bold text-yellow-400">✨ Boujee Events</div>
-          </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-          <p className="text-gray-400">
-            Join our exclusive community of event enthusiasts
-          </p>
-        </div>
-
-        {/* Signup Form */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-          {/* General Error */}
-          {generalError && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-              <p className="text-red-400 text-sm">{generalError}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name */}
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                  errors.fullName 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-white/20 focus:ring-yellow-400'
-                }`}
-                placeholder="Enter your full name"
-                disabled={loading}
-                required
-              />
-              {errors.fullName && (
-                <p className="mt-1 text-sm text-red-400">{errors.fullName}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
-                  errors.email 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-white/20 focus:ring-yellow-400'
-                }`}
-                placeholder="Enter your email address"
-                disabled={loading}
-                required
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                Phone Number (Optional)
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
-                placeholder="Enter your phone number"
-                disabled={loading}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors pr-12 ${
-                    errors.password 
-                      ? 'border-red-500 focus:ring-red-500' 
-                      : 'border-white/20 focus:ring-yellow-400'
-                  }`}
-                  placeholder="Create a strong password (8+ characters)"
-                  disabled={loading}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                  disabled={loading}
-                >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-400">{errors.password}</p>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors pr-12 ${
-                    errors.confirmPassword 
-                      ? 'border-red-500 focus:ring-red-500' 
-                      : 'border-white/20 focus:ring-yellow-400'
-                  }`}
-                  placeholder="Confirm your password"
-                  disabled={loading}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                  disabled={loading}
-                >
-                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
-              )}
-            </div>
-
-            {/* Terms Agreement */}
-            <div>
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="agreeToTerms"
-                  checked={formData.agreeToTerms}
-                  onChange={handleInputChange}
-                  className={`mt-1 w-4 h-4 text-yellow-400 border-2 rounded focus:ring-yellow-400 focus:ring-2 transition-colors ${
-                    errors.agreeToTerms ? 'border-red-500' : 'border-white/20'
-                  }`}
-                  disabled={loading}
-                  required
-                />
-                <span className="text-sm text-gray-300 leading-5">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-yellow-400 hover:text-yellow-300 underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" className="text-yellow-400 hover:text-yellow-300 underline">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-              {errors.agreeToTerms && (
-                <p className="mt-1 text-sm text-red-400">{errors.agreeToTerms}</p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-yellow-400 text-black py-3 px-4 rounded-lg font-semibold hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
-                  Creating Account...
-                </div>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-
-          {/* Sign In Link */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              Already have an account?{' '}
-              <Link
-                to="/login"
-                className="text-yellow-400 hover:text-yellow-300 font-medium underline"
-              >
-                Sign In
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
-            By creating an account, you become part of an exclusive community of event enthusiasts.
-          </p>
-        </div>
-      </div>
-    </div>
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
   );
 };
 
-export default SignupPage;
+// src/hooks/useAuth.ts
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  
+  return context;
+};
+
+// src/App.tsx (Update to include AuthProvider)
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import SignupPage from './pages/SignupPage';
+import LoginPage from './pages/LoginPage';
+import HomePage from './pages/HomePage';
+// ... other imports
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            {/* ... other routes */}
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
