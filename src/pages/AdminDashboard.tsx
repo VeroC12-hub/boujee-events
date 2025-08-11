@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRoleAccess } from '../hooks/useRoleAccess';
 import { DashboardOverview } from '../components/admin/DashboardOverview';
 import { supabase } from '../lib/supabase';
+import { ProtectedHomepageMediaManager } from '../components/admin/ProtectedHomepageMediaManager';
 
 // ================ LOADING SPINNER ================
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
@@ -1479,6 +1480,8 @@ const AdminDashboard: React.FC = () => {
         return <DashboardOverview setActiveSection={setActiveSection} />;
       case 'events':
         return <EventManagement />;
+      case 'media':  // ← ADD THIS ENTIRE CASE
+        return <ProtectedHomepageMediaManager />;
       case 'analytics':
         return <Analytics />;
       case 'users':
