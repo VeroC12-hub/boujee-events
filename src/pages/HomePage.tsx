@@ -83,7 +83,7 @@ const HomePage: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
           <img
-            src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop"
+            src={localStorage.getItem('boujee_homepage_bg') || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop"}
             alt="Luxury Event"
             className="w-full h-full object-cover"
             onError={(e) => {
