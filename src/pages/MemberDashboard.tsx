@@ -1,521 +1,348 @@
+// src/pages/MemberDashboard.tsx - CORRECTED VERSION
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-
-interface Booking {
-  id: string;
-  eventId: string;
-  eventTitle: string;
-  eventDate: string;
-  eventTime: string;
-  eventLocation: string;
-  quantity: number;
-  totalAmount: number;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  bookingDate: string;
-  ticketType: 'general' | 'vip' | 'premium';
-}
-
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  price: number;
-  image: string;
-  category: string;
-  featured: boolean;
-}
-
-interface LoyaltyTier {
-  name: string;
-  benefits: string[];
-  color: string;
-  icon: string;
-}
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Users, Star, Clock, MapPin, Ticket, TrendingUp, Heart } from 'lucide-react';
+import PublicNavbar from '@/components/navigation/PublicNavbar';
+import { EventCard } from '@/components/events/EventCard';
+import { eventService } from '@/services/enhancedEventService';
+import { Event } from '@/types/events';
+import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 const MemberDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'events' | 'loyalty'>('overview');
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Mock data for demonstration
-  const loyaltyTiers: Record<string, LoyaltyTier> = {
-    'Platinum': {
-      name: 'Platinum',
-      benefits: [
-        'Priority booking access',
-        '20% discount on all events',
-        'Exclusive VIP events',
-        'Personal concierge service',
-        'Free event upgrades'
-      ],
-      color: 'bg-purple-500',
-      icon: '💎'
-    },
-    'Diamond': {
-      name: 'Diamond',
-      benefits: [
-        'All Platinum benefits',
-        'Backstage access to select events',
-        '25% discount on all events',
-        'Private event invitations',
-        'Dedicated account manager',
-        'Annual luxury gift package'
-      ],
-      color: 'bg-blue-500',
-      icon: '💎'
-    }
-  };
+  const [memberStats, setMemberStats] = useState({
+    bookingsCount: 0,
+    favoriteEvents: 0,
+    totalSpent: 0,
+    loyaltyPoints: 0
+  });
 
   useEffect(() => {
-    loadMemberData();
+    loadDashboardData();
   }, []);
 
-  const loadMemberData = async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Load upcoming and featured events
+      const [upcoming, featured] = await Promise.all([
+        eventService.getUpcomingEvents(6),
+        eventService.getFeaturedEvents(3)
+      ]);
+      
+      setUpcomingEvents(upcoming);
+      setFeaturedEvents(featured);
 
-      // Mock bookings data
-      const mockBookings: Booking[] = [
-        {
-          id: 'booking_1',
-          eventId: 'event_1',
-          eventTitle: 'Summer Music Festival 2025',
-          eventDate: '2025-08-15',
-          eventTime: '18:00',
-          eventLocation: 'Central Park, New York',
-          quantity: 2,
-          totalAmount: 300,
-          status: 'confirmed',
-          bookingDate: '2025-01-10',
-          ticketType: 'general'
-        },
-        {
-          id: 'booking_2',
-          eventId: 'event_2',
-          eventTitle: 'Exclusive Wine Tasting Evening',
-          eventDate: '2025-09-20',
-          eventTime: '19:30',
-          eventLocation: 'The Plaza Hotel, New York',
-          quantity: 1,
-          totalAmount: 250,
-          status: 'confirmed',
-          bookingDate: '2025-02-05',
-          ticketType: 'vip'
-        },
-        {
-          id: 'booking_3',
-          eventId: 'event_3',
-          eventTitle: 'Tech Innovation Summit',
-          eventDate: '2025-10-12',
-          eventTime: '09:00',
-          eventLocation: 'San Francisco Convention Center',
-          quantity: 1,
-          totalAmount: 399,
-          status: 'pending',
-          bookingDate: '2025-03-01',
-          ticketType: 'premium'
-        }
-      ];
+      // TODO: Load real member stats from bookings table
+      // For now, using mock data until booking system is implemented
+      setMemberStats({
+        bookingsCount: 0,
+        favoriteEvents: 0,
+        totalSpent: 0,
+        loyaltyPoints: 150
+      });
 
-      // Mock recommended events
-      const mockEvents: Event[] = [
-        {
-          id: 'event_4',
-          title: 'VIP Gala Night',
-          date: '2025-11-05',
-          location: 'Beverly Hills Hotel',
-          price: 500,
-          image: 'https://images.unsplash.com/photo-1464207687429-7505649dae38',
-          category: 'VIP Experience',
-          featured: true
-        },
-        {
-          id: 'event_5',
-          title: 'Rooftop Pool Party',
-          date: '2025-07-30',
-          location: 'Downtown Miami',
-          price: 75,
-          image: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec',
-          category: 'Party',
-          featured: false
-        }
-      ];
-
-      setBookings(mockBookings);
-      setRecommendedEvents(mockEvents);
     } catch (error) {
-      console.error('Error loading member data:', error);
+      console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-green-500/20 text-green-400';
-      case 'pending':
-        return 'bg-yellow-500/20 text-yellow-400';
-      case 'cancelled':
-        return 'bg-red-500/20 text-red-400';
-      default:
-        return 'bg-gray-500/20 text-gray-400';
-    }
-  };
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
-  const getCurrentTier = (): LoyaltyTier => {
-    const tierName = profile?.loyaltyTier || 'Platinum';
-    return loyaltyTiers[tierName] || loyaltyTiers['Platinum'];
-  };
-
-  const getUpcomingBookings = (): Booking[] => {
-    const now = new Date();
-    return bookings.filter(booking => 
-      new Date(booking.eventDate) > now && booking.status === 'confirmed'
-    );
-  };
-
-  const getTotalSpent = (): number => {
-    return bookings
-      .filter(booking => booking.status === 'confirmed')
-      .reduce((total, booking) => total + booking.totalAmount, 0);
+  const formatPrice = (price: number, currency: string = 'USD') => {
+    if (price === 0) return 'FREE';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency
+    }).format(price);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-6xl mb-4">👤</div>
-          <div className="text-white text-xl">Loading your dashboard...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <PublicNavbar />
+        <div className="flex items-center justify-center h-64">
+          <LoadingSpinner />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white">
-      {/* Header */}
-      <div className="bg-black/20 backdrop-blur-md border-b border-yellow-400/20 p-6">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-yellow-400">Member Dashboard</h1>
-              <p className="text-gray-300 mt-1">
-                Welcome back, {profile?.full_name || 'Member'}!
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-400">Member since</div>
-              <div className="font-semibold">
-                {new Date(profile?.created_at || Date.now()).toLocaleDateString()}
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <PublicNavbar />
+      <div className="container mx-auto px-4 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Welcome back, {profile?.full_name || user?.email?.split('@')[0] || 'Member'}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Discover and join exclusive luxury events
+          </p>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="text-3xl font-bold text-yellow-400">{bookings.length}</div>
-            <div className="text-gray-300">Total Bookings</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="text-3xl font-bold text-green-400">{getUpcomingBookings().length}</div>
-            <div className="text-gray-300">Upcoming Events</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="text-3xl font-bold text-blue-400">{formatCurrency(getTotalSpent())}</div>
-            <div className="text-gray-300">Total Spent</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <div className="text-3xl font-bold text-purple-400">{getCurrentTier().icon}</div>
-            <div className="text-gray-300">{getCurrentTier().name} Member</div>
-          </div>
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">My Bookings</p>
+                  <p className="text-2xl font-bold">{memberStats.bookingsCount}</p>
+                </div>
+                <Ticket className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Favorite Events</p>
+                  <p className="text-2xl font-bold">{memberStats.favoriteEvents}</p>
+                </div>
+                <Heart className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
+                  <p className="text-2xl font-bold">${memberStats.totalSpent}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Loyalty Points</p>
+                  <p className="text-2xl font-bold">{memberStats.loyaltyPoints}</p>
+                </div>
+                <Star className="h-8 w-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 mb-8">
-          <div className="border-b border-white/10">
-            <nav className="flex space-x-8 px-6">
-              {[
-                { key: 'overview', label: 'Overview', icon: '📊' },
-                { key: 'bookings', label: 'My Bookings', icon: '🎫' },
-                { key: 'events', label: 'Recommended', icon: '⭐' },
-                { key: 'loyalty', label: 'Loyalty Program', icon: '👑' }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.key
-                      ? 'border-yellow-400 text-yellow-400'
-                      : 'border-transparent text-gray-400 hover:text-gray-300'
-                  }`}
-                >
-                  <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </nav>
-          </div>
+        {/* Featured Events */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" />
+                Featured Events
+              </span>
+              <Button variant="outline" onClick={() => navigate('/events')}>
+                View All Events
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {featuredEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  No Featured Events
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  Check back soon for exclusive featured events
+                </p>
+                <Button onClick={() => navigate('/events')}>
+                  Browse All Events
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {featuredEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          <div className="p-6">
-            {/* Overview Tab */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold">Account Overview</h3>
-                
-                {/* Upcoming Events */}
-                <div>
-                  <h4 className="font-medium mb-3">Upcoming Events</h4>
-                  {getUpcomingBookings().length > 0 ? (
-                    <div className="space-y-3">
-                      {getUpcomingBookings().slice(0, 3).map((booking) => (
-                        <div key={booking.id} className="bg-white/5 rounded-lg p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h5 className="font-semibold">{booking.eventTitle}</h5>
-                              <p className="text-sm text-gray-400">
-                                {formatDate(booking.eventDate)} at {booking.eventTime}
-                              </p>
-                              <p className="text-sm text-gray-400">{booking.eventLocation}</p>
-                            </div>
-                            <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(booking.status)}`}>
-                              {booking.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+        {/* Upcoming Events */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-blue-500" />
+                Upcoming Events
+              </span>
+              <Button variant="outline" onClick={() => navigate('/events')}>
+                View All
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  No Upcoming Events
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  New events are added regularly. Check back soon!
+                </p>
+                <Button onClick={() => navigate('/events')}>
+                  Browse All Events
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {upcomingEvents.map((event) => (
+                  <div key={event.id} 
+                       className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                       onClick={() => navigate(`/events/${event.id}`)}>
+                    <div className="mb-3">
+                      <h3 className="font-semibold line-clamp-2 mb-1">{event.title}</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {event.category}
+                      </Badge>
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="text-6xl mb-4">📅</div>
-                      <p className="text-gray-400">No upcoming events</p>
-                      <Link
-                        to="/events"
-                        className="inline-block mt-4 bg-yellow-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-                      >
-                        Browse Events
-                      </Link>
-                    </div>
-                  )}
-                </div>
 
-                {/* Quick Actions */}
-                <div>
-                  <h4 className="font-medium mb-3">Quick Actions</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Link
-                      to="/events"
-                      className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 hover:bg-blue-500/30 transition-colors text-center"
+                    <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        <span>{formatDate(event.event_date)} at {event.event_time}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3 w-3" />
+                        <span className="line-clamp-1">{event.venue}, {event.location}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{formatPrice(event.price, event.currency)}</span>
+                        <span className="text-xs">{event.current_attendees}/{event.capacity} attending</span>
+                      </div>
+                    </div>
+
+                    <Button 
+                      className="w-full mt-3" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/${event.id}/book`);
+                      }}
                     >
-                      <div className="text-2xl mb-2">🎪</div>
-                      <div className="font-semibold">Browse Events</div>
-                    </Link>
-                    <Link
-                      to="/profile"
-                      className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 hover:bg-green-500/30 transition-colors text-center"
-                    >
-                      <div className="text-2xl mb-2">👤</div>
-                      <div className="font-semibold">Update Profile</div>
-                    </Link>
-                    <button className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4 hover:bg-purple-500/30 transition-colors text-center">
-                      <div className="text-2xl mb-2">🎁</div>
-                      <div className="font-semibold">Redeem Points</div>
-                    </button>
+                      Book Now
+                    </Button>
                   </div>
-                </div>
+                ))}
               </div>
             )}
+          </CardContent>
+        </Card>
 
-            {/* Bookings Tab */}
-            {activeTab === 'bookings' && (
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold">My Bookings</h3>
-                {bookings.length > 0 ? (
-                  <div className="space-y-4">
-                    {bookings.map((booking) => (
-                      <div key={booking.id} className="bg-white/5 rounded-lg p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h4 className="text-lg font-semibold">{booking.eventTitle}</h4>
-                            <p className="text-gray-400">Booking #{booking.id}</p>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(booking.status)}`}>
-                            {booking.status}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-400">Event Details</p>
-                            <p>{formatDate(booking.eventDate)} at {booking.eventTime}</p>
-                            <p>{booking.eventLocation}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Booking Details</p>
-                            <p>Quantity: {booking.quantity} tickets</p>
-                            <p>Total: {formatCurrency(booking.totalAmount)}</p>
-                            <p>Type: {booking.ticketType}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end mt-4 space-x-2">
-                          <button className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors">
-                            View Tickets
-                          </button>
-                          {booking.status === 'confirmed' && (
-                            <button className="px-4 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors">
-                              Cancel Booking
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">🎫</div>
-                    <h4 className="text-xl font-semibold mb-2">No bookings yet</h4>
-                    <p className="text-gray-400 mb-6">Start exploring our amazing events!</p>
-                    <Link
-                      to="/events"
-                      className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-                    >
-                      Browse Events
-                    </Link>
-                  </div>
-                )}
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/events')}
+              >
+                <Calendar className="h-6 w-6" />
+                Browse Events
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/profile')}
+              >
+                <Users className="h-6 w-6" />
+                My Profile
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/gallery')}
+              >
+                <Star className="h-6 w-6" />
+                Event Gallery
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2"
+                onClick={() => navigate('/events')}
+              >
+                <Heart className="h-6 w-6" />
+                My Favorites
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Member Benefits Card */}
+        <Card className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500" />
+              Member Benefits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🎯</div>
+                <h3 className="font-semibold mb-1">Early Access</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Get first access to exclusive events
+                </p>
               </div>
-            )}
-
-            {/* Recommended Events Tab */}
-            {activeTab === 'events' && (
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold">Recommended for You</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {recommendedEvents.map((event) => (
-                    <div key={event.id} className="bg-white/5 rounded-lg overflow-hidden">
-                      <img
-                        src={event.image}
-                        alt={event.title}
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="p-4">
-                        <h4 className="font-semibold mb-2">{event.title}</h4>
-                        <p className="text-sm text-gray-400 mb-2">
-                          {formatDate(event.date)}
-                        </p>
-                        <p className="text-sm text-gray-400 mb-4">{event.location}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-lg font-bold text-yellow-400">
-                            {formatCurrency(event.price)}
-                          </span>
-                          <Link
-                            to={`/event/${event.id}`}
-                            className="bg-yellow-400 text-black px-4 py-2 rounded font-semibold hover:bg-yellow-500 transition-colors"
-                          >
-                            Book Now
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              
+              <div className="text-center">
+                <div className="text-2xl mb-2">💎</div>
+                <h3 className="font-semibold mb-1">VIP Treatment</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Special perks and premium experiences
+                </p>
               </div>
-            )}
-
-            {/* Loyalty Program Tab */}
-            {activeTab === 'loyalty' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold">Loyalty Program</h3>
-                
-                {/* Current Tier */}
-                <div className="bg-gradient-to-r from-yellow-400/20 to-purple-500/20 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="text-3xl">{getCurrentTier().icon}</div>
-                      <div>
-                        <h4 className="text-xl font-bold">{getCurrentTier().name} Member</h4>
-                        <p className="text-gray-300">Your current tier</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <h5 className="font-semibold mb-2">Your Benefits</h5>
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {getCurrentTier().benefits.map((benefit, index) => (
-                        <li key={index} className="flex items-center space-x-2">
-                          <span className="text-green-400">✓</span>
-                          <span className="text-sm">{benefit}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Tier Comparison */}
-                <div>
-                  <h4 className="font-semibold mb-4">All Membership Tiers</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Object.values(loyaltyTiers).map((tier) => (
-                      <div
-                        key={tier.name}
-                        className={`border rounded-lg p-6 ${
-                          tier.name === getCurrentTier().name
-                            ? 'border-yellow-400 bg-yellow-400/10'
-                            : 'border-white/20 bg-white/5'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="text-2xl">{tier.icon}</div>
-                          <div>
-                            <h5 className="font-semibold">{tier.name}</h5>
-                            {tier.name === getCurrentTier().name && (
-                              <span className="text-xs text-yellow-400">Current Tier</span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <ul className="space-y-2">
-                          {tier.benefits.map((benefit, index) => (
-                            <li key={index} className="flex items-start space-x-2">
-                              <span className="text-green-400 mt-0.5">✓</span>
-                              <span className="text-sm">{benefit}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              
+              <div className="text-center">
+                <div className="text-2xl mb-2">🎁</div>
+                <h3 className="font-semibold mb-1">Rewards</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Earn points and unlock exclusive rewards
+                </p>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
