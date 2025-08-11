@@ -1517,9 +1517,9 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-screen w-64 bg-gray-900 border-r border-white/10 flex flex-col overflow-hidden md:block hidden">
+      <div className="fixed left-0 top-0 h-screen w-64 bg-gray-900 border-r border-white/10 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center text-black font-bold text-lg">
               B
@@ -1547,7 +1547,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-4 flex-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -1574,7 +1574,7 @@ const AdminDashboard: React.FC = () => {
         </nav>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 flex-shrink-0">
           <button
             onClick={handleLogout}
             className="w-full text-left p-3 rounded-lg text-gray-300 hover:bg-red-500/20 hover:text-red-400 transition-all duration-200 group"
