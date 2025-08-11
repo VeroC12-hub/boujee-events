@@ -1482,7 +1482,7 @@ const AdminDashboard: React.FC = () => {
       case 'events':
         return <EventManagement />;
       case 'homepage':
-        return <div>Homepage Media Coming Soon!</div>;
+        return <ProtectedHomepageMediaManager />;
       case 'analytics':
         return <Analytics />;
       case 'users':
