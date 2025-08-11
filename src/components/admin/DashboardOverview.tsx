@@ -223,8 +223,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
           id,
           created_at,
           booking_number,
-          events(title),
-          profiles(full_name)
+          events!event_id(title),
+          profiles!user_id(full_name)
         `)
         .order('created_at', { ascending: false })
         .limit(5);
