@@ -1,3 +1,4 @@
+// src/components/common/LoadingSpinner.tsx
 import React from 'react';
 
 interface LoadingSpinnerProps {
@@ -7,7 +8,7 @@ interface LoadingSpinnerProps {
   text?: string;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
   size = 'medium', 
   color = 'primary', 
   className = '',
@@ -25,8 +26,8 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   const colorClasses = {
-    primary: 'border-primary-500 border-t-transparent',
-    secondary: 'border-secondary-500 border-t-transparent',
+    primary: 'border-purple-500 border-t-transparent',
+    secondary: 'border-gray-500 border-t-transparent',
     white: 'border-white border-t-transparent',
     gray: 'border-gray-400 border-t-transparent'
   };
@@ -57,4 +58,5 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   );
 };
 
+// Also export as default for backward compatibility
 export default LoadingSpinner;
