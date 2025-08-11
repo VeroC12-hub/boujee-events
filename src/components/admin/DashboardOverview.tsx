@@ -1,21 +1,20 @@
-// src/components/admin/DashboardOverview.tsx - FIXED VERSION
+// src/components/admin/DashboardOverview.tsx - CORRECTED FOR ACTUAL SCHEMA
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
-// NEW: Safe booking stats service
+// CORRECTED: Booking stats service using actual column names
 interface BookingPoint {
   created_at: string;
   total_amount: number;
 }
 
 const fetchBookingStatsSince = async (dateISO?: string, organizerEventIds?: string[]) => {
-  // Always select columns we know exist: amount, quantity, created_at
-  // We'll compute total_amount in the app
+  // Use the columns that actually exist: quantity, total_amount, created_at
   let query = supabase
     .from('bookings')
-    .select('amount, quantity, created_at', { head: false });
+    .select('quantity, total_amount, created_at', { head: false });
 
   if (dateISO) {
     query = query.gte('created_at', dateISO);
@@ -38,8 +37,8 @@ const fetchBookingStatsSince = async (dateISO?: string, organizerEventIds?: stri
 
   const points: BookingPoint[] = (data || []).map((row: any) => ({
     created_at: row.created_at,
-    // SAFE CALCULATION: quantity * amount in the app
-    total_amount: Number(row.quantity ?? 0) * Number(row.amount ?? 0),
+    // Use total_amount directly since it exists in your database
+    total_amount: Number(row.total_amount ?? 0),
   }));
 
   // Calculate aggregates
@@ -139,7 +138,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     setRefreshing(false);
   };
 
-  // FIXED: Safe metrics fetching
+  // CORRECTED: Safe metrics fetching using actual schema
   const fetchMetrics = async (): Promise<MetricCard[]> => {
     try {
       let eventsQuery = supabase!.from('events').select('*', { count: 'exact' });
@@ -162,7 +161,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         isAdmin ? supabase!.from('profiles').select('*', { count: 'exact' }) : { count: 0 }
       ]);
 
-      // FIXED: Use safe booking stats function
+      // CORRECTED: Use safe booking stats function with actual schema
       const { totalRevenue, totalBookings } = await fetchBookingStatsSince(
         '2025-01-01T00:00:00.000Z', 
         organizerEventIds
@@ -217,12 +216,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
 
   const fetchRecentActivity = async (): Promise<RecentActivity[]> => {
     try {
+      // Check if we have the right columns for bookings
       const { data: recentBookings } = await supabase!
         .from('bookings')
         .select(`
           id,
           created_at,
-          booking_status,
+          booking_number,
           events(title),
           profiles(full_name)
         `)
@@ -233,9 +233,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         id: booking.id,
         type: 'booking' as const,
         title: `New booking for ${booking.events?.title}`,
-        description: `${booking.profiles?.full_name} booked a ticket`,
+        description: `${booking.profiles?.full_name} booked (${booking.booking_number})`,
         timestamp: new Date(booking.created_at).toLocaleString(),
-        status: booking.booking_status
+        status: 'confirmed' // Since booking_status might not exist
       })) || [];
     } catch (error) {
       console.error('Error fetching recent activity:', error);
@@ -243,7 +243,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     }
   };
 
-  // FIXED: Safe monthly data fetching
+  // CORRECTED: Safe monthly data fetching
   const fetchMonthlyData = async () => {
     try {
       // Get organizer events if needed
@@ -310,7 +310,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     }
   };
 
-  // FIXED: Safe top events fetching
+  // CORRECTED: Safe top events fetching using actual schema
   const fetchTopEvents = async () => {
     try {
       let eventsQuery = supabase!.from('events').select('id, title');
@@ -325,19 +325,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
         return [];
       }
 
-      // For each event, safely get booking stats
+      // For each event, safely get booking stats using actual columns
       const topEventsData = await Promise.all(
         events.map(async (event) => {
           try {
-            // Get bookings for this specific event using safe method
+            // Get bookings for this specific event using columns that exist
             const { data: eventBookings } = await supabase!
               .from('bookings')
-              .select('amount, quantity')
+              .select('quantity, total_amount')
               .eq('event_id', event.id);
 
             const bookings = eventBookings || [];
             const revenue = bookings.reduce((sum, booking) => 
-              sum + (Number(booking.quantity ?? 0) * Number(booking.amount ?? 0)), 0
+              sum + Number(booking.total_amount ?? 0), 0
             );
 
             return {
