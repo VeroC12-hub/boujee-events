@@ -125,7 +125,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     maxSize: 100 * 1024 * 1024 // 100MB
   });
 
-  // Set active media (with permission check)
+  // Set active media (with permission check) - 🎯 THIS IS THE MAIN FIX!
   const setActiveMedia = (id: string) => {
     if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
       console.error('❌ Unauthorized media activation attempt');
@@ -137,11 +137,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       isActive: file.id === id && file.mediaType === getMediaTypeForTab()
     })));
 
-    // 🎯 NEW: Save active media URL for homepage
+    // 🎯 FIXED: Save both URL and TYPE for homepage (THIS WAS MISSING!)
     const activeFile = mediaFiles.find(f => f.id === id);
     if (activeFile) {
       localStorage.setItem('boujee_homepage_bg', activeFile.url);
+      localStorage.setItem('boujee_homepage_bg_type', activeFile.type); // ✅ THE FIX!
       console.log('🎨 Homepage background updated:', activeFile.url);
+      console.log('🎨 Homepage background type:', activeFile.type); // ✅ Now logs the type!
     }
     
     console.log('✅ Active media set by', profile.role, ':', id);
@@ -159,7 +161,17 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     if (fileToDelete) {
       setMediaFiles(prev => prev.filter(file => file.id !== id));
       console.log('🗑️ Media deleted by', profile.role, ':', fileToDelete.name);
-      // TODO: Delete from storage and database
+      
+      // Clean up object URL
+      URL.revokeObjectURL(fileToDelete.url);
+      
+      // If active media was deleted, clear localStorage
+      const currentBg = localStorage.getItem('boujee_homepage_bg');
+      if (currentBg === fileToDelete.url) {
+        localStorage.removeItem('boujee_homepage_bg');
+        localStorage.removeItem('boujee_homepage_bg_type'); // ✅ Also remove type
+        console.log('🗑️ Cleared homepage background');
+      }
     }
   };
 
