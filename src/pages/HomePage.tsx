@@ -82,16 +82,38 @@ const HomePage: React.FC = () => {
         {/* Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
-          <img
-            src={localStorage.getItem('boujee_homepage_bg') || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop"}
-            alt="Luxury Event"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1920&h=1080&fit=crop';
-            }}
-          />
-        </div>
+          {/* Check if active media is video or image */}
+          {(() => {
+            const activeMediaUrl = localStorage.getItem('boujee_homepage_bg');
+            const activeMediaType = localStorage.getItem('boujee_homepage_bg_type');
+            const fallbackImage = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop";
+
+            if (activeMediaUrl && activeMediaType === 'video') {
+              return (
+                <video
+                  src={activeMediaUrl}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              );
+            } else {
+              return (
+                <img
+                src={activeMediaUrl || fallbackImage}
+                alt="Luxury Event"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1920&h=1080&fit=crop';
+                }}
+              />
+            );
+          }
+        })()}       
+      </div>
 
         {/* Content */}
         <div className="relative z-20 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
