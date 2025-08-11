@@ -1517,7 +1517,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-black/50 backdrop-blur-xl border-r border-white/10">
+      <div className="fixed left-0 top-0 h-screen w-64 bg-gray-900 border-r border-white/10 flex flex-col overflow-hidden md:block hidden">
         {/* Header */}
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center space-x-3 mb-4">
@@ -1547,7 +1547,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-4 flex-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
