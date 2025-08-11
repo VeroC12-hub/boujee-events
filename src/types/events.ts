@@ -22,7 +22,7 @@ export interface Event {
   currency: string;
   category: string;
   tags: string[];
-  status: 'draft' | 'published' | 'cancelled' | 'completed';
+  status?: 'active' | 'draft' | 'ended' | 'cancelled';
   featured: boolean;
   is_private: boolean;
   requires_approval: boolean;
