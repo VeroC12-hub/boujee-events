@@ -1,4 +1,4 @@
-// src/components/navigation/PublicNavbar.tsx - COMPLETE FIXED VERSION
+// src/components/navigation/PublicNavbar.tsx - UPDATED WITH EVENT MANAGEMENT
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -83,6 +83,11 @@ export const PublicNavbar: React.FC = () => {
     return location.pathname === path;
   };
 
+  // Check if user can manage events
+  const canManageEvents = () => {
+    return user && profile && (profile.role === 'admin' || profile.role === 'organizer');
+  };
+
   // 📋 Navigation menu items
   const navigationItems = [
     { name: 'Home', path: '/', icon: '🏠' },
@@ -96,7 +101,7 @@ export const PublicNavbar: React.FC = () => {
     <nav className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* 🎨 LOGO SECTION - Fixed (removed "be") */}
+          {/* 🎨 LOGO SECTION */}
           <Link to="/" className="flex items-center space-x-3">
             <img 
               src="/logo.png" 
@@ -109,7 +114,6 @@ export const PublicNavbar: React.FC = () => {
                 if (nextElement) nextElement.style.display = 'block';
               }}
             />
-            {/* ✅ FIXED: Changed from "be" to "✨" and set display to 'none' by default */}
             <div className="text-xl font-bold text-yellow-400 hidden" style={{display: 'none'}}>✨</div>
             <span className="text-xl font-bold text-white">Boujee Events</span>
           </Link>
@@ -132,6 +136,23 @@ export const PublicNavbar: React.FC = () => {
                 {item.name}
               </button>
             ))}
+
+            {/* 🎪 EVENT MANAGEMENT BUTTON (Admin/Organizer only) */}
+            {canManageEvents() && (
+              <button
+                onClick={() => handleNavigation('/admin/events')}
+                className={`
+                  text-sm font-medium transition-colors px-3 py-2 rounded-md border border-purple-500
+                  ${isActive('/admin/events')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-purple-400 hover:text-white hover:bg-purple-600'
+                  }
+                `}
+              >
+                <span className="mr-1">⚡</span>
+                Manage Events
+              </button>
+            )}
           </div>
 
           {/* 👤 USER ACTIONS SECTION */}
@@ -178,6 +199,35 @@ export const PublicNavbar: React.FC = () => {
                       >
                         🎯 Dashboard
                       </button>
+
+                      {/* 🎪 EVENT MANAGEMENT LINKS (Admin/Organizer) */}
+                      {canManageEvents() && (
+                        <>
+                          <div className="border-t border-gray-700 mt-2 pt-2">
+                            <p className="px-4 py-1 text-xs text-gray-500 uppercase tracking-wide">Event Management</p>
+                            
+                            <button
+                              onClick={() => {
+                                handleNavigation('/admin/events');
+                                setShowUserMenu(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-purple-400 hover:bg-gray-700 hover:text-purple-300 transition-colors"
+                            >
+                              ⚡ Manage Events
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                handleNavigation('/events/create');
+                                setShowUserMenu(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-green-400 hover:bg-gray-700 hover:text-green-300 transition-colors"
+                            >
+                              ➕ Create Event
+                            </button>
+                          </div>
+                        </>
+                      )}
                       
                       <button
                         onClick={() => {
@@ -291,6 +341,37 @@ export const PublicNavbar: React.FC = () => {
                   {item.name}
                 </button>
               ))}
+
+              {/* 🎪 MOBILE EVENT MANAGEMENT (Admin/Organizer only) */}
+              {canManageEvents() && (
+                <>
+                  <div className="border-t border-gray-700 my-2 pt-2">
+                    <p className="px-3 py-1 text-xs text-gray-500 uppercase tracking-wide">Event Management</p>
+                    
+                    <button
+                      onClick={() => handleNavigation('/admin/events')}
+                      className={`
+                        block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors
+                        ${isActive('/admin/events')
+                          ? 'bg-purple-600 text-white'
+                          : 'text-purple-400 hover:bg-gray-700 hover:text-purple-300'
+                        }
+                      `}
+                    >
+                      <span className="mr-2">⚡</span>
+                      Manage Events
+                    </button>
+                    
+                    <button
+                      onClick={() => handleNavigation('/events/create')}
+                      className="block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors text-green-400 hover:bg-gray-700 hover:text-green-300"
+                    >
+                      <span className="mr-2">➕</span>
+                      Create Event
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* 📱 MOBILE USER SECTION */}
