@@ -136,6 +136,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       ...file,
       isActive: file.id === id && file.mediaType === getMediaTypeForTab()
     })));
+
+    // 🎯 NEW: Save active media URL for homepage
+    const activeFile = mediaFiles.find(f => f.id === id);
+    if (activeFile) {
+      localStorage.setItem('boujee_homepage_bg', activeFile.url);
+      console.log('🎨 Homepage background updated:', activeFile.url);
+    }
     
     console.log('✅ Active media set by', profile.role, ':', id);
     // TODO: Update in database with user tracking
