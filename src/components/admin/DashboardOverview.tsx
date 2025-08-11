@@ -1,8 +1,53 @@
-// src/components/admin/DashboardOverview.tsx - Complete Full Implementation with ALL Features
+// src/components/admin/DashboardOverview.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+
+// NEW: Safe booking stats service
+interface BookingPoint {
+  created_at: string;
+  total_amount: number;
+}
+
+const fetchBookingStatsSince = async (dateISO?: string, organizerEventIds?: string[]) => {
+  // Always select columns we know exist: amount, quantity, created_at
+  // We'll compute total_amount in the app
+  let query = supabase
+    .from('bookings')
+    .select('amount, quantity, created_at', { head: false });
+
+  if (dateISO) {
+    query = query.gte('created_at', dateISO);
+  }
+
+  // Filter by organizer events if provided
+  if (organizerEventIds && organizerEventIds.length > 0) {
+    query = query.in('event_id', organizerEventIds);
+  } else if (organizerEventIds && organizerEventIds.length === 0) {
+    // No events for this organizer, return empty
+    return { points: [], totalRevenue: 0, totalBookings: 0 };
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Failed to fetch bookings:', error);
+    throw error;
+  }
+
+  const points: BookingPoint[] = (data || []).map((row: any) => ({
+    created_at: row.created_at,
+    // SAFE CALCULATION: quantity * amount in the app
+    total_amount: Number(row.quantity ?? 0) * Number(row.amount ?? 0),
+  }));
+
+  // Calculate aggregates
+  const totalRevenue = points.reduce((sum, p) => sum + p.total_amount, 0);
+  const totalBookings = points.length;
+
+  return { points, totalRevenue, totalBookings };
+};
 
 interface MetricCard {
   id: number;
@@ -94,12 +139,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     setRefreshing(false);
   };
 
+  // FIXED: Safe metrics fetching
   const fetchMetrics = async (): Promise<MetricCard[]> => {
     try {
       let eventsQuery = supabase!.from('events').select('*', { count: 'exact' });
-      let bookingsQuery = supabase!.from('bookings').select('total_amount, created_at');
+      let organizerEventIds: string[] | undefined = undefined;
       
-      // Organizers see only their data
+      // Get organizer events first if needed
       if (isOrganizer && user?.id) {
         eventsQuery = eventsQuery.eq('organizer_id', user.id);
         
@@ -108,23 +154,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
           .select('id')
           .eq('organizer_id', user.id);
         
-        const eventIds = organizerEvents?.map(e => e.id) || [];
-        if (eventIds.length > 0) {
-          bookingsQuery = bookingsQuery.in('event_id', eventIds);
-        } else {
-          bookingsQuery = bookingsQuery.eq('event_id', 'none');
-        }
+        organizerEventIds = organizerEvents?.map(e => e.id) || [];
       }
 
-      const [eventsResult, bookingsResult, usersResult] = await Promise.all([
+      const [eventsResult, usersResult] = await Promise.all([
         eventsQuery,
-        bookingsQuery,
         isAdmin ? supabase!.from('profiles').select('*', { count: 'exact' }) : { count: 0 }
       ]);
 
+      // FIXED: Use safe booking stats function
+      const { totalRevenue, totalBookings } = await fetchBookingStatsSince(
+        '2025-01-01T00:00:00.000Z', 
+        organizerEventIds
+      );
+
       const totalEvents = eventsResult.count || 0;
-      const totalBookings = bookingsResult.data?.length || 0;
-      const totalRevenue = bookingsResult.data?.reduce((sum, booking) => sum + (booking.total_amount || 0), 0) || 0;
       const totalUsers = usersResult.count || 0;
 
       return [
@@ -199,19 +243,32 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     }
   };
 
+  // FIXED: Safe monthly data fetching
   const fetchMonthlyData = async () => {
     try {
-      const { data: monthlyBookings } = await supabase!
-        .from('bookings')
-        .select('total_amount, created_at')
-        .gte('created_at', new Date(new Date().getFullYear(), 0, 1).toISOString());
+      // Get organizer events if needed
+      let organizerEventIds: string[] | undefined = undefined;
+      if (isOrganizer && user?.id) {
+        const { data: organizerEvents } = await supabase!
+          .from('events')
+          .select('id')
+          .eq('organizer_id', user.id);
+        
+        organizerEventIds = organizerEvents?.map(e => e.id) || [];
+      }
+
+      // Use safe booking stats for the current year
+      const { points } = await fetchBookingStatsSince(
+        new Date(new Date().getFullYear(), 0, 1).toISOString(),
+        organizerEventIds
+      );
 
       // Process monthly data
       const monthlyData = Array.from({ length: 12 }, (_, i) => {
         const month = new Date(2025, i).toLocaleString('default', { month: 'short' });
-        const monthBookings = monthlyBookings?.filter(booking => 
+        const monthBookings = points.filter(booking => 
           new Date(booking.created_at).getMonth() === i
-        ) || [];
+        );
         
         return {
           month,
@@ -229,9 +286,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
 
   const fetchEventStatistics = async () => {
     try {
-      const { data: events } = await supabase!
-        .from('events')
-        .select('status');
+      let query = supabase!.from('events').select('status');
+      
+      if (isOrganizer && user?.id) {
+        query = query.eq('organizer_id', user.id);
+      }
+
+      const { data: events } = await query;
 
       const statusCounts = events?.reduce((acc, event) => {
         acc[event.status] = (acc[event.status] || 0) + 1;
@@ -249,21 +310,53 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ setActiveS
     }
   };
 
+  // FIXED: Safe top events fetching
   const fetchTopEvents = async () => {
     try {
-      const { data: topEvents } = await supabase!
-        .from('events')
-        .select(`
-          title,
-          bookings(total_amount)
-        `)
-        .limit(5);
+      let eventsQuery = supabase!.from('events').select('id, title');
+      
+      if (isOrganizer && user?.id) {
+        eventsQuery = eventsQuery.eq('organizer_id', user.id);
+      }
 
-      return topEvents?.map(event => ({
-        name: event.title,
-        bookings: event.bookings?.length || 0,
-        revenue: event.bookings?.reduce((sum, booking) => sum + booking.total_amount, 0) || 0
-      })) || [];
+      const { data: events } = await eventsQuery.limit(5);
+
+      if (!events || events.length === 0) {
+        return [];
+      }
+
+      // For each event, safely get booking stats
+      const topEventsData = await Promise.all(
+        events.map(async (event) => {
+          try {
+            // Get bookings for this specific event using safe method
+            const { data: eventBookings } = await supabase!
+              .from('bookings')
+              .select('amount, quantity')
+              .eq('event_id', event.id);
+
+            const bookings = eventBookings || [];
+            const revenue = bookings.reduce((sum, booking) => 
+              sum + (Number(booking.quantity ?? 0) * Number(booking.amount ?? 0)), 0
+            );
+
+            return {
+              name: event.title,
+              bookings: bookings.length,
+              revenue: revenue
+            };
+          } catch (err) {
+            console.error(`Error fetching bookings for event ${event.id}:`, err);
+            return {
+              name: event.title,
+              bookings: 0,
+              revenue: 0
+            };
+          }
+        })
+      );
+
+      return topEventsData.sort((a, b) => b.revenue - a.revenue);
     } catch (error) {
       console.error('Error fetching top events:', error);
       return getMockDashboardData().topEvents;
