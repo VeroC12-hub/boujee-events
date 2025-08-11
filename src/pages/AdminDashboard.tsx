@@ -1421,16 +1421,16 @@ const EventManagement: React.FC = () => {
 // ================ MAIN ADMIN DASHBOARD COMPONENT ================
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout, profile } = useAuth();
+  const { user, logout, profile, loading } = useAuth();
   const { isAdmin, isOrganizer, loading: roleLoading } = useRoleAccess();
   const [activeSection, setActiveSection] = useState('overview');
 
   // Redirect if not authorized
   useEffect(() => {
-    if (!roleLoading && !isAdmin && !isOrganizer) {
+    if (!loading && !roleLoading && !isAdmin && !isOrganizer) {
       navigate('/login');
     }
-  }, [isAdmin, isOrganizer, roleLoading, navigate]);
+  }, [loading, isAdmin, isOrganizer, roleLoading, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -1441,7 +1441,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  if (roleLoading) {
+  if (loading || roleLoading) {
     return <LoadingSpinner message="Checking permissions..." />;
   }
 
