@@ -1466,6 +1466,7 @@ const AdminDashboard: React.FC = () => {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: '📊', description: 'Dashboard analytics' },
     { id: 'events', label: 'Events', icon: '📅', description: 'Manage events' },
+    { id: 'homepage', label: 'Homepage Media', icon: '🎬', description: 'Background videos & images' },
     { id: 'analytics', label: 'Analytics', icon: '📈', description: 'Performance metrics' },
     ...(isAdmin ? [
       { id: 'users', label: 'Users', icon: '👥', description: 'User management' },
@@ -1480,8 +1481,8 @@ const AdminDashboard: React.FC = () => {
         return <DashboardOverview setActiveSection={setActiveSection} />;
       case 'events':
         return <EventManagement />;
-      case 'media':  // ← ADD THIS ENTIRE CASE
-        return <ProtectedHomepageMediaManager />;
+      case 'homepage':
+        return <div>Homepage Media Coming Soon!</div>;
       case 'analytics':
         return <Analytics />;
       case 'users':
@@ -1493,7 +1494,13 @@ const AdminDashboard: React.FC = () => {
           </div>
         );
       case 'media':
-        return <MediaManagement />;
+        return isAdmin ? <MediaManagement /> : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🚫</div>
+            <h3 className="text-xl font-semibold text-white mb-2">Admin Access Required</h3>
+            <p className="text-gray-400">You need admin privileges to access media library.</p>
+          </div>
+        );
       case 'settings':
         return isAdmin ? <Settings /> : (
           <div className="text-center py-12">
