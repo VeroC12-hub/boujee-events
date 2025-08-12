@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { googleDriveService } from '../../services/googleDriveService';
+// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE IMPLEMENTATION
+import React, { useState, useCallback, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { supabase } from '../../lib/supabase';
+import { googleDriveService } from '../../services/googleDriveService';
 
-// Types
 interface MediaFile {
   id: string;
   name: string;
   url: string;
   thumbnailUrl?: string;
   type: 'image' | 'video';
-  size: string;
-  uploadedAt: string;
-  driveFileId: string;
-  mediaType?: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
-  isActive?: boolean;
+  size: number;
+  isActive: boolean;
+  mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
+  displayOrder: number;
+  uploadedBy?: string;
+  createdAt: string;
 }
 
 interface DriveFile {
@@ -24,928 +25,97 @@ interface DriveFile {
   size?: string;
   webViewLink: string;
   thumbnailLink?: string;
-  webContentLink?: string;
+  createdTime: string;
 }
 
-type MediaType = 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
-
-// Authentication Guard Component
-const AuthenticationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, profile } = useAuth();
-
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Loading...</h2>
-          <p className="text-gray-400">Verifying your access...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!['admin', 'organizer'].includes(profile.role)) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h2>
-          <p className="text-gray-400">You don't have permission to access this page.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-};
-
-export const ProtectedHomepageMediaManager: React.FC = () => {
-  const { profile } = useAuth();
-  
-  // State management
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<MediaType>('background_video');
-  const [loading, setLoading] = useState(true);
-  const [showFileBrowser, setShowFileBrowser] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<MediaType>('background_video');
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
-  const [googleDriveStatus, setGoogleDriveStatus] = useState<{
-    initialized: boolean;
-    authenticated: boolean;
-    connecting: boolean;
-    error?: string;
-    userInfo?: any;
-  }>({
-    initialized: false,
-    authenticated: false,
-    connecting: false
-  });
-
-  useEffect(() => {
-    loadExistingMedia();
-    checkGoogleDriveStatus();
-  }, []);
-
-  // **FIXED: Enhanced media loading with proper categorization**
-  const loadExistingMedia = async () => {
-    try {
-      console.log('📱 Loading existing media...');
-      
-      // Try to load from database first
-      if (supabase) {
-        const { data: homepageMedia, error } = await supabase
-          .from('homepage_media')
-          .select(`
-            *,
-            media_file:media_files(*)
-          `)
-          .eq('is_active', true)
-          .order('display_order');
-
-        if (!error && homepageMedia) {
-          const formattedMedia: MediaFile[] = homepageMedia.map(item => ({
-            id: item.media_file.id,
-            name: item.media_file.name,
-            url: item.media_file.web_view_link || '#',
-            thumbnailUrl: item.media_file.thumbnail_url,
-            type: item.media_file.file_type as 'image' | 'video',
-            size: item.media_file.file_size ? `${(item.media_file.file_size / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
-            uploadedAt: new Date(item.created_at).toLocaleDateString(),
-            driveFileId: item.media_file.google_drive_file_id,
-            mediaType: item.media_type as MediaType,
-            isActive: item.is_active
-          }));
-          
-          setMediaFiles(formattedMedia);
-          console.log('✅ Loaded', formattedMedia.length, 'media files from database');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Fallback to localStorage
-      const savedMedia = localStorage.getItem('boujee_all_media');
-      if (savedMedia) {
-        const parsedMedia = JSON.parse(savedMedia);
-        setMediaFiles(parsedMedia);
-        console.log('✅ Loaded', parsedMedia.length, 'existing media files from localStorage');
-      } else {
-        console.log('📭 No existing media found');
-        setMediaFiles([]);
-      }
-    } catch (error) {
-      console.error('❌ Failed to load existing media:', error);
-      setMediaFiles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // **FIXED: Enhanced Google Drive status check**
-  const checkGoogleDriveStatus = async () => {
-    try {
-      console.log('🔍 Checking Google Drive status...');
-      
-      const hasCredentials = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_DRIVE_API_KEY);
-      
-      if (!hasCredentials) {
-        setGoogleDriveStatus({
-          initialized: false,
-          authenticated: false,
-          connecting: false,
-          error: 'Missing credentials - check environment variables'
-        });
-        return;
-      }
-
-      const initialized = await googleDriveService.initialize();
-      
-      if (initialized) {
-        const authenticated = await googleDriveService.isUserAuthenticated();
-        const userInfo = authenticated ? await googleDriveService.getUserInfo() : null;
-        
-        setGoogleDriveStatus({
-          initialized: true,
-          authenticated: authenticated,
-          connecting: false,
-          userInfo: userInfo
-        });
-        
-        console.log('✅ Google Drive status:', { initialized, authenticated, user: userInfo?.name });
-      } else {
-        setGoogleDriveStatus({
-          initialized: false,
-          authenticated: false,
-          connecting: false,
-          error: 'Failed to initialize Google Identity Services'
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error checking Google Drive status:', error);
-      setGoogleDriveStatus({
-        initialized: false,
-        authenticated: false,
-        connecting: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  };
-
-  // **FIXED: Enhanced Google Drive connection**
-  const connectGoogleDrive = async () => {
-    try {
-      setGoogleDriveStatus(prev => ({ ...prev, connecting: true, error: undefined }));
-      setUploadError(null);
-      
-      console.log('🔐 Attempting to connect to Google Drive...');
-      
-      const success = await googleDriveService.authenticate();
-      
-      if (success) {
-        const userInfo = await googleDriveService.getUserInfo();
-        setGoogleDriveStatus({
-          initialized: true,
-          authenticated: true,
-          connecting: false,
-          userInfo: userInfo
-        });
-        
-        console.log('✅ Successfully connected to Google Drive!');
-        setSuccessMessage('Successfully connected to Google Drive!');
-        
-        // Auto-hide success message
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        throw new Error('Authentication failed');
-      }
-    } catch (error) {
-      console.error('❌ Failed to connect to Google Drive:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error';
-      
-      setGoogleDriveStatus({
-        initialized: false,
-        authenticated: false,
-        connecting: false,
-        error: errorMessage
-      });
-      
-      setUploadError(`Failed to connect to Google Drive: ${errorMessage}`);
-    }
-  };
-
-  // **FIXED: Enhanced Google Drive logout**
-  const disconnectGoogleDrive = async () => {
-    try {
-      console.log('🔐 Disconnecting from Google Drive...');
-      
-      // Sign out from Google
-      if (window.gapi && window.gapi.auth2) {
-        const authInstance = window.gapi.auth2.getAuthInstance();
-        if (authInstance) {
-          await authInstance.signOut();
-        }
-      }
-      
-      setGoogleDriveStatus({
-        initialized: true,
-        authenticated: false,
-        connecting: false
-      });
-      
-      console.log('✅ Disconnected from Google Drive');
-      setSuccessMessage('Disconnected from Google Drive');
-      
-      // Auto-hide success message
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('❌ Error disconnecting from Google Drive:', error);
-      setUploadError('Failed to disconnect properly');
-    }
-  };
-
-  // **CRITICAL FIX: Create media file in database**
-  const createMediaFile = async (driveFile: DriveFile): Promise<string> => {
-    if (!supabase) {
-      // Mock ID for development
-      return `media_file_${Date.now()}`;
-    }
-
-    try {
-      const { data: mediaFile, error } = await supabase
-        .from('media_files')
-        .insert([{
-          name: driveFile.name,
-          original_name: driveFile.name,
-          mime_type: driveFile.mimeType,
-          file_size: driveFile.size ? parseInt(driveFile.size) : null,
-          google_drive_file_id: driveFile.id,
-          file_type: driveFile.mimeType.startsWith('image/') ? 'image' : 'video',
-          web_view_link: driveFile.webViewLink,
-          thumbnail_url: driveFile.thumbnailLink,
-          download_url: driveFile.webContentLink,
-          is_public: true,
-          uploaded_by: profile?.id
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Error creating media file:', error);
-        throw error;
-      }
-
-      console.log('✅ Created media file:', mediaFile.name);
-      return mediaFile.id;
-    } catch (error) {
-      console.error('❌ Failed to create media file:', error);
-      throw error;
-    }
-  };
-
-  // **CRITICAL FIX: Create homepage media entry**
-  const createHomepageMedia = async (mediaFileId: string, mediaType: MediaType): Promise<void> => {
-    if (!supabase) {
-      console.log('📝 Mock: Creating homepage media entry');
-      return;
-    }
-
-    try {
-      // If this is a background video, deactivate other background videos first
-      if (mediaType === 'background_video') {
-        await supabase
-          .from('homepage_media')
-          .update({ is_active: false })
-          .eq('media_type', 'background_video');
-        
-        console.log('🗑️ Cleared active background');
-      }
-
-      // Get next display order
-      const { data: maxOrderData } = await supabase
-        .from('homepage_media')
-        .select('display_order')
-        .eq('media_type', mediaType)
-        .order('display_order', { ascending: false })
-        .limit(1);
-
-      const nextOrder = maxOrderData && maxOrderData.length > 0 
-        ? maxOrderData[0].display_order + 1 
-        : 1;
-
-      // Create homepage media entry
-      const { error } = await supabase
-        .from('homepage_media')
-        .insert([{
-          media_file_id: mediaFileId,
-          media_type: mediaType,
-          display_order: nextOrder,
-          is_active: true,
-          title: `${mediaType.replace('_', ' ')} media`,
-          description: `Uploaded ${new Date().toLocaleDateString()}`
-        }]);
-
-      if (error) {
-        console.error('❌ Error creating homepage media:', error);
-        throw error;
-      }
-
-      console.log('✅ Created homepage media entry');
-    } catch (error) {
-      console.error('❌ Failed to create homepage media:', error);
-      throw error;
-    }
-  };
-
-  // **CRITICAL FIX: File upload from file input**
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-    setUploadError(null);
-    setSuccessMessage(null);
-
-    try {
-      console.log('📤 Starting file upload...');
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        try {
-          // Upload to Google Drive
-          const driveFile = await googleDriveService.uploadFile(file, 'root', (progress) => {
-            console.log(`Upload progress: ${progress.percentage}%`);
-          });
-
-          // Create media file in database
-          const mediaFileId = await createMediaFile(driveFile);
-          
-          // Create homepage media entry
-          await createHomepageMedia(mediaFileId, selectedCategory);
-
-          // Add to local state
-          const newMediaFile: MediaFile = {
-            id: mediaFileId,
-            name: driveFile.name,
-            url: driveFile.webViewLink,
-            thumbnailUrl: driveFile.thumbnailLink,
-            type: driveFile.mimeType.startsWith('image/') ? 'image' : 'video',
-            size: file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
-            uploadedAt: new Date().toLocaleDateString(),
-            driveFileId: driveFile.id,
-            mediaType: selectedCategory,
-            isActive: true
-          };
-
-          setMediaFiles(prev => [newMediaFile, ...prev]);
-
-        } catch (fileError) {
-          console.error('❌ Error uploading file:', file.name, fileError);
-          setUploadError(`Failed to upload ${file.name}: ${fileError.message}`);
-        }
-      }
-
-      setSuccessMessage(`Successfully uploaded ${files.length} file(s)!`);
-      setTimeout(() => setSuccessMessage(null), 5000);
-
-    } catch (error) {
-      console.error('❌ Upload error:', error);
-      setUploadError(`Upload failed: ${error.message}`);
-    } finally {
-      setUploading(false);
-      // Clear the input
-      event.target.value = '';
-    }
-  };
-
-  // **CRITICAL FIX: Enhanced file selection from Google Drive**
-  const handleAddSelectedFiles = async (selectedFiles: DriveFile[]) => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadError(null);
-    setSuccessMessage(null);
-
-    try {
-      console.log('📁 Adding', selectedFiles.length, 'files from Google Drive');
-
-      const newMediaFiles: MediaFile[] = [];
-
-      for (const driveFile of selectedFiles) {
-        try {
-          // Create media file in database
-          const mediaFileId = await createMediaFile(driveFile);
-          
-          // Create homepage media entry with selected category
-          await createHomepageMedia(mediaFileId, selectedCategory);
-
-          // Add to local state
-          const newMediaFile: MediaFile = {
-            id: mediaFileId,
-            name: driveFile.name,
-            url: driveFile.webViewLink,
-            thumbnailUrl: driveFile.thumbnailLink,
-            type: driveFile.mimeType.startsWith('image/') ? 'image' : 'video',
-            size: driveFile.size ? `${(parseInt(driveFile.size) / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
-            uploadedAt: new Date().toLocaleDateString(),
-            driveFileId: driveFile.id,
-            mediaType: selectedCategory,
-            isActive: true
-          };
-
-          newMediaFiles.push(newMediaFile);
-        } catch (fileError) {
-          console.error('❌ Error processing file:', driveFile.name, fileError);
-          setUploadError(`Failed to process ${driveFile.name}: ${fileError.message}`);
-        }
-      }
-
-      // Update state
-      setMediaFiles(prev => [...newMediaFiles, ...prev]);
-      
-      // Save to localStorage as backup
-      const allMedia = [...newMediaFiles, ...mediaFiles];
-      localStorage.setItem('boujee_all_media', JSON.stringify(allMedia));
-      
-      console.log('💾 Saved', newMediaFiles.length, 'media files');
-      
-      if (newMediaFiles.length > 0) {
-        setSuccessMessage(`Successfully added ${newMediaFiles.length} file(s) to ${selectedCategory.replace('_', ' ')} category!`);
-        setTimeout(() => setSuccessMessage(null), 5000);
-      }
-
-      setShowFileBrowser(false);
-    } catch (error) {
-      console.error('❌ Error adding files:', error);
-      setUploadError(`Failed to add files: ${error.message}`);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // **NEW: Activate/deactivate media**
-  const toggleMediaActivation = async (mediaFile: MediaFile) => {
-    try {
-      if (!supabase) {
-        // Mock toggle for development
-        setMediaFiles(prev => prev.map(file => 
-          file.id === mediaFile.id 
-            ? { ...file, isActive: !file.isActive }
-            : file
-        ));
-        return;
-      }
-
-      const newActiveState = !mediaFile.isActive;
-
-      // If activating a background video, deactivate others first
-      if (newActiveState && mediaFile.mediaType === 'background_video') {
-        await supabase
-          .from('homepage_media')
-          .update({ is_active: false })
-          .eq('media_type', 'background_video');
-        
-        console.log('🗑️ Cleared active background');
-      }
-
-      // Update the specific media item
-      const { error } = await supabase
-        .from('homepage_media')
-        .update({ is_active: newActiveState })
-        .eq('media_file_id', mediaFile.id);
-
-      if (error) {
-        throw error;
-      }
-
-      // Update local state
-      setMediaFiles(prev => prev.map(file => 
-        file.id === mediaFile.id 
-          ? { ...file, isActive: newActiveState }
-          : mediaFile.mediaType === 'background_video' && file.mediaType === 'background_video'
-            ? { ...file, isActive: false }
-            : file
-      ));
-
-      if (newActiveState && mediaFile.mediaType === 'background_video') {
-        console.log('🎬 Updated active background video');
-        setSuccessMessage(`Activated ${mediaFile.name} as background video`);
-      } else {
-        console.log(`${newActiveState ? '✅ Activated' : '⏸️ Deactivated'} media:`, mediaFile.name);
-        setSuccessMessage(`${newActiveState ? 'Activated' : 'Deactivated'} ${mediaFile.name}`);
-      }
-
-      setTimeout(() => setSuccessMessage(null), 3000);
-
-    } catch (error) {
-      console.error('❌ Error toggling media activation:', error);
-      setUploadError(`Failed to ${mediaFile.isActive ? 'deactivate' : 'activate'} media: ${error.message}`);
-    }
-  };
-
-  // Helper functions
-  const getFilteredMedia = () => {
-    return mediaFiles.filter(file => file.mediaType === activeTab);
-  };
-
-  const getTabLabel = () => {
-    switch (activeTab) {
-      case 'background_video': return 'Background Videos';
-      case 'hero_image': return 'Hero Images';
-      case 'gallery_image': return 'Gallery Images';
-      case 'banner': return 'Banners';
-      default: return 'Media';
-    }
-  };
-
-  const canUpload = googleDriveStatus.authenticated;
-
-  return (
-    <AuthenticationGuard>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 p-6">
-        <div className="container mx-auto max-w-7xl">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              🎨 Homepage Media Manager
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Upload and manage media for your website's homepage sections
-            </p>
-          </div>
-
-          {/* Messages */}
-          {uploadError && (
-            <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-              <div className="flex items-center">
-                <span className="text-red-400 text-2xl mr-3">❌</span>
-                <div>
-                  <h3 className="text-red-400 font-semibold">Upload Error</h3>
-                  <p className="text-red-300 text-sm">{uploadError}</p>
-                </div>
-                <button
-                  onClick={() => setUploadError(null)}
-                  className="ml-auto text-red-400 hover:text-red-300"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-              <div className="flex items-center">
-                <span className="text-green-400 text-2xl mr-3">✅</span>
-                <div>
-                  <h3 className="text-green-400 font-semibold">Success</h3>
-                  <p className="text-green-300 text-sm">{successMessage}</p>
-                </div>
-                <button
-                  onClick={() => setSuccessMessage(null)}
-                  className="ml-auto text-green-400 hover:text-green-300"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Google Drive Connection Status */}
-          <div className="mb-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">📁 Google Drive Connection</h2>
-            
-            {googleDriveStatus.connecting ? (
-              <div className="flex items-center space-x-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
-                <span className="text-yellow-400">Checking permissions...</span>
-              </div>
-            ) : googleDriveStatus.authenticated ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-green-400 text-2xl">✅</span>
-                  <div>
-                    <p className="text-green-400 font-semibold">Connected to Google Drive</p>
-                    {googleDriveStatus.userInfo && (
-                      <p className="text-gray-400 text-sm">
-                        Signed in as: {googleDriveStatus.userInfo.displayName || googleDriveStatus.userInfo.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={disconnectGoogleDrive}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <span className="text-red-400 text-2xl">❌</span>
-                  <div>
-                    <p className="text-red-400 font-semibold">Not connected to Google Drive</p>
-                    {googleDriveStatus.error && (
-                      <p className="text-gray-400 text-sm">{googleDriveStatus.error}</p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={connectGoogleDrive}
-                  disabled={googleDriveStatus.connecting}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                >
-                  {googleDriveStatus.connecting ? 'Connecting...' : 'Connect Google Drive'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Upload Section */}
-          {canUpload && (
-            <div className="mb-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-4">📤 Upload Media</h2>
-              
-              {/* Category Selection */}
-              <div className="mb-6">
-                <label className="block text-white text-sm font-medium mb-2">
-                  Select Category for Upload:
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value as MediaType)}
-                  className="w-full md:w-auto px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="background_video">🎬 Background Video</option>
-                  <option value="hero_image">🖼️ Hero Image</option>
-                  <option value="gallery_image">🖼️ Gallery Image</option>
-                  <option value="banner">🏷️ Banner</option>
-                </select>
-                <p className="text-gray-400 text-sm mt-2">
-                  Files will be added to the <strong>{selectedCategory.replace('_', ' ')}</strong> section
-                </p>
-              </div>
-
-              {/* Upload Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Direct File Upload */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white">Upload New Files</h3>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,video/*"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500"
-                  />
-                </div>
-
-                {/* Browse Existing Files */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white">From Google Drive</h3>
-                  <button
-                    onClick={() => setShowFileBrowser(true)}
-                    disabled={uploading}
-                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                  >
-                    {uploading ? 'Processing...' : '📁 Browse Existing Files'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Media Categories Tabs */}
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2 mb-4">
-              {(['background_video', 'hero_image', 'gallery_image', 'banner'] as MediaType[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === tab
-                      ? 'bg-yellow-400 text-black'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                  }`}
-                >
-                  {tab === 'background_video' && '🎬'} 
-                  {tab === 'hero_image' && '🖼️'} 
-                  {tab === 'gallery_image' && '🖼️'} 
-                  {tab === 'banner' && '🏷️'} 
-                  {' '}
-                  {tab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  <span className="ml-2 text-sm opacity-75">
-                    ({mediaFiles.filter(f => f.mediaType === tab).length})
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Media Grid */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">{getTabLabel()}</h3>
-              <span className="text-gray-400">
-                {getFilteredMedia().length} file(s)
-              </span>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-                <span className="ml-3 text-gray-400">Loading media...</span>
-              </div>
-            ) : getFilteredMedia().length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {getFilteredMedia().map((file) => (
-                  <div
-                    key={file.id}
-                    className={`bg-white/5 rounded-xl overflow-hidden border transition-all hover:scale-105 ${
-                      file.isActive ? 'border-green-400 shadow-green-400/20 shadow-lg' : 'border-white/10'
-                    }`}
-                  >
-                    {/* Media Preview */}
-                    <div className="aspect-video bg-gray-800 relative">
-                      {file.type === 'video' ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-4xl">🎬</span>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          {file.thumbnailUrl ? (
-                            <img
-                              src={file.thumbnailUrl}
-                              alt={file.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : (
-                            <span className="text-4xl">🖼️</span>
-                          )}
-                          <div className="w-full h-full items-center justify-center hidden">
-                            <span className="text-4xl">🖼️</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Active indicator */}
-                      {file.isActive && (
-                        <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                          ACTIVE
-                        </div>
-                      )}
-                    </div>
-
-                    {/* File Info */}
-                    <div className="p-4">
-                      <h4 className="text-white font-medium truncate mb-2">{file.name}</h4>
-                      <div className="text-gray-400 text-sm space-y-1">
-                        <p>Size: {file.size}</p>
-                        <p>Uploaded: {file.uploadedAt}</p>
-                        <p>Type: {file.type.toUpperCase()}</p>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 mt-4">
-                        <button
-                          onClick={() => toggleMediaActivation(file)}
-                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            file.isActive
-                              ? 'bg-red-600 hover:bg-red-700 text-white'
-                              : 'bg-green-600 hover:bg-green-700 text-white'
-                          }`}
-                        >
-                          {file.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                        
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                        >
-                          View
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-400">
-                <div className="text-6xl mb-4">
-                  {activeTab === 'background_video' && '🎬'}
-                  {activeTab === 'hero_image' && '🖼️'}
-                  {activeTab === 'gallery_image' && '🖼️'}
-                  {activeTab === 'banner' && '🏷️'}
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">No {getTabLabel()} Yet</h3>
-                <p className="mb-4">
-                  {canUpload 
-                    ? `Upload your first files using the upload section above`
-                    : 'Connect to Google Drive first, then upload media'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Statistics */}
-          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Background Videos', count: mediaFiles.filter(f => f.mediaType === 'background_video').length, color: 'bg-blue-500/20 text-blue-400' },
-              { label: 'Hero Images', count: mediaFiles.filter(f => f.mediaType === 'hero_image').length, color: 'bg-green-500/20 text-green-400' },
-              { label: 'Gallery Images', count: mediaFiles.filter(f => f.mediaType === 'gallery_image').length, color: 'bg-purple-500/20 text-purple-400' },
-              { label: 'Banners', count: mediaFiles.filter(f => f.mediaType === 'banner').length, color: 'bg-orange-500/20 text-orange-400' }
-            ].map((stat, index) => (
-              <div key={index} className={`${stat.color} rounded-xl p-4 text-center`}>
-                <div className="text-2xl font-bold">{stat.count}</div>
-                <div className="text-sm opacity-80">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Google Drive File Browser Modal */}
-        {showFileBrowser && canUpload && (
-          <GoogleDriveFileBrowser
-            onClose={() => setShowFileBrowser(false)}
-            onFilesSelected={handleAddSelectedFiles}
-            selectedCategory={selectedCategory}
-            uploading={uploading}
-          />
-        )}
-      </div>
-    </AuthenticationGuard>
-  );
-};
-
-// **COMPLETELY FIXED Google Drive File Browser Component**
-const GoogleDriveFileBrowser: React.FC<{
+interface GoogleDriveModalProps {
+  isOpen: boolean;
   onClose: () => void;
   onFilesSelected: (files: DriveFile[]) => void;
-  selectedCategory: MediaType;
-  uploading: boolean;
-}> = ({ onClose, onFilesSelected, selectedCategory, uploading }) => {
+  selectedCategory: string;
+}
+
+// COMPLETE Google Drive File Browser Modal with Add Button
+const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
+  isOpen,
+  onClose,
+  onFilesSelected,
+  selectedCategory
+}) => {
   const [files, setFiles] = useState<DriveFile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'all' | 'folders'>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<string>('root');
+  const [folderPath, setFolderPath] = useState<{id: string, name: string}[]>([
+    { id: 'root', name: 'My Drive' }
+  ]);
 
   useEffect(() => {
-    loadGoogleDriveFiles();
-  }, [viewMode]);
+    if (isOpen) {
+      loadFiles();
+      setSelectedFiles(new Set()); // Clear selection when modal opens
+    }
+  }, [isOpen, currentFolder]);
 
-  const loadGoogleDriveFiles = async () => {
+  const loadFiles = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
+      console.log(`📁 Loading files from folder: ${currentFolder}`);
       
-      let driveFiles: DriveFile[] = [];
-
-      if (viewMode === 'all') {
-        console.log('📂 Browsing ALL Google Drive files');
-        
-        // **FIXED: Proper Google Drive API call**
-        const response = await window.gapi.client.drive.files.list({
-          q: "mimeType contains 'image/' or mimeType contains 'video/'",
-          fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)',
-          pageSize: 100
-        });
-
-        driveFiles = response.result.files || [];
-        console.log('📂 Found', driveFiles.length, 'files in all mode');
-      } else {
-        console.log('📂 Browsing specific Google Drive folder');
-        const folderId = import.meta.env.VITE_GOOGLE_DRIVE_FOLDER_ID || 'root';
-        
-        const response = await window.gapi.client.drive.files.list({
-          q: `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/')`,
-          fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)',
-          pageSize: 100
-        });
-
-        driveFiles = response.result.files || [];
-        console.log('📂 Found', driveFiles.length, 'files in folders mode');
+      // Ensure user is authenticated
+      const isAuth = await googleDriveService.isUserAuthenticated();
+      if (!isAuth) {
+        console.log('🔐 User not authenticated, starting authentication...');
+        const authSuccess = await googleDriveService.authenticate();
+        if (!authSuccess) {
+          throw new Error('Authentication failed. Please try again.');
+        }
       }
 
-      setFiles(driveFiles);
+      // Load files from Google Drive
+      const driveFiles = await googleDriveService.listFiles(currentFolder);
+      console.log(`📂 Loaded ${driveFiles.length} files from Google Drive`);
 
-    } catch (error) {
-      console.error('❌ Error loading Google Drive files:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load files');
+      // Filter for media files and folders
+      const filteredFiles = driveFiles.filter((file: DriveFile) => {
+        const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+        const isMedia = file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
+        return isFolder || isMedia;
+      });
+
+      setFiles(filteredFiles);
+      console.log(`✅ Showing ${filteredFiles.length} files and folders`);
+    } catch (error: any) {
+      console.error('❌ Failed to load Google Drive files:', error);
+      setError(error.message || 'Failed to load files from Google Drive');
     } finally {
       setLoading(false);
     }
+  };
+
+  const navigateToFolder = (folderId: string, folderName: string) => {
+    setCurrentFolder(folderId);
+    
+    if (folderId === 'root') {
+      setFolderPath([{ id: 'root', name: 'My Drive' }]);
+    } else {
+      // Add to path if not already there
+      const existingIndex = folderPath.findIndex(item => item.id === folderId);
+      if (existingIndex === -1) {
+        setFolderPath([...folderPath, { id: folderId, name: folderName }]);
+      } else {
+        // Truncate path to this folder
+        setFolderPath(folderPath.slice(0, existingIndex + 1));
+      }
+    }
+  };
+
+  const navigateToPathItem = (index: number) => {
+    const targetFolder = folderPath[index];
+    setCurrentFolder(targetFolder.id);
+    setFolderPath(folderPath.slice(0, index + 1));
   };
 
   const toggleFileSelection = (fileId: string) => {
@@ -960,167 +130,1085 @@ const GoogleDriveFileBrowser: React.FC<{
     });
   };
 
+  const selectAllVisible = () => {
+    const mediaFiles = files.filter(file => 
+      file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
+    );
+    const allSelected = mediaFiles.every(file => selectedFiles.has(file.id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedFiles(new Set());
+    } else {
+      // Select all visible media files
+      setSelectedFiles(new Set(mediaFiles.map(file => file.id)));
+    }
+  };
+
+  // CRITICAL: Add Selected Files Button Function
   const handleAddSelected = () => {
     const selectedFileObjects = files.filter(file => selectedFiles.has(file.id));
+    console.log(`📎 Adding ${selectedFileObjects.length} selected files to ${selectedCategory}`);
+    
+    if (selectedFileObjects.length === 0) {
+      alert('Please select at least one file to add.');
+      return;
+    }
+
     onFilesSelected(selectedFileObjects);
+    setSelectedFiles(new Set()); // Clear selection
+    onClose();
   };
+
+  const formatFileSize = (sizeString?: string) => {
+    if (!sizeString) return 'Unknown size';
+    const size = parseInt(sizeString);
+    if (size < 1024 * 1024) {
+      return `${Math.round(size / 1024)} KB`;
+    } else {
+      return `${Math.round(size / (1024 * 1024))} MB`;
+    }
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType === 'application/vnd.google-apps.folder') return '📁';
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType.startsWith('video/')) return '🎥';
+    return '📄';
+  };
+
+  if (!isOpen) return null;
+
+  const mediaFiles = files.filter(file => 
+    file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
+  );
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-white/10">
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center justify-between">
+        <div className="p-4 md:p-6 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-2xl font-bold text-white">📁 Google Drive Files</h3>
-              <p className="text-gray-400 mt-1">
-                Select files to add to <strong>{selectedCategory.replace('_', ' ')}</strong> category
+              <h3 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                📁 Google Drive Files
+                {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-400"></div>}
+              </h3>
+              <p className="text-gray-400 mt-1 text-sm md:text-base">
+                Select files to add to <strong className="text-yellow-400">{selectedCategory.replace('_', ' ')}</strong> category
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl"
-              disabled={uploading}
+              className="text-gray-400 hover:text-white text-2xl self-end sm:self-auto transition-colors"
             >
               ✕
             </button>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => setViewMode('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'all'
-                  ? 'bg-yellow-400 text-black'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
-              }`}
-            >
-              All Files
-            </button>
-            <button
-              onClick={() => setViewMode('folders')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'folders'
-                  ? 'bg-yellow-400 text-black'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
-              }`}
-            >
-              Organized Folders
-            </button>
+          {/* Breadcrumb Navigation */}
+          <div className="mt-4 flex items-center gap-2 text-sm overflow-x-auto">
+            {folderPath.map((item, index) => (
+              <React.Fragment key={item.id}>
+                <button
+                  onClick={() => navigateToPathItem(index)}
+                  className="text-blue-400 hover:text-blue-300 whitespace-nowrap"
+                >
+                  {item.name}
+                </button>
+                {index < folderPath.length - 1 && (
+                  <span className="text-gray-400">→</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Selection Controls */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex gap-2">
+              <button
+                onClick={selectAllVisible}
+                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                disabled={mediaFiles.length === 0}
+              >
+                {mediaFiles.length > 0 && mediaFiles.every(file => selectedFiles.has(file.id))
+                  ? '❌ Deselect All'
+                  : '✅ Select All'
+                }
+              </button>
+              <button
+                onClick={loadFiles}
+                disabled={loading}
+                className="bg-gray-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            {/* CRITICAL: Add Selected Button - Always Visible When Files Selected */}
+            {selectedFiles.size > 0 && (
+              <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 flex items-center gap-3">
+                <span className="text-yellow-400 font-medium text-sm">
+                  📎 {selectedFiles.size} file{selectedFiles.size > 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={handleAddSelected}
+                  className="bg-yellow-400 text-black px-4 py-1.5 rounded-lg font-medium hover:bg-yellow-500 transition-colors text-sm"
+                >
+                  ➕ Add Selected
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-4 md:p-6 overflow-y-auto max-h-[60vh]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-              <span className="ml-3 text-gray-400">Loading files...</span>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+                <span className="text-gray-400 text-lg">Loading files...</span>
+              </div>
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <span className="text-red-400 text-6xl mb-4 block">❌</span>
-              <h4 className="text-red-400 text-xl font-bold mb-2">Error Loading Files</h4>
-              <p className="text-gray-400 mb-4">{error}</p>
+            <div className="text-center py-8">
+              <div className="text-red-400 text-lg mb-4">❌ {error}</div>
               <button
-                onClick={loadGoogleDriveFiles}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                onClick={loadFiles}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Try Again
+                🔄 Try Again
               </button>
             </div>
-          ) : files.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {files.map((file) => (
-                <div
-                  key={file.id}
-                  className={`bg-white/5 rounded-lg overflow-hidden border cursor-pointer transition-all hover:scale-105 ${
-                    selectedFiles.has(file.id) 
-                      ? 'border-yellow-400 shadow-yellow-400/20 shadow-lg' 
-                      : 'border-white/10'
-                  }`}
-                  onClick={() => toggleFileSelection(file.id)}
-                >
-                  {/* Preview */}
-                  <div className="aspect-video bg-gray-800 relative">
-                    {file.mimeType.startsWith('video/') ? (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-4xl">🎬</span>
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {file.thumbnailLink ? (
-                          <img
-                            src={file.thumbnailLink}
-                            alt={file.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : (
-                          <span className="text-4xl">🖼️</span>
-                        )}
-                        <div className="w-full h-full items-center justify-center hidden">
-                          <span className="text-4xl">🖼️</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Selection indicator */}
-                    {selectedFiles.has(file.id) && (
-                      <div className="absolute top-2 right-2 bg-yellow-400 text-black rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                        ✓
-                      </div>
-                    )}
-                  </div>
-
-                  {/* File info */}
-                  <div className="p-3">
-                    <h4 className="text-white font-medium text-sm truncate">{file.name}</h4>
-                    <p className="text-gray-400 text-xs">
-                      {file.size ? `${(parseInt(file.size) / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          ) : files.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-4xl mb-4">📂</div>
+              <p className="text-lg">No files found in this folder</p>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400">
-              <span className="text-6xl mb-4 block">📂</span>
-              <h4 className="text-xl font-bold text-white mb-2">No Media Files Found</h4>
-              <p>No images or videos found in your Google Drive.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {files.map((file) => {
+                const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+                const isMediaFile = file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
+                const isSelected = selectedFiles.has(file.id);
+
+                return (
+                  <div
+                    key={file.id}
+                    className={`relative bg-white/5 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-yellow-400 shadow-lg shadow-yellow-400/20'
+                        : 'border-white/10 hover:border-white/30'
+                    }`}
+                    onClick={() => {
+                      if (isFolder) {
+                        navigateToFolder(file.id, file.name);
+                      } else if (isMediaFile) {
+                        toggleFileSelection(file.id);
+                      }
+                    }}
+                  >
+                    {/* Selection Indicator - Only for media files */}
+                    {isMediaFile && (
+                      <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-yellow-400 border-yellow-400 text-black shadow-lg'
+                          : 'bg-black/50 border-white/50 hover:border-white/80'
+                      }`}>
+                        {isSelected ? '✓' : ''}
+                      </div>
+                    )}
+
+                    {/* Folder Icon or Media Preview */}
+                    <div className="aspect-video bg-black/20 relative">
+                      {isFolder ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">📁</div>
+                            <div className="text-xs text-gray-400">Folder</div>
+                          </div>
+                        </div>
+                      ) : file.mimeType.startsWith('image/') ? (
+                        <img
+                          src={file.thumbnailLink || file.webViewLink}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://via.placeholder.com/300x200/333/666?text=Image';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">🎥</div>
+                            <div className="text-xs text-gray-400">Video</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hover overlay for folders */}
+                      {isFolder && (
+                        <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white font-medium">Open Folder</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* File Info */}
+                    <div className="p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{getFileIcon(file.mimeType)}</span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-medium text-sm truncate" title={file.name}>
+                            {file.name}
+                          </h4>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {isFolder ? 'Folder' : (
+                              <>
+                                {file.mimeType.startsWith('image/') ? 'Image' : 'Video'}
+                                {file.size && ` • ${formatFileSize(file.size)}`}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-white/10 flex items-center justify-between">
-          <p className="text-gray-400">
-            {selectedFiles.size} file(s) selected
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              disabled={uploading}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddSelected}
-              disabled={selectedFiles.size === 0 || uploading}
-              className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-black font-semibold rounded-lg transition-colors"
-            >
-              {uploading ? 'Adding...' : `Add ${selectedFiles.size} File(s)`}
-            </button>
+        {/* Footer with Add Button - Fixed Position */}
+        {selectedFiles.size > 0 && (
+          <div className="border-t border-white/10 p-4 bg-gray-800/50">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300 text-sm">
+                {selectedFiles.size} file{selectedFiles.size > 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={handleAddSelected}
+                className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+              >
+                ➕ Add to {selectedCategory.replace('_', ' ')}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default ProtectedHomepageMediaManager;
+// MAIN COMPONENT: Protected Homepage Media Manager
+export const ProtectedHomepageMediaManager: React.FC = () => {
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<'background_video' | 'hero_image' | 'gallery_image' | 'banner'>('gallery_image');
+  const [profile, setProfile] = useState<any>(null);
+  const [driveModalOpen, setDriveModalOpen] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+
+  // Media category tabs configuration
+  const tabs = [
+    { 
+      id: 'background_video', 
+      label: 'Background Videos', 
+      desc: 'Homepage background',
+      icon: '🎬',
+      acceptedTypes: ['video/*'],
+      maxFiles: 5
+    },
+    { 
+      id: 'hero_image', 
+      label: 'Hero Images', 
+      desc: 'Main hero section',
+      icon: '🖼️',
+      acceptedTypes: ['image/*'],
+      maxFiles: 10
+    },
+    { 
+      id: 'gallery_image', 
+      label: 'Gallery', 
+      desc: 'Image & video gallery',
+      icon: '📸',
+      acceptedTypes: ['image/*', 'video/*'],
+      maxFiles: 999 // Unlimited
+    },
+    { 
+      id: 'banner', 
+      label: 'Banners', 
+      desc: 'Promotional banners',
+      icon: '🎯',
+      acceptedTypes: ['image/*'],
+      maxFiles: 8
+    }
+  ];
+
+  // Initialize component
+  useEffect(() => {
+    loadMediaFiles();
+    loadUserProfile();
+    checkDriveConnection();
+  }, []);
+
+  // Clear success messages after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // Load user profile
+  const loadUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setProfile(profileData);
+        console.log('👤 Profile loaded:', profileData?.full_name || profileData?.email);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
+  // Check Google Drive connection status
+  const checkDriveConnection = async () => {
+    try {
+      const initialized = await googleDriveService.initialize();
+      if (initialized) {
+        const isAuth = await googleDriveService.isUserAuthenticated();
+        setDriveConnected(isAuth);
+        console.log('☁️ Google Drive connection status:', isAuth ? 'Connected' : 'Disconnected');
+      }
+    } catch (error) {
+      console.error('Error checking Google Drive connection:', error);
+      setDriveConnected(false);
+    }
+  };
+
+  // Load existing media files from database
+  const loadMediaFiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('homepage_media')
+        .select(`
+          *,
+          media_file:media_files(*)
+        `)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+
+      const formattedFiles: MediaFile[] = (data || []).map(item => ({
+        id: item.id,
+        name: item.media_file?.name || 'Unknown File',
+        url: item.media_file?.web_view_link || '',
+        thumbnailUrl: item.media_file?.thumbnail_url,
+        type: item.media_file?.file_type === 'video' ? 'video' : 'image',
+        size: item.media_file?.file_size || 0,
+        isActive: item.is_active,
+        mediaType: item.media_type,
+        displayOrder: item.display_order,
+        uploadedBy: item.media_file?.uploaded_by,
+        createdAt: item.created_at
+      }));
+
+      setMediaFiles(formattedFiles);
+      console.log(`📋 Loaded ${formattedFiles.length} media files from database`);
+    } catch (error: any) {
+      console.error('❌ Error loading media files:', error);
+      setUploadError(error.message);
+    }
+  };
+
+  // Configure dropzone
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: async (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+      await handleFileUpload(acceptedFiles);
+    },
+    accept: tabs.find(tab => tab.id === selectedCategory)?.acceptedTypes.reduce((acc, type) => {
+      acc[type] = [];
+      return acc;
+    }, {} as Record<string, string[]>) || {},
+    multiple: true,
+    maxSize: 100 * 1024 * 1024, // 100MB per file
+    disabled: uploading
+  });
+
+  // Handle direct file upload
+  const handleFileUpload = async (files: File[]) => {
+    setUploading(true);
+    setUploadError(null);
+    setSuccessMessage(null);
+    setUploadProgress({});
+
+    try {
+      console.log(`📤 Starting upload of ${files.length} files to ${selectedCategory}...`);
+
+      // Ensure Google Drive connection
+      if (!driveConnected) {
+        console.log('🔗 Connecting to Google Drive...');
+        const initialized = await googleDriveService.initialize();
+        if (!initialized) {
+          throw new Error('Failed to initialize Google Drive service');
+        }
+
+        const isAuth = await googleDriveService.isUserAuthenticated();
+        if (!isAuth) {
+          const authSuccess = await googleDriveService.authenticate();
+          if (!authSuccess) {
+            throw new Error('Google Drive authentication failed');
+          }
+        }
+        setDriveConnected(true);
+      }
+
+      let successCount = 0;
+      let failedFiles: string[] = [];
+
+      // Process each file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileId = `upload_${i}_${Date.now()}`;
+        
+        try {
+          console.log(`⬆️ Uploading file ${i + 1}/${files.length}: ${file.name}`);
+
+          // Update progress for this file
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileId]: 0
+          }));
+
+          // Upload to Google Drive with progress tracking
+          const driveFile = await googleDriveService.uploadFile(file, 'root', (progress) => {
+            setUploadProgress(prev => ({
+              ...prev,
+              [fileId]: progress.percentage
+            }));
+          });
+
+          // Create media file record in database
+          const mediaFileId = await createMediaFile(driveFile, file);
+          
+          // Create homepage media entry
+          await createHomepageMedia(mediaFileId, selectedCategory);
+
+          successCount++;
+          console.log(`✅ Successfully uploaded: ${file.name}`);
+
+          // Mark as complete
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileId]: 100
+          }));
+
+        } catch (error: any) {
+          console.error(`❌ Failed to upload ${file.name}:`, error);
+          failedFiles.push(file.name);
+          
+          // Mark as failed
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileId]: -1
+          }));
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        setSuccessMessage(`✅ Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''} to ${selectedCategory.replace('_', ' ')}!`);
+        await loadMediaFiles(); // Refresh the list
+      }
+
+      if (failedFiles.length > 0) {
+        setUploadError(`❌ Failed to upload: ${failedFiles.join(', ')}`);
+      }
+
+    } catch (error: any) {
+      console.error('❌ Upload process failed:', error);
+      setUploadError(error.message || 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      // Clear progress after a delay
+      setTimeout(() => setUploadProgress({}), 3000);
+    }
+  };
+
+  // Handle Google Drive files selection
+  const handleGoogleDriveFiles = async (driveFiles: DriveFile[]) => {
+    setUploading(true);
+    setUploadError(null);
+    setSuccessMessage(null);
+
+    try {
+      console.log(`📎 Processing ${driveFiles.length} files from Google Drive...`);
+
+      let successCount = 0;
+      let failedFiles: string[] = [];
+
+      for (const driveFile of driveFiles) {
+        try {
+          // Create media file record in database
+          const mediaFileId = await createMediaFile(driveFile);
+          
+          // Create homepage media entry
+          await createHomepageMedia(mediaFileId, selectedCategory);
+
+          successCount++;
+          console.log(`✅ Successfully added: ${driveFile.name}`);
+
+        } catch (error: any) {
+          console.error(`❌ Failed to add ${driveFile.name}:`, error);
+          failedFiles.push(driveFile.name);
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        setSuccessMessage(`✅ Successfully added ${successCount} file${successCount > 1 ? 's' : ''} from Google Drive to ${selectedCategory.replace('_', ' ')}!`);
+        await loadMediaFiles(); // Refresh the list
+      }
+
+      if (failedFiles.length > 0) {
+        setUploadError(`❌ Failed to add: ${failedFiles.join(', ')}`);
+      }
+
+    } catch (error: any) {
+      console.error('❌ Google Drive import failed:', error);
+      setUploadError(error.message || 'Google Drive import failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Create media file record in database
+  const createMediaFile = async (driveFile: any, originalFile?: File): Promise<string> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const fileType = driveFile.mimeType?.startsWith('video/') ? 'video' : 
+                      driveFile.mimeType?.startsWith('image/') ? 'image' : 'other';
+
+      const { data, error } = await supabase
+        .from('media_files')
+        .insert([{
+          name: driveFile.name,
+          original_name: driveFile.name,
+          mime_type: driveFile.mimeType,
+          file_size: originalFile?.size || parseInt(driveFile.size || '0'),
+          google_drive_file_id: driveFile.id,
+          download_url: driveFile.webViewLink || '',
+          thumbnail_url: driveFile.thumbnailLink || null,
+          web_view_link: driveFile.webViewLink || '',
+          file_type: fileType,
+          uploaded_by: user.id,
+          is_public: true,
+          is_archived: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      console.log(`💾 Created media file record: ${data.id}`);
+      return data.id;
+    } catch (error) {
+      console.error('❌ Failed to create media file record:', error);
+      throw error;
+    }
+  };
+
+  // Create homepage media entry
+  const createHomepageMedia = async (mediaFileId: string, mediaType: string): Promise<void> => {
+    try {
+      // Get next display order for this media type
+      const { data: maxOrderData } = await supabase
+        .from('homepage_media')
+        .select('display_order')
+        .eq('media_type', mediaType)
+        .order('display_order', { ascending: false })
+        .limit(1);
+
+      const nextOrder = maxOrderData && maxOrderData.length > 0 
+        ? maxOrderData[0].display_order + 1 
+        : 1;
+
+      const { error } = await supabase
+        .from('homepage_media')
+        .insert([{
+          media_file_id: mediaFileId,
+          media_type: mediaType,
+          display_order: nextOrder,
+          is_active: true,
+          title: `${mediaType.replace('_', ' ')} media`,
+          description: `Added ${new Date().toLocaleDateString()}`
+        }]);
+
+      if (error) throw error;
+      console.log(`🏠 Created homepage media entry for ${mediaType}`);
+    } catch (error) {
+      console.error('❌ Failed to create homepage media entry:', error);
+      throw error;
+    }
+  };
+
+  // Toggle media active status
+  const toggleMediaActive = async (mediaId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('homepage_media')
+        .update({ is_active: !currentStatus })
+        .eq('id', mediaId);
+
+      if (error) throw error;
+      
+      console.log(`🔄 Toggled media ${mediaId} to ${!currentStatus ? 'active' : 'inactive'}`);
+      await loadMediaFiles();
+      setSuccessMessage(`✅ Media ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
+    } catch (error: any) {
+      console.error('❌ Error toggling media status:', error);
+      setUploadError(error.message);
+    }
+  };
+
+  // Delete media
+  const deleteMedia = async (mediaId: string, fileName: string) => {
+    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('homepage_media')
+        .delete()
+        .eq('id', mediaId);
+
+      if (error) throw error;
+      
+      console.log(`🗑️ Deleted media: ${fileName}`);
+      await loadMediaFiles();
+      setSuccessMessage(`✅ "${fileName}" deleted successfully!`);
+    } catch (error: any) {
+      console.error('❌ Error deleting media:', error);
+      setUploadError(error.message);
+    }
+  };
+
+  // Get filtered media for current category
+  const getFilteredMedia = () => {
+    return mediaFiles.filter(file => file.mediaType === selectedCategory);
+  };
+
+  // Connect to Google Drive
+  const handleConnectDrive = async () => {
+    try {
+      setUploading(true);
+      setUploadError(null);
+      
+      console.log('🔗 Initializing Google Drive connection...');
+      const initialized = await googleDriveService.initialize();
+      if (!initialized) {
+        throw new Error('Failed to initialize Google Drive service');
+      }
+
+      console.log('🔐 Starting authentication...');
+      const authSuccess = await googleDriveService.authenticate();
+      if (authSuccess) {
+        setDriveConnected(true);
+        setSuccessMessage('✅ Google Drive connected successfully! You can now import files.');
+        console.log('✅ Google Drive authentication successful');
+      } else {
+        throw new Error('Authentication was cancelled or failed');
+      }
+    } catch (error: any) {
+      console.error('❌ Google Drive connection failed:', error);
+      setUploadError(error.message || 'Failed to connect to Google Drive. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Get current tab configuration
+  const currentTab = tabs.find(tab => tab.id === selectedCategory);
+  const currentMedia = getFilteredMedia();
+
+  return (
+    <div className="min-h-screen bg-gray-900 p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2">
+            🎬 Homepage Media Manager
+          </h1>
+          <p className="text-gray-400 text-sm md:text-base">
+            Upload and manage media for your homepage sections • Unlimited files supported
+          </p>
+          {profile && (
+            <p className="text-gray-500 text-xs mt-1">
+              Logged in as: <span className="text-yellow-400">{profile.full_name || profile.email}</span> ({profile.role})
+            </p>
+          )}
+        </div>
+
+        {/* Status Messages */}
+        {uploadError && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <span className="text-red-400 text-xl">❌</span>
+              <div className="text-red-400 text-sm md:text-base">{uploadError}</div>
+            </div>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <span className="text-green-400 text-xl">✅</span>
+              <div className="text-green-400 text-sm md:text-base">{successMessage}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Progress */}
+        {Object.keys(uploadProgress).length > 0 && (
+          <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <div className="space-y-2">
+              {Object.entries(uploadProgress).map(([fileId, progress]) => (
+                <div key={fileId} className="flex items-center gap-3">
+                  <div className="flex-1 bg-gray-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        progress === -1 
+                          ? 'bg-red-500' 
+                          : progress === 100 
+                            ? 'bg-green-500' 
+                            : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${progress === -1 ? 100 : Math.max(progress, 5)}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm text-gray-300 min-w-[60px]">
+                    {progress === -1 ? 'Failed' : progress === 100 ? 'Complete' : `${progress}%`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Category Tabs - MOBILE RESPONSIVE */}
+        <div className="mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
+            {tabs.map((tab) => {
+              const tabMedia = mediaFiles.filter(file => file.mediaType === tab.id);
+              const isSelected = selectedCategory === tab.id;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedCategory(tab.id as any)}
+                  className={`relative p-3 lg:p-4 rounded-xl text-left transition-all border-2 ${
+                    isSelected
+                      ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400'
+                      : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="text-lg lg:text-xl mb-1">{tab.icon}</div>
+                  <div className="text-sm lg:text-base font-medium">{tab.label}</div>
+                  <div className="text-xs text-gray-400 mt-1 hidden sm:block">{tab.desc}</div>
+                  <div className="text-xs mt-1">
+                    <span className={`px-2 py-0.5 rounded-full ${
+                      isSelected ? 'bg-yellow-400/20 text-yellow-300' : 'bg-white/10 text-gray-400'
+                    }`}>
+                      {tabMedia.length} files
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Upload Actions - MOBILE RESPONSIVE */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          {/* Direct Upload */}
+          <div
+            {...getRootProps()}
+            className={`
+              border-2 border-dashed rounded-xl p-6 lg:p-8 text-center cursor-pointer transition-all
+              ${isDragActive 
+                ? 'border-yellow-400 bg-yellow-400/10 scale-105' 
+                : 'border-white/30 hover:border-white/50 hover:bg-white/5'
+              }
+              ${uploading ? 'opacity-50 pointer-events-none' : ''}
+            `}
+          >
+            <input {...getInputProps()} />
+            <div className="text-4xl lg:text-6xl mb-4">
+              {uploading ? '⏳' : isDragActive ? '📂' : '📁'}
+            </div>
+            <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">
+              {uploading ? 'Uploading...' : isDragActive ? 'Drop files here' : 'Upload Media Files'}
+            </h3>
+            <p className="text-gray-400 mb-4 text-sm lg:text-base">
+              {currentTab?.acceptedTypes.includes('video/*') 
+                ? 'Upload videos and images' 
+                : 'Upload images'} for {currentTab?.label.toLowerCase()}
+            </p>
+            <p className="text-xs lg:text-sm text-gray-500">
+              Click to browse or drag & drop • Max 100MB per file • 
+              {currentTab?.maxFiles === 999 ? ' Unlimited files' : ` Max ${currentTab?.maxFiles} files`}
+            </p>
+            
+            {currentTab && currentMedia.length >= currentTab.maxFiles && currentTab.maxFiles !== 999 && (
+              <div className="mt-3 p-2 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 text-xs">
+                ⚠️ Maximum files reached for this category ({currentTab.maxFiles})
+              </div>
+            )}
+          </div>
+
+          {/* Google Drive Import */}
+          <div className="border-2 border-dashed border-blue-400/30 rounded-xl p-6 lg:p-8 text-center">
+            <div className="text-4xl lg:text-6xl mb-4">☁️</div>
+            <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">
+              Import from Google Drive
+            </h3>
+            <p className="text-gray-400 mb-4 text-sm lg:text-base">
+              Select existing files from your Google Drive
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              {driveConnected ? (
+                <>
+                  <button
+                    onClick={() => setDriveModalOpen(true)}
+                    disabled={uploading}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm lg:text-base"
+                  >
+                    📂 Browse Files
+                  </button>
+                  <button
+                    onClick={checkDriveConnection}
+                    className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors text-xs lg:text-sm"
+                  >
+                    🔄 Refresh
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleConnectDrive}
+                  disabled={uploading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-sm lg:text-base"
+                >
+                  🔗 Connect Google Drive
+                </button>
+              )}
+            </div>
+            
+            <div className="mt-3 text-xs text-gray-500">
+              {driveConnected ? (
+                <span className="text-green-400">✅ Connected to Google Drive</span>
+              ) : (
+                <span className="text-gray-400">⚪ Not connected</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Current Media - MOBILE RESPONSIVE */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg lg:text-xl font-semibold text-white">
+              {currentTab?.icon} {currentTab?.label} 
+              <span className="text-gray-400 text-base ml-2">({currentMedia.length} files)</span>
+            </h3>
+            
+            {currentMedia.length > 0 && (
+              <div className="text-sm text-gray-400">
+                {currentTab?.maxFiles === 999 
+                  ? 'Unlimited files allowed' 
+                  : `${currentMedia.length}/${currentTab?.maxFiles} files used`
+                }
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {currentMedia.map(file => (
+              <div
+                key={file.id}
+                className={`
+                  relative bg-white/10 rounded-xl overflow-hidden border-2 transition-all group
+                  ${file.isActive ? 'border-yellow-400 shadow-lg' : 'border-white/20 hover:border-white/40'}
+                `}
+              >
+                {/* Media Preview */}
+                <div className="aspect-video bg-black/20 relative overflow-hidden">
+                  {file.type === 'image' ? (
+                    <img
+                      src={file.thumbnailUrl || file.url}
+                      alt={file.name}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://via.placeholder.com/300x200/333/666?text=Image+Error';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-blue-900/20">
+                      <div className="text-center">
+                        <div className="text-4xl lg:text-6xl mb-2">🎥</div>
+                        <div className="text-xs text-gray-300">Video File</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status Badge */}
+                  <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
+                    file.isActive 
+                      ? 'bg-green-500 text-white shadow-lg' 
+                      : 'bg-gray-500/80 text-white'
+                  }`}>
+                    {file.isActive ? '✅ Active' : '💤 Inactive'}
+                  </div>
+
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(file.url, '_blank');
+                        }}
+                        className="bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-colors"
+                        title="Preview"
+                      >
+                        👁️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(file.url);
+                        }}
+                        className="bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-colors"
+                        title="Copy URL"
+                      >
+                        📋
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Info */}
+                <div className="p-3 lg:p-4">
+                  <h4 className="text-white font-medium text-sm lg:text-base truncate mb-1" title={file.name}>
+                    {file.name}
+                  </h4>
+                  <p className="text-gray-400 text-xs lg:text-sm mb-3">
+                    {file.type === 'image' ? '📷' : '🎥'} • {Math.round(file.size / 1024 / 1024)}MB
+                    {file.uploadedBy && (
+                      <span className="block mt-1 truncate">
+                        👤 {file.uploadedBy}
+                      </span>
+                    )}
+                    <span className="block text-gray-500 text-xs">
+                      Order: {file.displayOrder}
+                    </span>
+                  </p>
+
+                  {/* Action Buttons - MOBILE RESPONSIVE */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleMediaActive(file.id, file.isActive)}
+                      className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                        file.isActive 
+                          ? 'bg-gray-600 text-white hover:bg-gray-700' 
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                      title={file.isActive ? 'Deactivate media' : 'Activate media'}
+                    >
+                      {file.isActive ? '💤 Deactivate' : '✅ Activate'}
+                    </button>
+                    <button
+                      onClick={() => deleteMedia(file.id, file.name)}
+                      className="px-2 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                      title="Delete media"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Empty State */}
+          {currentMedia.length === 0 && (
+            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-xl">
+              <div className="text-4xl lg:text-6xl mb-4">{currentTab?.icon}</div>
+              <p className="text-lg lg:text-xl text-white font-medium mb-2">
+                No {currentTab?.label.toLowerCase()} uploaded yet
+              </p>
+              <p className="text-sm lg:text-base text-gray-400 mb-6">
+                Upload your first {currentTab?.label.toLowerCase()} to get started!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => document.querySelector('input[type="file"]')?.click()}
+                  className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                >
+                  📁 Upload Files
+                </button>
+                {driveConnected && (
+                  <button
+                    onClick={() => setDriveModalOpen(true)}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+                  >
+                    ☁️ Import from Drive
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Upload Progress Indicator */}
+        {uploading && (
+          <div className="fixed bottom-4 right-4 bg-gray-800 border border-white/20 rounded-lg p-4 shadow-xl z-40">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
+              <div className="text-white text-sm">
+                <div className="font-medium">Processing files...</div>
+                <div className="text-gray-400 text-xs">Please wait</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Google Drive Modal */}
+        <GoogleDriveModal
+          isOpen={driveModalOpen}
+          onClose={() => setDriveModalOpen(false)}
+          onFilesSelected={handleGoogleDriveFiles}
+          selectedCategory={selectedCategory}
+        />
+      </div>
+    </div>
+  );
+};
