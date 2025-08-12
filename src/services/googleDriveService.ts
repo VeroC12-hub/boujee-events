@@ -1,33 +1,3 @@
-// src/services/googleDriveService.ts - CORRECTED & COMPLETE VERSION
-export interface DriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-  size?: string;
-  createdTime: string;
-  modifiedTime: string;
-  webViewLink: string;
-  webContentLink?: string;
-  thumbnailLink?: string;
-  parents?: string[];
-  publicUrl?: string;
-  directUrl?: string;
-}
-
-export interface UserInfo {
-  id: string;
-  name: string;
-  email: string;
-  picture?: string;
-}
-
-declare global {
-  interface Window {
-    gapi: any;
-    google: any;
-  }
-}
-
 class GoogleDriveService {
   private gapi: any = null;
   private tokenClient: any = null;
@@ -35,65 +5,12 @@ class GoogleDriveService {
   private authenticated = false;
   private currentUser: any = null;
   private authenticationInProgress = false;
-  private retryCount = 0;
-  private maxRetries = 3;
-  private accessToken: string | null = null;
-  private tokenExpiresAt: number = 0;
 
   constructor() {
     console.log('🔄 Initializing Google Drive service with Google Identity Services...');
   }
 
-  // CRITICAL FIX: Enhanced authentication state cleanup
-  async clearAuthenticationState(): Promise<void> {
-    try {
-      console.log('🧹 Clearing authentication state...');
-      
-      this.authenticated = false;
-      this.currentUser = null;
-      this.authenticationInProgress = false;
-      this.retryCount = 0;
-      this.accessToken = null;
-      this.tokenExpiresAt = 0;
-
-      // Clear Google API authentication if available
-      if (this.gapi && this.gapi.auth2) {
-        const authInstance = this.gapi.auth2.getAuthInstance();
-        if (authInstance && authInstance.isSignedIn.get()) {
-          await authInstance.signOut();
-        }
-      }
-
-      // Clear Google Identity Services token
-      if (window.google && window.google.accounts) {
-        try {
-          window.google.accounts.id.disableAutoSelect();
-        } catch (error) {
-          console.warn('⚠️ Could not disable auto-select:', error);
-        }
-      }
-
-      console.log('✅ Authentication state cleared');
-    } catch (error) {
-      console.error('❌ Error clearing authentication state:', error);
-    }
-  }
-
-  // Sign out method
-  async signOut(): Promise<void> {
-    try {
-      if (this.accessToken && window.google?.accounts?.oauth2) {
-        window.google.accounts.oauth2.revoke(this.accessToken, () => {
-          console.log('✅ Access token revoked');
-        });
-      }
-      await this.clearAuthenticationState();
-    } catch (error) {
-      console.error('❌ Error signing out:', error);
-    }
-  }
-
-  // ENHANCED: Better initialization with error recovery
+  // **ENHANCED: Better initialization**
   async initialize(): Promise<boolean> {
     if (this.initialized) return true;
 
@@ -139,21 +56,22 @@ class GoogleDriveService {
 
       this.gapi = window.gapi;
 
-      // Initialize token client with enhanced error handling
+      // Initialize token client
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file',
         callback: (response: any) => {
-          // This will be overridden in authenticate()
-        },
-        error_callback: (error: any) => {
-          console.error('❌ Token client error callback:', error);
-          this.authenticationInProgress = false;
+          if (response.error) {
+            console.error('❌ Token client error:', response.error);
+            this.authenticationInProgress = false;
+            throw new Error(`Authentication failed: ${response.error}`);
+          }
+          console.log('✅ Google Identity Services authentication successful');
         }
       });
 
       this.initialized = true;
-      console.log('✅ Google Drive service initialized successfully');
+      console.log('✅ Google API client initialized');
 
       return true;
     } catch (error) {
@@ -163,71 +81,37 @@ class GoogleDriveService {
     }
   }
 
-  // ENHANCED: Authentication with retry and cleanup logic
+  // **FIXED: Enhanced authentication**
   async authenticate(): Promise<boolean> {
     if (!this.initialized) {
-      const initialized = await this.initialize();
-      if (!initialized) {
-        throw new Error('Failed to initialize Google Drive service');
-      }
-    }
-
-    // Check if already authenticated with valid token
-    if (this.accessToken && Date.now() < this.tokenExpiresAt) {
-      console.log('✅ Already authenticated with valid token');
-      return true;
+      throw new Error('Google Drive service not initialized');
     }
 
     if (this.authenticationInProgress) {
-      console.log('🔄 Authentication already in progress, waiting...');
-      return new Promise((resolve) => {
-        const checkAuth = () => {
-          if (!this.authenticationInProgress) {
-            resolve(this.authenticated);
-          } else {
-            setTimeout(checkAuth, 500);
-          }
-        };
-        checkAuth();
-      });
+      console.log('🔄 Authentication already in progress...');
+      return false;
     }
 
     try {
       this.authenticationInProgress = true;
-      this.retryCount++;
-
-      if (this.retryCount > this.maxRetries) {
-        throw new Error('Maximum authentication attempts exceeded. Please refresh the page and try again.');
-      }
-
       console.log('🔐 Starting Google Drive authentication...');
 
       return new Promise<boolean>((resolve, reject) => {
-        const authTimeout = setTimeout(() => {
-          this.authenticationInProgress = false;
-          reject(new Error('Authentication timeout. Please try again.'));
-        }, 30000); // 30 second timeout
-
         this.tokenClient.callback = async (response: any) => {
-          clearTimeout(authTimeout);
-          
           try {
             if (response.error) {
-              throw new Error(`Authentication failed: ${response.error}`);
+              throw new Error(response.error);
             }
 
-            console.log('✅ Google Identity Services authentication successful');
-            this.accessToken = response.access_token;
-            this.tokenExpiresAt = Date.now() + (response.expires_in * 1000);
-
+            console.log('📝 Requesting access token...');
+            
             // Get user info
-            const userInfo = await this.fetchUserInfo();
+            const userInfo = await this.getUserInfo();
             this.currentUser = userInfo;
             this.authenticated = true;
             this.authenticationInProgress = false;
-            this.retryCount = 0; // Reset retry count on success
 
-            console.log('👤 Authenticated user:', userInfo.name);
+            console.log('👤 Authenticated user:', userInfo.displayName || userInfo.name);
             resolve(true);
           } catch (error) {
             this.authenticationInProgress = false;
@@ -236,18 +120,8 @@ class GoogleDriveService {
           }
         };
 
-        this.tokenClient.error_callback = (error: any) => {
-          clearTimeout(authTimeout);
-          this.authenticationInProgress = false;
-          console.error('❌ Token client error:', error);
-          reject(new Error(`Authentication failed: ${error.message || 'Unknown error'}`));
-        };
-
         // Request access token
-        console.log('📝 Requesting access token...');
-        this.tokenClient.requestAccessToken({
-          prompt: this.retryCount > 1 ? 'consent' : ''
-        });
+        this.tokenClient.requestAccessToken();
       });
 
     } catch (error) {
@@ -257,27 +131,20 @@ class GoogleDriveService {
     }
   }
 
-  // ENHANCED: Better user authentication check
+  // **FIXED: Better user authentication check**
   async isUserAuthenticated(): Promise<boolean> {
     if (!this.initialized) return false;
     
     try {
-      // Check if we have a current user and valid token
-      if (this.authenticated && this.currentUser && this.accessToken) {
-        // Check if token is still valid
-        if (Date.now() >= this.tokenExpiresAt) {
-          console.log('🔄 Access token expired');
-          await this.clearAuthenticationState();
-          return false;
-        }
-
+      if (this.authenticated && this.currentUser) {
         // Verify token is still valid by making a test API call
         try {
           await this.gapi.client.drive.about.get();
           return true;
         } catch (error) {
           console.warn('⚠️ Token appears to be invalid, clearing authentication');
-          await this.clearAuthenticationState();
+          this.authenticated = false;
+          this.currentUser = null;
           return false;
         }
       }
@@ -289,231 +156,34 @@ class GoogleDriveService {
     }
   }
 
-  // ENHANCED: User info with error handling
-  async getUserInfo(): Promise<UserInfo | null> {
-    return this.currentUser;
-  }
-
-  private async fetchUserInfo(): Promise<UserInfo> {
-    if (!this.accessToken) throw new Error('No access token available');
-
+  // **FIXED: User info with error handling**
+  async getUserInfo(): Promise<any> {
     try {
-      const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+      if (!this.initialized || !this.gapi) {
+        throw new Error('Google Drive service not initialized');
+      }
+
+      const response = await this.gapi.client.drive.about.get({
+        fields: 'user'
       });
 
-      if (!response.ok) throw new Error(`Failed to fetch user info: ${response.statusText}`);
-
-      const userData = await response.json();
-      return {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-        picture: userData.picture
-      };
+      return response.result.user;
     } catch (error) {
-      console.error('❌ Error fetching user info:', error);
-      
-      // Fallback: try to get user info from Drive API
-      try {
-        const response = await this.gapi.client.drive.about.get({
-          fields: 'user'
-        });
-        const user = response.result.user;
-        return {
-          id: user.permissionId || 'unknown',
-          name: user.displayName,
-          email: user.emailAddress,
-          picture: user.photoLink
-        };
-      } catch (driveError) {
-        console.error('❌ Error getting user info from Drive API:', driveError);
-        throw new Error('Failed to get user information');
-      }
+      console.error('❌ Error getting user info:', error);
+      throw new Error('Failed to get user information');
     }
   }
 
-  // CRITICAL FIX: Browse files with proper URL handling
-  async browseFiles(folderId?: string): Promise<DriveFile[]> {
-    try {
-      if (!await this.isUserAuthenticated()) {
-        throw new Error('Authentication required to browse files');
-      }
-
-      let query = 'trashed=false';
-      
-      if (folderId) {
-        // Browse specific folder
-        query = `'${folderId}' in parents and trashed=false`;
-        console.log('📂 Browsing specific Google Drive folder:', folderId);
-      } else {
-        // Browse ALL media files
-        query = "trashed=false and (mimeType contains 'image/' or mimeType contains 'video/')";
-        console.log('📂 Browsing ALL Google Drive media files');
-      }
-
-      const response = await this.gapi.client.drive.files.list({
-        q: query,
-        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,thumbnailLink,parents)',
-        orderBy: 'modifiedTime desc',
-        pageSize: 100
-      });
-
-      const files = response.result.files || [];
-      
-      // Add proper URLs for each file
-      const filesWithUrls = files.map((file: any) => ({
-        ...file,
-        publicUrl: this.getPublicViewUrl(file.id),
-        directUrl: this.getDirectUrl(file.id, file.mimeType),
-        size: file.size || '0'
-      }));
-
-      console.log('📂 Found', filesWithUrls.length, 'files');
-      return filesWithUrls;
-      
-    } catch (error) {
-      console.error('❌ Error browsing files:', error);
-      
-      // If authentication error, clear state
-      if (error.message.includes('auth') || error.message.includes('token')) {
-        await this.clearAuthenticationState();
-      }
-      
-      return [];
-    }
-  }
-
-  // Get homepage media folders for browsing
-  async getHomepageMediaFolders(): Promise<{ [key: string]: string }> {
-    try {
-      const mainFolderId = await this.getOrCreateMainFolder();
-      
-      let homepageFolder = await this.findFolderByName('Homepage Media', mainFolderId);
-      if (!homepageFolder) {
-        homepageFolder = await this.createFolder('Homepage Media', mainFolderId);
-      }
-
-      const folderNames = {
-        'background_video': 'Background Videos',
-        'hero_image': 'Hero Images',
-        'gallery_image': 'Gallery Images',
-        'banner': 'Banners'
-      };
-
-      const folders: { [key: string]: string } = {};
-      
-      for (const [type, name] of Object.entries(folderNames)) {
-        let folder = await this.findFolderByName(name, homepageFolder.id);
-        if (!folder) {
-          folder = await this.createFolder(name, homepageFolder.id);
-        }
-        folders[type] = folder.id;
-      }
-
-      return folders;
-    } catch (error) {
-      console.error('❌ Error getting homepage folders:', error);
-      return {};
-    }
-  }
-
-  private async getOrCreateMainFolder(): Promise<string> {
-    try {
-      let mainFolder = await this.findFolderByName('Boujee Events Hub');
-      
-      if (!mainFolder) {
-        console.log('📁 Creating main Boujee Events Hub folder...');
-        mainFolder = await this.createFolder('Boujee Events Hub');
-        
-        await this.createFolder('Events', mainFolder.id);
-        await this.createFolder('Archives', mainFolder.id);
-        await this.createFolder('Homepage Media', mainFolder.id);
-        
-        console.log('✅ Created complete folder structure');
-      }
-
-      return mainFolder.id;
-    } catch (error) {
-      console.error('❌ Failed to get/create main folder:', error);
-      throw error;
-    }
-  }
-
-  async findFolderByName(name: string, parentId: string = 'root'): Promise<DriveFile | null> {
-    try {
-      if (!this.accessToken) throw new Error('Not authenticated');
-
-      const query = `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
-      
-      const response = await this.gapi.client.drive.files.list({
-        q: query,
-        fields: 'files(id,name,mimeType,createdTime,modifiedTime,webViewLink)'
-      });
-
-      const files = response.result.files;
-      return files && files.length > 0 ? files[0] : null;
-    } catch (error) {
-      console.error('❌ Error finding folder:', error);
-      return null;
-    }
-  }
-
-  async createFolder(name: string, parentId: string = 'root'): Promise<DriveFile> {
-    try {
-      if (!this.accessToken) throw new Error('Not authenticated');
-
-      console.log(`📁 Creating folder: ${name}`);
-      
-      const metadata = {
-        name: name,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [parentId]
-      };
-
-      const response = await this.gapi.client.drive.files.create({
-        resource: metadata,
-        fields: 'id,name,mimeType,createdTime,modifiedTime,webViewLink,parents'
-      });
-
-      console.log(`✅ Created folder: ${name}`);
-      return response.result as DriveFile;
-    } catch (error) {
-      console.error(`❌ Error creating folder ${name}:`, error);
-      throw error;
-    }
-  }
-
-  // Get public viewing URL for a file
-  private getPublicViewUrl(fileId: string): string {
-    return `https://drive.google.com/file/d/${fileId}/view`;
-  }
-
-  // Get direct URL for embedding
-  private getDirectUrl(fileId: string, mimeType: string): string {
-    // For images, use direct Google Drive URL that works in img tags
-    if (mimeType.startsWith('image/')) {
-      return `https://drive.google.com/uc?id=${fileId}`;
-    }
-    
-    // For videos, use preview URL for iframe embedding
-    if (mimeType.startsWith('video/')) {
-      return `https://drive.google.com/file/d/${fileId}/preview`;
-    }
-    
-    return `https://drive.google.com/file/d/${fileId}/view`;
-  }
-
-  // ENHANCED: File upload with progress and error handling
-  async uploadFile(file: File, folderId: string, onProgress?: (progress: { percentage: number }) => void): Promise<DriveFile> {
-    if (!this.authenticated || !this.accessToken) {
+  // **CRITICAL FIX: File upload with proper error handling**
+  async uploadFile(file: File, folderId?: string, onProgress?: (progress: { percentage: number }) => void): Promise<any> {
+    if (!this.authenticated) {
       throw new Error('Not authenticated with Google Drive');
     }
 
     try {
       const metadata = {
         name: file.name,
-        parents: folderId ? [folderId] : undefined
+        parents: folderId && folderId !== 'root' ? [folderId] : undefined
       };
 
       const form = new FormData();
@@ -537,20 +207,8 @@ class GoogleDriveService {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
-              const uploadedFile: DriveFile = {
-                id: response.id,
-                name: response.name,
-                mimeType: file.type,
-                size: file.size.toString(),
-                createdTime: new Date().toISOString(),
-                modifiedTime: new Date().toISOString(),
-                webViewLink: this.getPublicViewUrl(response.id),
-                webContentLink: `https://drive.google.com/uc?id=${response.id}&export=download`,
-                parents: folderId ? [folderId] : undefined,
-                publicUrl: this.getPublicViewUrl(response.id),
-                directUrl: this.getDirectUrl(response.id, file.type)
-              };
-              resolve(uploadedFile);
+              console.log('✅ File uploaded successfully:', response.name);
+              resolve(response);
             } catch (error) {
               reject(new Error('Invalid response from Google Drive'));
             }
@@ -569,20 +227,67 @@ class GoogleDriveService {
 
         xhr.timeout = 5 * 60 * 1000; // 5 minute timeout
 
+        // Get access token
+        const token = this.gapi.auth.getToken();
+        if (!token || !token.access_token) {
+          reject(new Error('No valid access token available'));
+          return;
+        }
+
         xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-        xhr.setRequestHeader('Authorization', `Bearer ${this.accessToken}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token.access_token}`);
         xhr.send(form);
       });
 
     } catch (error) {
       console.error('❌ Upload error:', error);
-      
-      // If authentication error, clear state
-      if (error.message.includes('auth') || error.message.includes('token')) {
-        await this.clearAuthenticationState();
-      }
-      
       throw error;
+    }
+  }
+
+  // **CRITICAL FIX: Get all media files**
+  async getAllMediaFiles(): Promise<any[]> {
+    if (!this.authenticated) {
+      throw new Error('Not authenticated with Google Drive');
+    }
+
+    try {
+      const response = await this.gapi.client.drive.files.list({
+        q: "mimeType contains 'image/' or mimeType contains 'video/'",
+        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)',
+        pageSize: 100
+      });
+
+      console.log('📂 Retrieved', response.result.files?.length || 0, 'media files');
+      return response.result.files || [];
+    } catch (error) {
+      console.error('❌ Error getting media files:', error);
+      throw new Error('Failed to load media files from Google Drive');
+    }
+  }
+
+  // **CRITICAL FIX: Get files from specific folder**
+  async getFilesFromFolder(folderId: string): Promise<any[]> {
+    if (!this.authenticated) {
+      throw new Error('Not authenticated with Google Drive');
+    }
+
+    try {
+      const query = folderId && folderId !== 'root'
+        ? `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/')`
+        : "mimeType contains 'image/' or mimeType contains 'video/'";
+
+      const response = await this.gapi.client.drive.files.list({
+        q: query,
+        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)',
+        pageSize: 100
+      });
+
+      console.log('📁 Retrieved', response.result.files?.length || 0, 'files from folder');
+      return response.result.files || [];
+    } catch (error) {
+      console.error('❌ Error getting files from folder:', error);
+      throw new Error('Failed to load files from folder');
     }
   }
 
@@ -615,6 +320,14 @@ class GoogleDriveService {
       script.onerror = () => reject(new Error('Failed to load Google Identity Services script'));
       document.head.appendChild(script);
     });
+  }
+}
+
+// Declare global types
+declare global {
+  interface Window {
+    gapi: any;
+    google: any;
   }
 }
 
