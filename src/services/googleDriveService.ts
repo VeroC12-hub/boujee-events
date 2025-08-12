@@ -1,4 +1,4 @@
-// src/services/googleDriveService.ts - COMPLETE WORKING VERSION
+// src/services/googleDriveService.ts - MODERN VERSION WITH GOOGLE IDENTITY SERVICES
 export interface DriveFile {
   id: string;
   name: string;
@@ -45,6 +45,7 @@ export interface ConnectionStatus {
 declare global {
   interface Window {
     gapi: any;
+    google: any;
   }
 }
 
@@ -53,6 +54,8 @@ class GoogleDriveService {
   private isInitialized = false;
   private isAuthenticated = false;
   private userInfo: UserInfo | null = null;
+  private accessToken: string | null = null;
+  private tokenExpiresAt: number = 0;
 
   private constructor() {}
 
@@ -65,7 +68,7 @@ class GoogleDriveService {
 
   async initialize(): Promise<boolean> {
     try {
-      console.log('🔄 Initializing Google Drive service...');
+      console.log('🔄 Initializing Google Drive service with Google Identity Services...');
       
       // Check environment variables
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -79,22 +82,22 @@ class GoogleDriveService {
       if (!clientId || !apiKey) {
         console.error('❌ Missing Google Drive credentials in environment variables');
         console.error('Please add to .env.local:');
-        console.error('VITE_GOOGLE_CLIENT_ID=your_client_id');
+        console.error('VITE_GOOGLE_CLIENT_ID=your_oauth_client_id');
         console.error('VITE_GOOGLE_DRIVE_API_KEY=your_api_key');
         return false;
       }
 
-      // Load Google API if not already loaded
-      if (!window.gapi) {
-        console.log('📡 Loading Google API...');
-        await this.loadGoogleAPI();
-      }
+      // Load Google Identity Services and GAPI
+      await Promise.all([
+        this.loadGoogleIdentityServices(),
+        this.loadGoogleAPI()
+      ]);
 
-      // Initialize Google API client
+      // Initialize Google API client for Drive API
       await this.initializeGoogleAPI();
       
       this.isInitialized = true;
-      console.log('✅ Google Drive service initialized successfully');
+      console.log('✅ Google Drive service initialized successfully with Google Identity Services');
       return true;
       
     } catch (error) {
@@ -103,8 +106,36 @@ class GoogleDriveService {
     }
   }
 
+  private loadGoogleIdentityServices(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (window.google?.accounts) {
+        console.log('✅ Google Identity Services already loaded');
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.onload = () => {
+        console.log('✅ Google Identity Services loaded');
+        resolve();
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Google Identity Services');
+        reject(new Error('Failed to load Google Identity Services'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
   private loadGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
+      if (window.gapi) {
+        console.log('✅ Google API already loaded');
+        resolve();
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://apis.google.com/js/api.js';
       script.onload = () => {
@@ -121,15 +152,13 @@ class GoogleDriveService {
 
   private initializeGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
-      window.gapi.load('client:auth2', {
+      window.gapi.load('client', {
         callback: async () => {
           try {
             console.log('🔧 Initializing Google API client...');
             await window.gapi.client.init({
               apiKey: import.meta.env.VITE_GOOGLE_DRIVE_API_KEY,
-              clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-              scope: 'https://www.googleapis.com/auth/drive.file'
+              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
             });
             console.log('✅ Google API client initialized');
             resolve();
@@ -139,7 +168,7 @@ class GoogleDriveService {
           }
         },
         onerror: (error: any) => {
-          console.error('❌ Failed to load Google API modules:', error);
+          console.error('❌ Failed to load Google API client:', error);
           reject(error);
         }
       });
@@ -148,7 +177,7 @@ class GoogleDriveService {
 
   async authenticate(): Promise<boolean> {
     try {
-      console.log('🔐 Starting Google Drive authentication...');
+      console.log('🔐 Starting Google Drive authentication with Google Identity Services...');
       
       if (!this.isInitialized) {
         console.log('⚠️ Service not initialized, initializing now...');
@@ -158,37 +187,47 @@ class GoogleDriveService {
         }
       }
 
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      
-      if (!authInstance.isSignedIn.get()) {
-        console.log('📝 User not signed in, prompting for authentication...');
-        
-        try {
-          const user = await authInstance.signIn();
-          console.log('✅ User signed in successfully');
-        } catch (error) {
-          console.error('❌ User declined authentication or error occurred:', error);
-          return false;
-        }
-      } else {
-        console.log('✅ User already signed in');
+      // Check if we already have a valid token
+      if (this.accessToken && Date.now() < this.tokenExpiresAt) {
+        console.log('✅ Already authenticated with valid token');
+        return true;
       }
 
-      // Get user information
-      const user = authInstance.currentUser.get();
-      const profile = user.getBasicProfile();
-      
-      this.userInfo = {
-        id: profile.getId(),
-        name: profile.getName(),
-        email: profile.getEmail(),
-        picture: profile.getImageUrl()
-      };
+      return new Promise((resolve, reject) => {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          callback: async (response: any) => {
+            if (response.error) {
+              console.error('❌ Authentication error:', response.error);
+              reject(new Error(`Authentication failed: ${response.error}`));
+              return;
+            }
 
-      this.isAuthenticated = true;
-      console.log('👤 Authenticated user:', this.userInfo.name, '(' + this.userInfo.email + ')');
-      
-      return true;
+            console.log('✅ Google Identity Services authentication successful');
+            this.accessToken = response.access_token;
+            this.tokenExpiresAt = Date.now() + (response.expires_in * 1000);
+            
+            // Get user info
+            try {
+              await this.fetchUserInfo();
+              this.isAuthenticated = true;
+              console.log('👤 Authenticated user:', this.userInfo?.name, '(' + this.userInfo?.email + ')');
+              resolve(true);
+            } catch (error) {
+              console.error('❌ Failed to fetch user info:', error);
+              resolve(true); // Still consider authentication successful
+            }
+          },
+          error_callback: (error: any) => {
+            console.error('❌ OAuth error:', error);
+            reject(new Error(`OAuth error: ${error.message || 'Unknown error'}`));
+          }
+        });
+
+        console.log('📝 Requesting access token...');
+        client.requestAccessToken({ prompt: 'consent' });
+      });
       
     } catch (error) {
       console.error('❌ Authentication failed:', error);
@@ -197,41 +236,51 @@ class GoogleDriveService {
     }
   }
 
+  private async fetchUserInfo(): Promise<void> {
+    try {
+      if (!this.accessToken) {
+        throw new Error('No access token available');
+      }
+
+      const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user info: ${response.statusText}`);
+      }
+
+      const userData = await response.json();
+      this.userInfo = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture
+      };
+      
+      console.log('✅ User info fetched successfully');
+    } catch (error) {
+      console.error('❌ Error fetching user info:', error);
+      throw error;
+    }
+  }
+
   async isUserAuthenticated(): Promise<boolean> {
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.accessToken) {
       return false;
     }
 
-    try {
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      const isSignedIn = authInstance.isSignedIn.get();
-      
-      if (isSignedIn) {
-        const user = authInstance.currentUser.get();
-        const authResponse = user.getAuthResponse();
-        
-        // Check if token is still valid
-        const now = Date.now();
-        const expiresAt = authResponse.expires_at;
-        
-        if (now < expiresAt) {
-          this.isAuthenticated = true;
-          return true;
-        } else {
-          console.log('🔄 Token expired, need to re-authenticate');
-          this.isAuthenticated = false;
-          return false;
-        }
-      }
-      
+    // Check if token is still valid
+    if (Date.now() >= this.tokenExpiresAt) {
+      console.log('🔄 Access token expired');
       this.isAuthenticated = false;
-      return false;
-      
-    } catch (error) {
-      console.error('❌ Error checking authentication status:', error);
-      this.isAuthenticated = false;
+      this.accessToken = null;
       return false;
     }
+
+    return this.isAuthenticated;
   }
 
   async getUserInfo(): Promise<UserInfo | null> {
@@ -356,6 +405,10 @@ class GoogleDriveService {
 
   async findFolderByName(name: string, parentId: string = 'root'): Promise<DriveFile | null> {
     try {
+      if (!this.accessToken) {
+        throw new Error('Not authenticated');
+      }
+
       const query = `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
       
       const response = await window.gapi.client.drive.files.list({
@@ -374,6 +427,10 @@ class GoogleDriveService {
 
   async createFolder(name: string, parentId: string = 'root'): Promise<DriveFile> {
     try {
+      if (!this.accessToken) {
+        throw new Error('Not authenticated');
+      }
+
       console.log(`📁 Creating folder: ${name} in ${parentId}`);
       
       const metadata = {
@@ -402,6 +459,10 @@ class GoogleDriveService {
     onProgress?: (progress: UploadProgress) => void
   ): Promise<DriveFile> {
     try {
+      if (!this.accessToken) {
+        throw new Error('Not authenticated');
+      }
+
       const metadata = {
         name: file.name,
         parents: [parentFolderId]
@@ -412,12 +473,7 @@ class GoogleDriveService {
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', file);
 
-      // Get auth token
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      const user = authInstance.currentUser.get();
-      const authResponse = user.getAuthResponse();
-
-      // Upload with progress tracking
+      // Upload with progress tracking using XMLHttpRequest
       const xhr = new XMLHttpRequest();
       
       return new Promise((resolve, reject) => {
@@ -457,7 +513,7 @@ class GoogleDriveService {
         };
 
         xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-        xhr.setRequestHeader('Authorization', `Bearer ${authResponse.access_token}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${this.accessToken}`);
         xhr.send(form);
       });
       
@@ -469,13 +525,17 @@ class GoogleDriveService {
 
   async signOut(): Promise<void> {
     try {
-      if (window.gapi && window.gapi.auth2) {
-        const authInstance = window.gapi.auth2.getAuthInstance();
-        await authInstance.signOut();
+      // Revoke the access token
+      if (this.accessToken) {
+        window.google.accounts.oauth2.revoke(this.accessToken, () => {
+          console.log('✅ Access token revoked');
+        });
       }
 
       this.isAuthenticated = false;
       this.userInfo = null;
+      this.accessToken = null;
+      this.tokenExpiresAt = 0;
       
       console.log('✅ Signed out from Google Drive');
     } catch (error) {
