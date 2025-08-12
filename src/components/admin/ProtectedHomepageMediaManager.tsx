@@ -1,4 +1,4 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE FIXED VERSION
+// src/components/admin/ProtectedHomepageMediaManager.tsx - FIXED VERSION
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,7 @@ interface MediaFile {
   name: string;
   type: 'image' | 'video';
   url: string;
+  directUrl?: string; // NEW: Direct embedding URL
   isActive: boolean;
   mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
   uploadedBy: string;
@@ -17,7 +18,7 @@ interface MediaFile {
   description?: string;
 }
 
-// NEW: Google Drive File Browser Component
+// FIXED: Google Drive File Browser Component
 const GoogleDriveFileBrowser: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -27,22 +28,33 @@ const GoogleDriveFileBrowser: React.FC<{
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
+  const [browsing, setBrowsing] = useState<'folders' | 'all'>('all');
 
   useEffect(() => {
     if (isOpen) {
       loadFiles();
     }
-  }, [isOpen, mediaType]);
+  }, [isOpen, mediaType, browsing]);
 
   const loadFiles = async () => {
     setLoading(true);
     try {
-      const folders = await googleDriveService.getHomepageMediaFolders();
-      const folderId = folders[mediaType];
-      if (folderId) {
-        const driveFiles = await googleDriveService.browseFiles(folderId);
-        setFiles(driveFiles);
+      let driveFiles: DriveFile[] = [];
+      
+      if (browsing === 'folders') {
+        // Browse specific media type folder
+        const folders = await googleDriveService.getHomepageMediaFolders();
+        const folderId = folders[mediaType];
+        if (folderId) {
+          driveFiles = await googleDriveService.browseFiles(folderId);
+        }
+      } else {
+        // Browse ALL media files including manually uploaded ones
+        driveFiles = await googleDriveService.browseFiles();
       }
+      
+      setFiles(driveFiles);
+      console.log(`📂 Found ${driveFiles.length} files in ${browsing} mode`);
     } catch (error) {
       console.error('❌ Failed to load Google Drive files:', error);
     } finally {
@@ -71,7 +83,7 @@ const GoogleDriveFileBrowser: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+      <div className="bg-gray-800 rounded-2xl p-6 max-w-5xl w-full mx-4 max-h-[85vh] overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-white">Browse Google Drive Files</h3>
           <button
@@ -79,6 +91,32 @@ const GoogleDriveFileBrowser: React.FC<{
             className="text-gray-400 hover:text-white text-2xl"
           >
             ×
+          </button>
+        </div>
+
+        {/* Browse Mode Selector */}
+        <div className="mb-4 flex gap-2">
+          <button
+            onClick={() => setBrowsing('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              browsing === 'all' 
+                ? 'bg-yellow-400 text-black' 
+                : 'bg-gray-600 text-white hover:bg-gray-500'
+            }`}
+          >
+            📁 All Media Files
+          </button>
+          <button
+            onClick={() => setBrowsing('folders')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              browsing === 'folders' 
+                ? 'bg-yellow-400 text-black' 
+                : 'bg-gray-600 text-white hover:bg-gray-500'
+            }`}
+          >
+            🗂️ {mediaType === 'background_video' ? 'Background Videos' : 
+                 mediaType === 'hero_image' ? 'Hero Images' :
+                 mediaType === 'gallery_image' ? 'Gallery' : 'Banners'} Folder
           </button>
         </div>
 
@@ -91,6 +129,11 @@ const GoogleDriveFileBrowser: React.FC<{
           <>
             <div className="mb-4 text-sm text-gray-400">
               Select files from your Google Drive to add to your homepage. {selectedFiles.length} selected.
+              {browsing === 'all' && (
+                <div className="mt-1 text-yellow-400">
+                  💡 This includes manually uploaded files from anywhere in your Google Drive
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto mb-6">
@@ -112,7 +155,7 @@ const GoogleDriveFileBrowser: React.FC<{
                     <div className="aspect-video bg-black/20 relative">
                       {isImage && (
                         <img
-                          src={file.publicUrl || `https://drive.google.com/uc?id=${file.id}&export=view`}
+                          src={file.directUrl || `https://drive.google.com/uc?id=${file.id}`}
                           alt={file.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -124,7 +167,10 @@ const GoogleDriveFileBrowser: React.FC<{
                       
                       {isVideo && (
                         <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                          <div className="text-4xl">🎬</div>
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">🎬</div>
+                            <div className="text-xs text-white">Video File</div>
+                          </div>
                         </div>
                       )}
 
@@ -167,8 +213,12 @@ const GoogleDriveFileBrowser: React.FC<{
             {files.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <div className="text-4xl mb-2">📁</div>
-                <p>No files found in Google Drive for this media type.</p>
-                <p className="text-sm mt-2">Upload some files first, then browse them here.</p>
+                <p>No media files found in {browsing === 'all' ? 'your Google Drive' : 'this folder'}.</p>
+                <p className="text-sm mt-2">
+                  {browsing === 'all' 
+                    ? 'Upload some media files to your Google Drive first.' 
+                    : 'Try browsing "All Media Files" to see manually uploaded content.'}
+                </p>
               </div>
             )}
 
@@ -433,12 +483,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         }
       );
 
-      // Convert to MediaFile objects using PUBLIC URLs
+      // FIXED: Convert to MediaFile objects using DIRECT URLs
       const newFiles: MediaFile[] = driveFiles.map(driveFile => ({
         id: driveFile.id,
         name: driveFile.name,
         type: driveFile.mimeType.startsWith('image/') ? 'image' as const : 'video' as const,
-        url: driveFile.publicUrl || driveFile.webViewLink, // USE PUBLIC URL
+        url: driveFile.publicUrl || driveFile.webViewLink,
+        directUrl: driveFile.directUrl, // NEW: Use direct URL for embedding
         isActive: false,
         mediaType: getMediaTypeForTab(),
         uploadedBy: profile.full_name || profile.email,
@@ -462,7 +513,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   }, [activeTab, profile, mediaFiles, googleDriveStatus.authenticated]);
 
-  // NEW: Handle files selected from Google Drive browser
+  // FIXED: Handle files selected from Google Drive browser
   const handleFilesFromDrive = (driveFiles: DriveFile[]) => {
     if (!profile) return;
 
@@ -472,7 +523,10 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       id: driveFile.id,
       name: driveFile.name,
       type: driveFile.mimeType.startsWith('image/') ? 'image' as const : 'video' as const,
-      url: driveFile.publicUrl || `https://drive.google.com/uc?id=${driveFile.id}&export=view`,
+      url: driveFile.publicUrl || `https://drive.google.com/file/d/${driveFile.id}/view`,
+      directUrl: driveFile.directUrl || (driveFile.mimeType.startsWith('image/') 
+        ? `https://drive.google.com/uc?id=${driveFile.id}` 
+        : `https://drive.google.com/file/d/${driveFile.id}/preview`),
       isActive: false,
       mediaType: getMediaTypeForTab(),
       uploadedBy: profile.full_name || profile.email,
@@ -781,7 +835,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                 📂 Browse Existing Google Drive Files
               </button>
               <p className="text-sm text-gray-400 mt-2">
-                Select files you've already uploaded to Google Drive
+                Select files you've already uploaded to Google Drive (including manual uploads)
               </p>
             </div>
           </div>
@@ -819,25 +873,37 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                 <div className="aspect-video bg-black/20 relative group">
                   {file.type === 'image' ? (
                     <img
-                      src={file.url}
+                      src={file.directUrl || file.url}
                       alt={file.title || file.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        console.log('Image failed to load:', file.name, 'URL:', file.url);
+                        console.log('Image failed to load:', file.name, 'URLs:', { url: file.url, directUrl: file.directUrl });
                         const target = e.target as HTMLImageElement;
                         target.src = 'https://via.placeholder.com/400x300/444444/ffffff?text=Image+Error';
                       }}
                     />
                   ) : (
-                    <video
-                      src={file.url}
-                      className="w-full h-full object-cover"
-                      muted
-                      loop
-                      onMouseEnter={(e) => e.currentTarget.play()}
-                      onMouseLeave={(e) => e.currentTarget.pause()}
-                      onError={() => console.log('Video failed to load:', file.name, 'URL:', file.url)}
-                    />
+                    <div className="relative w-full h-full">
+                      {file.directUrl ? (
+                        <iframe
+                          src={file.directUrl}
+                          className="w-full h-full"
+                          style={{ border: 'none' }}
+                          allow="autoplay"
+                          title={file.name}
+                        />
+                      ) : (
+                        <video
+                          src={file.url}
+                          className="w-full h-full object-cover"
+                          muted
+                          loop
+                          onMouseEnter={(e) => e.currentTarget.play()}
+                          onMouseLeave={(e) => e.currentTarget.pause()}
+                          onError={() => console.log('Video failed to load:', file.name, 'URLs:', { url: file.url, directUrl: file.directUrl })}
+                        />
+                      )}
+                    </div>
                   )}
                   
                   {file.isActive && (
