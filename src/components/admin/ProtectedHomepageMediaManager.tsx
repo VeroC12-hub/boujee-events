@@ -4,6 +4,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../contexts/AuthContext';
+import { googleDriveService } from '../../services/googleDriveService'; // ADD THIS LINE
 
 // Define what a media file looks like
 interface MediaFile {
@@ -159,35 +160,64 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     console.log('📁 Uploading', acceptedFiles.length, 'files...');
 
     try {
-      const newFiles: MediaFile[] = [];
-      
-      for (const file of acceptedFiles) {
-        console.log('⬆️ Processing:', file.name);
-        
-        // Create URL for the file (in real app, this would be uploaded to cloud storage)
-        const objectUrl = URL.createObjectURL(file);
-        
-        // Determine if it's image or video
-        const fileType = file.type.startsWith('image/') ? 'image' : 'video';
-        
-        // Create media file object
-        const newMediaFile: MediaFile = {
-          id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: file.name,
-          type: fileType,
-          url: objectUrl,
-          isActive: false,  // Not active by default
+      // NEW: Try Google Drive upload first
+      const useGoogleDrive = true; // Set to true to enable Google Drive
+      let newFiles: MediaFile[] = [];
+
+      if (useGoogleDrive) {
+        // NEW: Upload to Google Drive
+        console.log('☁️ Uploading to Google Drive...');
+        const mediaType = getMediaTypeForTab();
+        const fileList = acceptedFiles as any as FileList;
+
+        const driveFiles = await googleDriveService.uploadHomepageMedia(
+          fileList,
+          mediaType as any,
+          (progress) => {
+            console.log(`Upload progress: ${progress.percentage}%`);
+          }
+        );
+              
+        // Create media file objects from Google Drive results
+        newFiles = driveFiles.map(driveFile => ({
+          id: driveFile.id,
+          name: driveFile.name,
+          type: driveFile.mimeType.startsWith('image/') ? 'image' : 'video',
+          url: driveFile.webContentLink || driveFile.webViewLink, // Use Google Drive URL
+          isActive: false,
           mediaType: getMediaTypeForTab(),  // Based on current tab
           uploadedBy: profile.full_name || profile.email,
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: driveFile.createdTime,
           title: file.name.replace(/\.[^/.]+$/, ""),  // Remove file extension
-          description: `${fileType} uploaded by ${profile.full_name || profile.email}`
-        };
+          description: `Uploaded to Google Drive by ${profile.full_name || profile.email}`
+        }));
 
-        newFiles.push(newMediaFile);
-        console.log('✅ Created media object for:', file.name);
+        console.log('✅ Google Drive upload successful!');
+      } else {
+        // EXISTING: Local upload (your original code)
+        for (const file of acceptedFiles) {
+          console.log('⬆️ Processing:', file.name);
+          
+          const objectUrl = URL.createObjectURL(file);
+          const fileType = file.type.startsWith('image/') ? 'image' : 'video';
+
+          const newMediaFile: MediaFile = {
+            id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            type: fileType,
+            url: objectUrl,
+            isActive: false,
+            mediaType: getMediaTypeForTab(),
+            uploadedBy: profile.full_name || profile.email,
+            uploadedAt: new Date().toISOString(),
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            description: `${fileType} uploaded by ${profile.full_name || profile.email}`
+          };
+
+          newFiles.push(newMediaFile);
+        }
       }
-
+  
       // Add new files to existing files
       const updatedMedia = [...newFiles, ...mediaFiles];
       setMediaFiles(updatedMedia);
