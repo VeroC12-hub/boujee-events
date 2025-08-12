@@ -1,63 +1,56 @@
-// src/components/navigation/PublicNavbar.tsx - FIXED NAVIGATION WITH PROPER AUTH BUTTONS
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+// src/components/navigation/PublicNavbar.tsx - UPDATED WITH EVENT MANAGEMENT
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const PublicNavbar: React.FC = () => {
-  const { user, profile, loading, signOut } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const location = useLocation();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  console.log('🧭 PublicNavbar rendering:', { 
-    user: !!user, 
-    profile: !!profile, 
-    loading,
-    pathname: location.pathname 
-  });
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
 
-  // Navigation items for public users
-  const publicNavigation = [
-    { name: 'Home', href: '/', icon: '🏠' },
-    { name: 'Events', href: '/events', icon: '🎪' },
-    { name: 'Gallery', href: '/gallery', icon: '📸' },
-    { name: 'About', href: '/about', icon: 'ℹ️' },
-    { name: 'Contact', href: '/contact', icon: '📞' }
-  ];
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
-  // Navigation items for authenticated users
-  const authenticatedNavigation = [
-    { name: 'Home', href: '/', icon: '🏠' },
-    { name: 'Events', href: '/events', icon: '🎪' },
-    { name: 'My Events', href: '/my-events', icon: '🎫' },
-    { name: 'Bookings', href: '/bookings', icon: '📅' },
-    { name: 'Gallery', href: '/gallery', icon: '📸' }
-  ];
-
-  // Admin/Organizer specific navigation
-  const adminNavigation = [
-    { name: 'Dashboard', href: '/admin-dashboard', icon: '📊' },
-    { name: 'Media Manager', href: '/admin/media', icon: '🎬' },
-    { name: 'User Management', href: '/admin/users', icon: '👥' }
-  ];
-
-  const getNavigation = () => {
-    if (!user || !profile) return publicNavigation;
-    
-    let nav = [...authenticatedNavigation];
-    
-    // Add admin/organizer specific items
-    if (profile.role === 'admin' || profile.role === 'organizer') {
-      nav = [...nav, ...adminNavigation];
+  const handleSignOut = async () => {
+    try {
+      console.log('🔐 Signing out...');
+      await signOut();
+      setShowUserMenu(false);
+      setMobileMenuOpen(false);
+      navigate('/');
+      console.log('✅ Signed out successfully');
+    } catch (error) {
+      console.error('❌ Sign out error:', error);
     }
-    
-    return nav;
   };
 
-  const getDashboardLink = () => {
+  const getUserDisplayName = () => {
+    return profile?.full_name || user?.email?.split('@')[0] || 'User';
+  };
+
+  const getUserAvatar = () => {
+    return profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=D4AF37&color=000`;
+  };
+
+  // 🧠 SMART NAVIGATION: Intelligent dashboard redirect based on user role
+  const getDashboardUrl = () => {
     if (!user || !profile) return '/login';
     
+    console.log('🧭 Smart dashboard redirect for role:', profile.role);
     switch (profile.role) {
       case 'admin':
         return '/admin-dashboard';
@@ -70,246 +63,253 @@ export const PublicNavbar: React.FC = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      console.log('🚪 Signing out user');
-      await signOut();
-      setUserMenuOpen(false);
-      setMobileMenuOpen(false);
-      navigate('/');
-    } catch (error) {
-      console.error('❌ Sign out error:', error);
-    }
+  // 🎯 SMART NAVIGATION: Handle dashboard navigation
+  const handleDashboardClick = () => {
+    const dashboardUrl = getDashboardUrl();
+    console.log('🎯 Smart navigating to dashboard:', dashboardUrl);
+    navigate(dashboardUrl);
+    setShowUserMenu(false);
+    setMobileMenuOpen(false);
   };
 
-  const getUserDisplayName = () => {
-    return profile?.full_name || user?.email?.split('@')[0] || 'User';
+  // 📱 SMART NAVIGATION: Handle all navigation with mobile-friendly logic
+  const handleNavigation = (path: string) => {
+    console.log('🧭 Smart navigation to:', path);
+    navigate(path);
+    setMobileMenuOpen(false);
   };
 
-  const getUserAvatar = () => {
-    return profile?.avatar_url || 
-           user?.user_metadata?.avatar_url || 
-           `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=fbbf24&color=000`;
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
-  const isActive = (href: string) => {
-    if (href === '/') {
-      return location.pathname === '/';
-    }
-    return location.pathname.startsWith(href);
+  // Check if user can manage events
+  const canManageEvents = () => {
+    return user && profile && (profile.role === 'admin' || profile.role === 'organizer');
   };
 
-  // Close menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('.user-menu') && !target.closest('.mobile-menu')) {
-        setUserMenuOpen(false);
-      }
-      if (!target.closest('.mobile-menu-container')) {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // 📋 Navigation menu items
+  const navigationItems = [
+    { name: 'Home', path: '/', icon: '🏠' },
+    { name: 'Events', path: '/events', icon: '🎪' },
+    { name: 'Gallery', path: '/gallery', icon: '🖼️' },
+    { name: 'About', path: '/about', icon: 'ℹ️' },
+    { name: 'Contact', path: '/contact', icon: '📞' }
+  ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-white/10">
+    <nav className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
-            <div className="text-2xl">✨</div>
-            <span className="text-xl font-bold text-yellow-400 group-hover:text-yellow-300 transition-colors">
-              Boujee Events
-            </span>
+        <div className="flex items-center justify-between h-16">
+          {/* 🎨 LOGO SECTION */}
+          <Link to="/" className="flex items-center space-x-3">
+            <img 
+              src="/logo.png" 
+              alt="Boujee Events" 
+              className="h-10 w-12"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const nextElement = target.nextElementSibling as HTMLElement;
+                if (nextElement) nextElement.style.display = 'block';
+              }}
+            />
+            <div className="text-xl font-bold text-yellow-400 hidden" style={{display: 'none'}}>✨</div>
+            <span className="text-xl font-bold text-white">Boujee Events</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-8">
-            {getNavigation().map((item) => (
-              <Link
+          {/* 🖥️ DESKTOP NAVIGATION */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navigationItems.map((item) => (
+              <button
                 key={item.name}
-                to={item.href}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  isActive(item.href)
-                    ? 'bg-yellow-400/20 text-yellow-400'
-                    : 'text-gray-300 hover:text-yellow-400 hover:bg-white/5'
-                }`}
+                onClick={() => handleNavigation(item.path)}
+                className={`
+                  text-sm font-medium transition-colors px-3 py-2 rounded-md
+                  ${isActive(item.path)
+                    ? 'bg-yellow-400 text-black'
+                    : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10'
+                  }
+                `}
               >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
-              </Link>
+                <span className="mr-1">{item.icon}</span>
+                {item.name}
+              </button>
             ))}
+
+            {/* 🎪 EVENT MANAGEMENT BUTTON (Admin/Organizer only) */}
+            {canManageEvents() && (
+              <button
+                onClick={() => handleNavigation('/admin/events')}
+                className={`
+                  text-sm font-medium transition-colors px-3 py-2 rounded-md border border-purple-500
+                  ${isActive('/admin/events')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-purple-400 hover:text-white hover:bg-purple-600'
+                  }
+                `}
+              >
+                <span className="mr-1">⚡</span>
+                Manage Events
+              </button>
+            )}
           </div>
 
-          {/* Desktop User Section */}
-          <div className="hidden lg:flex items-center space-x-4">
-            {user && profile ? (
-              <div className="relative user-menu">
-                {/* User Menu Button */}
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-3 bg-white/5 hover:bg-white/10 rounded-xl px-4 py-2 transition-all duration-300 border border-white/10 hover:border-yellow-400/30"
-                >
-                  <img
-                    src={getUserAvatar()}
-                    alt={getUserDisplayName()}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-yellow-400/30"
-                  />
-                  <div className="text-left">
-                    <div className="text-sm font-medium text-white">
-                      {getUserDisplayName()}
-                    </div>
-                    <div className="text-xs text-yellow-400 capitalize">
-                      {profile.role || 'Member'}
-                    </div>
-                  </div>
-                  <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${
-                      userMenuOpen ? 'rotate-180' : ''
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+          {/* 👤 USER ACTIONS SECTION */}
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <>
+                {/* ✨ SMART USER MENU */}
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-3 bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                    <img
+                      src={getUserAvatar()}
+                      alt={getUserDisplayName()}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="text-white font-medium hidden md:block">
+                      {getUserDisplayName()}
+                    </span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
-                {/* User Dropdown Menu */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-gray-800/95 backdrop-blur-md rounded-xl shadow-xl border border-white/10 py-2 z-50">
-                    {/* User Info Header */}
-                    <div className="px-4 py-3 border-b border-white/10">
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={getUserAvatar()}
-                          alt={getUserDisplayName()}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-white">
-                            {getUserDisplayName()}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {user.email}
-                          </div>
-                          <div className="text-xs text-yellow-400 capitalize">
-                            {profile.role || 'Member'}
-                          </div>
-                        </div>
+                  {/* 📋 USER DROPDOWN MENU */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2 z-50">
+                      {/* User Info */}
+                      <div className="px-4 py-3 border-b border-gray-700">
+                        <p className="text-white font-medium">{getUserDisplayName()}</p>
+                        <p className="text-gray-400 text-sm">{user.email}</p>
+                        {profile?.role && (
+                          <p className="text-yellow-400 text-xs capitalize mt-1">
+                            Role: {profile.role}
+                          </p>
+                        )}
                       </div>
-                    </div>
-
-                    {/* Menu Items */}
-                    <div className="py-2">
-                      <Link
-                        to={getDashboardLink()}
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors duration-300"
-                      >
-                        <span className="text-base">📊</span>
-                        <span>Dashboard</span>
-                      </Link>
                       
-                      <Link
-                        to="/profile"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors duration-300"
+                      {/* 🎯 SMART DASHBOARD BUTTON */}
+                      <button
+                        onClick={handleDashboardClick}
+                        className="block w-full text-left px-4 py-2 text-sm bg-yellow-400 text-black hover:bg-yellow-500 transition-colors font-semibold"
                       >
-                        <span className="text-base">⚙️</span>
-                        <span>Settings</span>
-                      </Link>
+                        🎯 Dashboard
+                      </button>
 
-                      {(profile.role === 'admin' || profile.role === 'organizer') && (
+                      {/* 🎪 EVENT MANAGEMENT LINKS (Admin/Organizer) */}
+                      {canManageEvents() && (
                         <>
-                          <div className="border-t border-white/10 my-2"></div>
-                          <Link
-                            to="/admin/media"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center space-x-3 px-4 py-2 text-sm text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-colors duration-300"
-                          >
-                            <span className="text-base">🎬</span>
-                            <span>Media Manager</span>
-                          </Link>
+                          <div className="border-t border-gray-700 mt-2 pt-2">
+                            <p className="px-4 py-1 text-xs text-gray-500 uppercase tracking-wide">Event Management</p>
+                            
+                            <button
+                              onClick={() => {
+                                handleNavigation('/admin/events');
+                                setShowUserMenu(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-purple-400 hover:bg-gray-700 hover:text-purple-300 transition-colors"
+                            >
+                              ⚡ Manage Events
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                handleNavigation('/events/create');
+                                setShowUserMenu(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-green-400 hover:bg-gray-700 hover:text-green-300 transition-colors"
+                            >
+                              ➕ Create Event
+                            </button>
+                          </div>
                         </>
                       )}
-
-                      <div className="border-t border-white/10 my-2"></div>
                       
                       <button
-                        onClick={handleSignOut}
-                        className="flex items-center space-x-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-300 w-full text-left"
+                        onClick={() => {
+                          handleNavigation('/profile');
+                          setShowUserMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        <span className="text-base">🚪</span>
-                        <span>Sign Out</span>
+                        👤 Profile Settings
                       </button>
+                      
+                      {/* 🔐 ROLE-SPECIFIC NAVIGATION LINKS */}
+                      {profile?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            handleNavigation('/admin-dashboard');
+                            setShowUserMenu(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                        >
+                          ⚡ Admin Dashboard
+                        </button>
+                      )}
+                      
+                      {profile?.role === 'organizer' && (
+                        <button
+                          onClick={() => {
+                            handleNavigation('/organizer-dashboard');
+                            setShowUserMenu(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                        >
+                          📊 Organizer Dashboard
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          handleNavigation('/member-dashboard');
+                          setShowUserMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        🎭 Member Dashboard
+                      </button>
+                      
+                      <div className="border-t border-gray-700 mt-2 pt-2">
+                        <button
+                          onClick={handleSignOut}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition-colors"
+                        >
+                          🚪 Sign Out
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </>
             ) : (
-              // Guest User Buttons - FIXED ROUTING
-              <div className="flex items-center space-x-3">
-                {loading ? (
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <div className="animate-spin text-sm">⏳</div>
-                    <span className="text-sm">Loading...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Link
-                      to="/auth"
-                      className="text-gray-300 hover:text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-white/5"
-                    >
-                      🔑 Sign In
-                    </Link>
-                    <Link
-                      to="/auth?mode=signup"
-                      className="bg-yellow-400 text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition-all duration-300 transform hover:scale-105"
-                    >
-                      ✨ Get Started
-                    </Link>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center space-x-3">
-            {/* Mobile User Avatar */}
-            {user && profile && (
-              <Link 
-                to={getDashboardLink()}
-                className="flex items-center"
-              >
-                <img
-                  src={getUserAvatar()}
-                  alt={getUserDisplayName()}
-                  className="w-8 h-8 rounded-full object-cover border-2 border-yellow-400/30"
-                />
-              </Link>
+              <>
+                {/* 🔐 LOGIN/REGISTER BUTTONS for non-authenticated users */}
+                <button
+                  onClick={() => handleNavigation('/login')}
+                  className="text-gray-300 hover:text-white transition-colors font-medium"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => handleNavigation('/register')}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  Register
+                </button>
+              </>
             )}
 
-            {/* Hamburger Button */}
+            {/* 📱 MOBILE MENU BUTTON */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="mobile-menu-button inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors duration-300"
-              aria-expanded="false"
+              className="md:hidden text-gray-300 hover:text-white p-2"
             >
-              <span className="sr-only">Open main menu</span>
-              <svg
-                className={`w-6 h-6 transition-transform duration-300 ${
-                  mobileMenuOpen ? 'rotate-90' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {mobileMenuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (
@@ -320,103 +320,118 @@ export const PublicNavbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* 📱 MOBILE NAVIGATION MENU */}
         {mobileMenuOpen && (
-          <div className="mobile-menu-container lg:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-900/95 backdrop-blur-md rounded-lg mt-2 border border-white/10">
-              {/* User Info - Mobile */}
-              {user && profile && (
-                <div className="px-3 py-4 border-b border-white/10 mb-2">
-                  <div className="flex items-center space-x-3">
-                    <img
-                      src={getUserAvatar()}
-                      alt={getUserDisplayName()}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-white">
-                        {getUserDisplayName()}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {user.email}
-                      </div>
-                      <div className="text-xs text-yellow-400 capitalize">
-                        {profile.role || 'Member'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Main Navigation */}
-              {getNavigation().map((item) => (
-                <Link
+          <div className="md:hidden bg-gray-800 rounded-lg mt-2 p-4">
+            {/* Mobile Navigation Items */}
+            <div className="space-y-2">
+              {navigationItems.map((item) => (
+                <button
                   key={item.name}
-                  to={item.href}
-                  className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-colors duration-300 ${
-                    isActive(item.href)
-                      ? 'bg-yellow-400/20 text-yellow-400'
-                      : 'text-gray-300 hover:bg-white/5 hover:text-yellow-400'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => handleNavigation(item.path)}
+                  className={`
+                    block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors
+                    ${isActive(item.path)
+                      ? 'bg-yellow-400 text-black'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }
+                  `}
                 >
-                  <span className="text-lg">{item.icon}</span>
-                  <span>{item.name}</span>
-                </Link>
+                  <span className="mr-2">{item.icon}</span>
+                  {item.name}
+                </button>
               ))}
 
-              {/* User Actions - Mobile */}
-              {user && profile ? (
-                <div className="border-t border-white/10 pt-3 mt-3">
-                  <Link
-                    to="/profile"
-                    className="flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors duration-300"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="text-lg">⚙️</span>
-                    <span>Settings</span>
-                  </Link>
-                  
-                  <button
-                    onClick={() => {
-                      handleSignOut();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-300 w-full text-left"
-                  >
-                    <span className="text-lg">🚪</span>
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              ) : (
-                // Guest User Buttons - Mobile
-                <div className="border-t border-white/10 pt-3 mt-3 space-y-2">
-                  {loading ? (
-                    <div className="flex items-center justify-center space-x-2 text-gray-400 py-3">
-                      <div className="animate-spin">⏳</div>
-                      <span>Loading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Link
-                        to="/auth"
-                        className="block px-3 py-3 rounded-lg text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors duration-300"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        🔑 Sign In
-                      </Link>
-                      <Link
-                        to="/auth?mode=signup"
-                        className="block px-3 py-3 rounded-lg text-base font-bold bg-yellow-400 text-black hover:bg-yellow-500 transition-colors duration-300 text-center"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        ✨ Get Started
-                      </Link>
-                    </>
-                  )}
-                </div>
+              {/* 🎪 MOBILE EVENT MANAGEMENT (Admin/Organizer only) */}
+              {canManageEvents() && (
+                <>
+                  <div className="border-t border-gray-700 my-2 pt-2">
+                    <p className="px-3 py-1 text-xs text-gray-500 uppercase tracking-wide">Event Management</p>
+                    
+                    <button
+                      onClick={() => handleNavigation('/admin/events')}
+                      className={`
+                        block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors
+                        ${isActive('/admin/events')
+                          ? 'bg-purple-600 text-white'
+                          : 'text-purple-400 hover:bg-gray-700 hover:text-purple-300'
+                        }
+                      `}
+                    >
+                      <span className="mr-2">⚡</span>
+                      Manage Events
+                    </button>
+                    
+                    <button
+                      onClick={() => handleNavigation('/events/create')}
+                      className="block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors text-green-400 hover:bg-gray-700 hover:text-green-300"
+                    >
+                      <span className="mr-2">➕</span>
+                      Create Event
+                    </button>
+                  </div>
+                </>
               )}
             </div>
+
+            {/* 📱 MOBILE USER SECTION */}
+            {user ? (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="flex items-center space-x-3 mb-4">
+                  <img
+                    src={getUserAvatar()}
+                    alt={getUserDisplayName()}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <div>
+                    <p className="text-white font-medium">{getUserDisplayName()}</p>
+                    <p className="text-gray-400 text-sm">{user.email}</p>
+                    {profile?.role && (
+                      <p className="text-yellow-400 text-xs capitalize">{profile.role}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {/* 🎯 SMART DASHBOARD BUTTON (Mobile) */}
+                  <button
+                    onClick={handleDashboardClick}
+                    className="block w-full text-left bg-yellow-400 text-black px-3 py-2 rounded-md font-semibold"
+                  >
+                    🎯 Dashboard
+                  </button>
+                  
+                  <button
+                    onClick={() => handleNavigation('/profile')}
+                    className="block w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
+                  >
+                    👤 Profile
+                  </button>
+                  
+                  <button
+                    onClick={handleSignOut}
+                    className="block w-full text-left px-3 py-2 text-red-400 hover:bg-gray-700 hover:text-red-300 rounded-md transition-colors"
+                  >
+                    🚪 Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 pt-4 border-t border-gray-700 space-y-2">
+                <button
+                  onClick={() => handleNavigation('/login')}
+                  className="block w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => handleNavigation('/register')}
+                  className="block w-full text-left bg-yellow-400 text-black px-3 py-2 rounded-md font-semibold"
+                >
+                  Register
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
