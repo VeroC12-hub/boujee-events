@@ -38,6 +38,10 @@ const HomePage: React.FC = () => {
         const mediaData = JSON.parse(savedMedia);
         setAllMedia(mediaData);
         console.log('📱 Loaded real uploaded media:', mediaData.length, 'items');
+        console.log('☁️ Media sources:', {
+          googleDrive: mediaData.filter((m: any) => m.url.includes('drive.google.com')).length,
+          local: mediaData.filter((m: any) => m.url.includes('blob:')).length
+        });
       } else {
         console.log('📱 No media uploaded yet - admin needs to upload media');
         setAllMedia([]);
