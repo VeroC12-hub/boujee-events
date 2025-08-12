@@ -1,7 +1,7 @@
 // src/components/navigation/PublicNavbar.tsx - COMPLETE MOBILE RESPONSIVE NAVBAR
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 interface User {
   id: string;
