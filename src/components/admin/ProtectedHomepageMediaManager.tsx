@@ -1,4 +1,4 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE WORKING VERSION
+// src/components/admin/ProtectedHomepageMediaManager.tsx - UPDATED FOR GOOGLE IDENTITY SERVICES
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../contexts/AuthContext';
@@ -101,7 +101,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
   const checkGoogleDriveStatus = async () => {
     try {
-      console.log('🔍 Checking Google Drive status...');
+      console.log('🔍 Checking Google Drive status with Google Identity Services...');
       
       // Check environment variables first
       const hasCredentials = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_DRIVE_API_KEY);
@@ -137,7 +137,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           initialized: false,
           authenticated: false,
           connecting: false,
-          error: 'Failed to initialize Google Drive API'
+          error: 'Failed to initialize Google Identity Services'
         });
       }
       
@@ -155,7 +155,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   const connectGoogleDrive = async () => {
     try {
       setGoogleDriveStatus(prev => ({ ...prev, connecting: true, error: undefined }));
-      console.log('🔐 Attempting to connect to Google Drive...');
+      console.log('🔐 Attempting to connect to Google Drive with Google Identity Services...');
       
       const success = await googleDriveService.authenticate();
       
@@ -168,7 +168,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           userInfo: userInfo
         });
         
-        console.log('✅ Successfully connected to Google Drive!');
+        console.log('✅ Successfully connected to Google Drive with Google Identity Services!');
         alert('✅ Google Drive connected successfully! You can now upload files.');
       } else {
         throw new Error('Authentication was cancelled or failed');
@@ -183,7 +183,17 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         error: error.message || 'Authentication failed'
       }));
       
-      alert('❌ Failed to connect to Google Drive. Please make sure you allow access and try again.');
+      // More helpful error messages
+      let errorMessage = '❌ Failed to connect to Google Drive.';
+      if (error.message.includes('popup')) {
+        errorMessage += ' Please allow popups and try again.';
+      } else if (error.message.includes('cancelled')) {
+        errorMessage += ' Authentication was cancelled. Please try again and click "Allow" when prompted.';
+      } else {
+        errorMessage += ' Please check your browser settings and try again.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -197,6 +207,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         userInfo: null
       });
       console.log('🔓 Disconnected from Google Drive');
+      alert('✅ Disconnected from Google Drive successfully.');
     } catch (error) {
       console.error('❌ Error disconnecting:', error);
     }
@@ -248,6 +259,14 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return;
     }
 
+    // Validate file sizes
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    const oversizedFiles = acceptedFiles.filter(file => file.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      alert(`❌ Some files are too large. Maximum size is 100MB. Oversized files: ${oversizedFiles.map(f => f.name).join(', ')}`);
+      return;
+    }
+
     setUploading(true);
     console.log('🚀 Starting upload of', acceptedFiles.length, 'files...');
 
@@ -260,7 +279,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         fileList,
         mediaType as any,
         (progress) => {
-          console.log(`📤 Upload progress: ${progress.percentage}% (${progress.loaded}/${progress.total} bytes)`);
+          console.log(`📤 Upload progress: ${progress.percentage}% (${(progress.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress.total / 1024 / 1024).toFixed(1)}MB)`);
         }
       );
 
@@ -284,11 +303,24 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       saveAllMedia(updatedMedia);
 
       console.log('🎉 Upload completed successfully!', newFiles.length, 'files uploaded');
-      alert(`✅ Successfully uploaded ${newFiles.length} file(s) to Google Drive!`);
+      alert(`✅ Successfully uploaded ${newFiles.length} file(s) to Google Drive!\n\nFiles: ${newFiles.map(f => f.name).join(', ')}`);
       
     } catch (error: any) {
       console.error('❌ Upload failed:', error);
-      alert(`❌ Upload failed: ${error.message}. Please try again.`);
+      
+      // More specific error handling
+      let errorMessage = `❌ Upload failed: ${error.message}`;
+      if (error.message.includes('Authentication')) {
+        errorMessage += '\n\nPlease reconnect to Google Drive and try again.';
+        // Reset authentication status
+        setGoogleDriveStatus(prev => ({ ...prev, authenticated: false }));
+      } else if (error.message.includes('quota')) {
+        errorMessage += '\n\nGoogle Drive storage quota exceeded. Please free up space and try again.';
+      } else if (error.message.includes('network')) {
+        errorMessage += '\n\nNetwork error. Please check your internet connection and try again.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -400,7 +432,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return {
         icon: '✅',
         text: 'Connected',
-        description: `Signed in as ${googleDriveStatus.userInfo.name} (${googleDriveStatus.userInfo.email})`,
+        description: `Signed in as ${googleDriveStatus.userInfo.name} (${googleDriveStatus.userInfo.email}) using Google Identity Services`,
         color: 'bg-green-500/10 border-green-500/20 text-green-400'
       };
     }
@@ -409,7 +441,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return {
         icon: '🔐',
         text: 'Ready to Connect',
-        description: 'Click "Connect Google Drive" to authenticate',
+        description: 'Click "Connect Google Drive" to authenticate with Google Identity Services',
         color: 'bg-blue-500/10 border-blue-500/20 text-blue-400'
       };
     }
@@ -417,7 +449,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     return {
       icon: '🔄',
       text: 'Initializing...',
-      description: 'Setting up Google Drive integration',
+      description: 'Setting up Google Identity Services integration',
       color: 'bg-gray-500/10 border-gray-500/20 text-gray-400'
     };
   };
@@ -442,7 +474,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Homepage Media Manager</h2>
-            <p className="text-gray-400">Upload images and videos for your homepage</p>
+            <p className="text-gray-400">Upload images and videos using Google Identity Services</p>
           </div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -506,14 +538,24 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
             <div className="text-red-400 font-semibold mb-2">⚙️ Configuration Required</div>
             <div className="text-red-300 text-sm mb-4">
-              Add these to your .env.local file:
+              Add these to your .env.local file and restart your dev server:
             </div>
             <div className="bg-black/20 p-3 rounded font-mono text-xs text-gray-300">
               <div>VITE_GOOGLE_CLIENT_ID=your_oauth_client_id</div>
               <div>VITE_GOOGLE_DRIVE_API_KEY=your_api_key</div>
             </div>
             <div className="text-red-300 text-sm mt-2">
-              Get these from <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a>
+              Get these from <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a> and make sure to use the new Google Identity Services compatible credentials.
+            </div>
+          </div>
+        )}
+
+        {/* Success Message for Google Identity Services */}
+        {googleDriveStatus.authenticated && (
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <div className="text-green-400 font-semibold mb-2">🎉 Google Identity Services Connected!</div>
+            <div className="text-green-300 text-sm">
+              You're now using the modern Google Identity Services API. Upload files by dragging and dropping them below or clicking the upload area.
             </div>
           </div>
         )}
@@ -575,7 +617,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                `Drag & drop files here or click to browse • Max 100MB per file`}
             </p>
             <div className="mt-4 text-xs text-green-400">
-              ✅ Connected to Google Drive - Files will sync across devices
+              ✅ Connected via Google Identity Services - Files will sync across devices
             </div>
           </div>
         ) : (
@@ -585,12 +627,12 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             <p className="text-gray-400 mb-4">
               {googleDriveStatus.error 
                 ? 'Please fix the connection error above'
-                : 'Connect to Google Drive to upload and manage your media files'}
+                : 'Connect to Google Drive using Google Identity Services to upload and manage your media files'}
             </p>
           </div>
         )}
 
-        {/* Current Media Grid */}
+        {/* Current Media Grid - Same as before */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white">
@@ -657,7 +699,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                     {file.title || file.name}
                   </h4>
                   <p className="text-gray-400 text-sm mb-2">
-                    📁 Stored in Google Drive
+                    📁 Google Drive (Identity Services)
                   </p>
                   <div className="text-xs text-gray-500 mb-3">
                     By {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString()}
