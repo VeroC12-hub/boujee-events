@@ -1,4 +1,4 @@
-// src/pages/HomePage.tsx - REAL DATA VERSION (No Mock Data)
+// src/pages/HomePage.tsx - FIXED VERSION WITH PROPER GOOGLE DRIVE SUPPORT
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
@@ -9,6 +9,7 @@ interface MediaItem {
   name: string;
   type: 'image' | 'video';
   url: string;
+  directUrl?: string; // NEW: For direct embedding
   mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
   isActive: boolean;
   title?: string;
@@ -16,6 +17,132 @@ interface MediaItem {
   uploadedBy: string;
   uploadedAt: string;
 }
+
+// NEW: GoogleDriveVideo component for proper video handling
+const GoogleDriveVideo: React.FC<{
+  src: string;
+  name: string;
+  className?: string;
+  autoPlay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+  onError?: () => void;
+}> = ({ src, name, className, autoPlay = false, muted = true, loop = false, onError }) => {
+  const [loadError, setLoadError] = useState(false);
+  const [useIframe, setUseIframe] = useState(false);
+
+  // Try direct video first, fallback to iframe
+  const handleVideoError = () => {
+    console.log('❌ Direct video failed, trying iframe:', name);
+    setLoadError(true);
+    setUseIframe(true);
+    onError?.();
+  };
+
+  // For Google Drive videos, we need special handling
+  if (src.includes('drive.google.com')) {
+    const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
+    
+    if (fileId && (loadError || useIframe)) {
+      // Use iframe preview for Google Drive videos
+      return (
+        <iframe
+          src={`https://drive.google.com/file/d/${fileId}/preview`}
+          className={className}
+          allow="autoplay"
+          style={{ border: 'none' }}
+          title={name}
+          onError={() => {
+            console.log('❌ Iframe also failed for:', name);
+            onError?.();
+          }}
+        />
+      );
+    }
+
+    // Try direct video URL first
+    const directUrl = `https://drive.google.com/uc?id=${fileId}`;
+    return (
+      <video
+        src={directUrl}
+        className={className}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        playsInline
+        onError={handleVideoError}
+        onLoadStart={() => console.log('🎬 Loading Google Drive video:', name)}
+        onCanPlay={() => console.log('🎬 Google Drive video ready:', name)}
+      />
+    );
+  }
+
+  // Regular video URL
+  return (
+    <video
+      src={src}
+      className={className}
+      autoPlay={autoPlay}
+      muted={muted}
+      loop={loop}
+      playsInline
+      onError={handleVideoError}
+    />
+  );
+};
+
+// NEW: GoogleDriveImage component for proper image handling
+const GoogleDriveImage: React.FC<{
+  src: string;
+  directUrl?: string;
+  alt: string;
+  className?: string;
+  onError?: () => void;
+}> = ({ src, directUrl, alt, className, onError }) => {
+  const [currentSrc, setCurrentSrc] = useState(directUrl || src);
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      
+      // Try different URL formats for Google Drive images
+      const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
+      
+      if (fileId) {
+        const alternatives = [
+          `https://drive.google.com/uc?id=${fileId}`,
+          `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
+          `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
+          'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop'
+        ];
+        
+        // Try next alternative
+        const currentIndex = alternatives.indexOf(currentSrc);
+        const nextIndex = currentIndex + 1;
+        
+        if (nextIndex < alternatives.length) {
+          console.log(`🔄 Trying alternative ${nextIndex + 1} for:`, alt);
+          setCurrentSrc(alternatives[nextIndex]);
+          return;
+        }
+      }
+      
+      console.log('❌ All image alternatives failed for:', alt);
+      onError?.();
+    }
+  };
+
+  return (
+    <img
+      src={currentSrc}
+      alt={alt}
+      className={className}
+      onError={handleError}
+      onLoad={() => console.log('✅ Image loaded successfully:', alt)}
+    />
+  );
+};
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,14 +152,12 @@ const HomePage: React.FC = () => {
 
   console.log('🏠 HomePage rendering', { user: !!user, profile: !!profile });
 
-  // Load real uploaded media from admin dashboard
   useEffect(() => {
     loadRealMedia();
   }, []);
 
   const loadRealMedia = () => {
     try {
-      // Load media uploaded by admin/organizer from localStorage
       const savedMedia = localStorage.getItem('boujee_all_media');
       if (savedMedia) {
         const mediaData = JSON.parse(savedMedia);
@@ -54,12 +179,10 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // Get active media by type
   const getActiveMedia = (mediaType: string) => {
     return allMedia.filter(item => item.mediaType === mediaType && item.isActive);
   };
 
-  // Get media for different sections
   const activeBackgroundVideo = getActiveMedia('background_video')[0];
   const activeHeroImage = getActiveMedia('hero_image')[0];
   const activeGalleryImages = getActiveMedia('gallery_image');
@@ -101,7 +224,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // Sample events (these can stay as examples)
   const featuredEvents = [
     {
       id: 1,
@@ -157,43 +279,34 @@ const HomePage: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
           
-          {/* Dynamic Background - Uses Real Uploaded Media */}
+          {/* FIXED: Dynamic Background with proper Google Drive support */}
           {(() => {
-            // First try to get media uploaded by admin
             if (activeBackgroundVideo) {
               console.log('🎬 Using real uploaded background video:', activeBackgroundVideo.name);
               return (
-                <video
-                  key={activeBackgroundVideo.id}
+                <GoogleDriveVideo
                   src={activeBackgroundVideo.url}
+                  directUrl={activeBackgroundVideo.directUrl}
+                  name={activeBackgroundVideo.name}
                   className="w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  onLoadStart={() => console.log('🎬 Real background video loading')}
-                  onCanPlay={() => console.log('🎬 Real background video playing')}
-                  onError={(e) => console.error('🎬 Real background video error:', e)}
+                  autoPlay={true}
+                  muted={true}
+                  loop={true}
+                  onError={() => console.log('🎬 Background video failed to load')}
                 />
               );
             } else if (activeHeroImage) {
               console.log('🖼️ Using real uploaded hero image:', activeHeroImage.name);
               return (
-                <img
-                  key={activeHeroImage.id}
+                <GoogleDriveImage
                   src={activeHeroImage.url}
+                  directUrl={activeHeroImage.directUrl}
                   alt={activeHeroImage.title || activeHeroImage.name}
                   className="w-full h-full object-cover"
-                  onLoad={() => console.log('🖼️ Real hero image loaded')}
-                  onError={(e) => {
-                    console.log('🖼️ Real hero image failed, using fallback');
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop';
-                  }}
+                  onError={() => console.log('🖼️ Hero image failed to load')}
                 />
               );
             } else {
-              // Fallback when no media uploaded yet
               console.log('🎨 No real media uploaded yet, using default background');
               return (
                 <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
@@ -216,7 +329,6 @@ const HomePage: React.FC = () => {
             Immerse yourself in extraordinary luxury experiences, exclusive festivals, and VIP events that create unforgettable memories
           </p>
 
-          {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
               onClick={handleExploreEvents}
@@ -233,7 +345,6 @@ const HomePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Welcome Message for Authenticated Users */}
           {user && profile && (
             <div className="mt-8 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 max-w-md mx-auto">
               <p className="text-white text-lg">
@@ -247,7 +358,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Banner Section - REAL Uploaded Banners */}
+      {/* FIXED: Banner Section with proper Google Drive support */}
       {activeBanners.length > 0 && (
         <section className="py-4 bg-yellow-400">
           <div className="max-w-7xl mx-auto px-4">
@@ -255,26 +366,23 @@ const HomePage: React.FC = () => {
               {activeBanners.map((banner) => (
                 <div key={banner.id} className="flex-shrink-0 text-center">
                   {banner.type === 'image' ? (
-                    <img
+                    <GoogleDriveImage
                       src={banner.url}
+                      directUrl={banner.directUrl}
                       alt={banner.title || banner.name}
                       className="h-16 object-contain mx-auto"
-                      onError={(e) => {
-                        console.log('Banner image failed to load:', banner.name);
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+                      onError={() => console.log('Banner image failed to load:', banner.name)}
                     />
                   ) : (
-                    <video
+                    <GoogleDriveVideo
                       src={banner.url}
+                      directUrl={banner.directUrl}
+                      name={banner.name}
                       className="h-16 object-contain mx-auto"
-                      autoPlay
-                      muted
-                      loop
-                      onError={(e) => {
-                        console.log('Banner video failed to load:', banner.name);
-                        (e.target as HTMLVideoElement).style.display = 'none';
-                      }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      onError={() => console.log('Banner video failed to load:', banner.name)}
                     />
                   )}
                   {banner.title && (
@@ -302,7 +410,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Gallery Section - REAL Uploaded Gallery Images */}
+      {/* FIXED: Gallery Section with proper Google Drive support */}
       {activeGalleryImages.length > 0 && (
         <section className="py-20 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -316,33 +424,30 @@ const HomePage: React.FC = () => {
                 <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-yellow-400/50 transition-all duration-300">
                   <div className="aspect-video relative overflow-hidden">
                     {item.type === 'image' ? (
-                      <img
+                      <GoogleDriveImage
                         src={item.url}
+                        directUrl={item.directUrl}
                         alt={item.title || item.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          console.log('Gallery image failed:', item.name);
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop';
-                        }}
+                        onError={() => console.log('Gallery image failed:', item.name)}
                       />
                     ) : (
-                      <video
-                        src={item.url}
-                        className="w-full h-full object-cover"
-                        muted
-                        loop
-                        onMouseEnter={(e) => e.currentTarget.play()}
-                        onMouseLeave={(e) => e.currentTarget.pause()}
-                        onError={(e) => console.log('Gallery video failed:', item.name)}
-                      />
-                    )}
-                    
-                    {/* Video Play Indicator */}
-                    {item.type === 'video' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
-                        <div className="bg-yellow-400/90 rounded-full p-3 group-hover:scale-110 transition-transform">
-                          <span className="text-black font-bold">▶</span>
+                      <div className="relative w-full h-full">
+                        <GoogleDriveVideo
+                          src={item.url}
+                          directUrl={item.directUrl}
+                          name={item.name}
+                          className="w-full h-full object-cover"
+                          muted={true}
+                          loop={true}
+                          onError={() => console.log('Gallery video failed:', item.name)}
+                        />
+                        
+                        {/* Video Play Indicator */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors pointer-events-none">
+                          <div className="bg-yellow-400/90 rounded-full p-3 group-hover:scale-110 transition-transform">
+                            <span className="text-black font-bold">▶</span>
+                          </div>
                         </div>
                       </div>
                     )}
