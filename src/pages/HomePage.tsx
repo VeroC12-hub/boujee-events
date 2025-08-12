@@ -1,156 +1,598 @@
-// src/pages/HomePage.tsx - WORKING CUSTOMIZABLE HOMEPAGE
+// src/pages/HomePage.tsx - FULLY CUSTOMIZABLE HOMEPAGE WITH YOUTUBE & GOOGLE DRIVE SUPPORT
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import PublicNavbar from '../components/navigation/PublicNavbar';
-import { supabase } from '../lib/supabase';
+import { PublicNavbar } from '../components/navigation/PublicNavbar';
+import { useAuth } from '../hooks/useAuth';
 
-interface HomepageMedia {
+// ==================== INTERFACES ====================
+interface MediaItem {
   id: string;
-  media_type: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
+  name: string;
+  type: 'image' | 'video' | 'youtube';
+  url: string;
+  directUrl?: string;
+  mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner' | 'youtube_background';
+  isActive: boolean;
   title?: string;
   description?: string;
-  is_active: boolean;
-  display_order: number;
-  media_file?: {
-    id: string;
-    name: string;
-    web_view_link: string;
-    thumbnail_url?: string;
-    file_type: 'image' | 'video';
-    mime_type: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  youtubeId?: string; // For YouTube videos
+}
+
+// ==================== YOUTUBE COMPONENT ====================
+const YouTubeBackground: React.FC<{
+  videoId: string;
+  className?: string;
+  onError?: () => void;
+}> = ({ videoId, className, onError }) => {
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = () => {
+    setHasError(true);
+    onError?.();
   };
-}
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  venue_name?: string;
-  venue_address?: string;
-  price: number;
-  is_free: boolean;
-  status: string;
-  slug: string;
-}
+  if (hasError) {
+    return (
+      <div className={`${className} bg-gradient-to-br from-gray-900 to-black flex items-center justify-center`}>
+        <div className="text-white/50 text-center">
+          <div className="text-4xl mb-2">📺</div>
+          <p>YouTube video unavailable</p>
+        </div>
+      </div>
+    );
+  }
 
-export const HomePage: React.FC = () => {
-  const [homepageMedia, setHomepageMedia] = useState<HomepageMedia[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+  return (
+    <iframe
+      src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&playlist=${videoId}&modestbranding=1&rel=0&showinfo=0`}
+      className={className}
+      allow="autoplay; encrypted-media"
+      style={{ border: 'none' }}
+      onError={handleError}
+      title="Background Video"
+    />
+  );
+};
+
+// ==================== GOOGLE DRIVE VIDEO COMPONENT ====================
+const GoogleDriveVideo: React.FC<{
+  src: string;
+  name: string;
+  className?: string;
+  autoPlay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+  onError?: () => void;
+}> = ({ src, name, className, autoPlay = false, muted = true, loop = false, onError }) => {
+  const [loadError, setLoadError] = useState(false);
+  const [useIframe, setUseIframe] = useState(false);
+
+  const handleVideoError = () => {
+    console.log('❌ Direct video failed, trying iframe:', name);
+    setLoadError(true);
+    setUseIframe(true);
+    onError?.();
+  };
+
+  if (src.includes('drive.google.com')) {
+    const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
+    
+    if (fileId && (loadError || useIframe)) {
+      return (
+        <iframe
+          src={`https://drive.google.com/file/d/${fileId}/preview`}
+          className={className}
+          allow="autoplay"
+          style={{ border: 'none' }}
+          title={name}
+          onError={() => {
+            console.log('❌ Iframe also failed for:', name);
+            onError?.();
+          }}
+        />
+      );
+    }
+
+    const directUrl = `https://drive.google.com/uc?id=${fileId}`;
+    return (
+      <video
+        src={directUrl}
+        className={className}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        playsInline
+        onError={handleVideoError}
+        onLoadStart={() => console.log('🎬 Loading Google Drive video:', name)}
+        onCanPlay={() => console.log('🎬 Google Drive video ready:', name)}
+      />
+    );
+  }
+
+  return (
+    <video
+      src={src}
+      className={className}
+      autoPlay={autoPlay}
+      muted={muted}
+      loop={loop}
+      playsInline
+      onError={handleVideoError}
+    />
+  );
+};
+
+// ==================== GOOGLE DRIVE IMAGE COMPONENT ====================
+const GoogleDriveImage: React.FC<{
+  src: string;
+  directUrl?: string;
+  alt: string;
+  className?: string;
+  onError?: () => void;
+}> = ({ src, directUrl, alt, className, onError }) => {
+  const [currentSrc, setCurrentSrc] = useState(directUrl || src);
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      
+      const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
+      
+      if (fileId) {
+        const alternatives = [
+          `https://drive.google.com/uc?id=${fileId}`,
+          `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
+          `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
+          'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop'
+        ];
+        
+        const currentIndex = alternatives.indexOf(currentSrc);
+        const nextIndex = currentIndex + 1;
+        
+        if (nextIndex < alternatives.length) {
+          console.log(`🔄 Trying alternative ${nextIndex + 1} for:`, alt);
+          setCurrentSrc(alternatives[nextIndex]);
+          return;
+        }
+      }
+      
+      console.log('❌ All image alternatives failed for:', alt);
+      onError?.();
+    }
+  };
+
+  return (
+    <img
+      src={currentSrc}
+      alt={alt}
+      className={className}
+      onError={handleError}
+      onLoad={() => console.log('✅ Image loaded successfully:', alt)}
+    />
+  );
+};
+
+// ==================== ADMIN CUSTOMIZATION MODAL ====================
+const CustomizationModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: any) => void;
+  currentMedia: MediaItem[];
+}> = ({ isOpen, onClose, onSave, currentMedia }) => {
+  const [activeTab, setActiveTab] = useState<'background' | 'hero' | 'gallery' | 'banner'>('background');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [googleDriveUrl, setGoogleDriveUrl] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  const { profile } = useAuth();
+
+  if (!isOpen) return null;
+
+  const extractYouTubeId = (url: string) => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  const handleAddYouTube = () => {
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) {
+      alert('Please enter a valid YouTube URL');
+      return;
+    }
+
+    const newMedia: MediaItem = {
+      id: `youtube_${Date.now()}`,
+      name: title || `YouTube Video ${videoId}`,
+      type: 'youtube',
+      url: youtubeUrl,
+      mediaType: activeTab === 'background' ? 'youtube_background' : activeTab === 'gallery' ? 'gallery_image' : 'banner',
+      isActive: false,
+      title,
+      description,
+      uploadedBy: profile?.full_name || 'Admin',
+      uploadedAt: new Date().toISOString(),
+      youtubeId: videoId
+    };
+
+    onSave(newMedia);
+    setYoutubeUrl('');
+    setTitle('');
+    setDescription('');
+  };
+
+  const handleAddGoogleDrive = () => {
+    if (!googleDriveUrl) {
+      alert('Please enter a Google Drive URL');
+      return;
+    }
+
+    const fileId = googleDriveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || googleDriveUrl.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
+    
+    if (!fileId) {
+      alert('Invalid Google Drive URL format');
+      return;
+    }
+
+    const isVideo = googleDriveUrl.includes('.mp4') || googleDriveUrl.includes('.webm') || googleDriveUrl.includes('.mov');
+
+    const newMedia: MediaItem = {
+      id: `gdrive_${Date.now()}`,
+      name: title || `Google Drive ${isVideo ? 'Video' : 'Image'}`,
+      type: isVideo ? 'video' : 'image',
+      url: googleDriveUrl,
+      directUrl: `https://drive.google.com/uc?id=${fileId}`,
+      mediaType: activeTab === 'background' ? 'background_video' : activeTab === 'hero' ? 'hero_image' : activeTab === 'gallery' ? 'gallery_image' : 'banner',
+      isActive: false,
+      title,
+      description,
+      uploadedBy: profile?.full_name || 'Admin',
+      uploadedAt: new Date().toISOString()
+    };
+
+    onSave(newMedia);
+    setGoogleDriveUrl('');
+    setTitle('');
+    setDescription('');
+  };
+
+  const handleFileUpload = () => {
+    if (!uploadedFile) {
+      alert('Please select a file');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(uploadedFile);
+    const isVideo = uploadedFile.type.startsWith('video/');
+
+    const newMedia: MediaItem = {
+      id: `upload_${Date.now()}`,
+      name: uploadedFile.name,
+      type: isVideo ? 'video' : 'image',
+      url: objectUrl,
+      mediaType: activeTab === 'background' ? 'background_video' : activeTab === 'hero' ? 'hero_image' : activeTab === 'gallery' ? 'gallery_image' : 'banner',
+      isActive: false,
+      title,
+      description,
+      uploadedBy: profile?.full_name || 'Admin',
+      uploadedAt: new Date().toISOString()
+    };
+
+    onSave(newMedia);
+    setUploadedFile(null);
+    setTitle('');
+    setDescription('');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-white">Customize Homepage</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-2 mb-6">
+          {[
+            { key: 'background', label: '🎬 Background', desc: 'Videos/YouTube' },
+            { key: 'hero', label: '🖼️ Hero Image', desc: 'Main banner' },
+            { key: 'gallery', label: '📸 Gallery', desc: 'Image gallery' },
+            { key: 'banner', label: '📢 Banners', desc: 'Top banners' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                activeTab === tab.key
+                  ? 'bg-yellow-400 text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <div className="text-sm">{tab.label}</div>
+              <div className="text-xs opacity-75">{tab.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Common Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              placeholder="Enter title..."
+            />
+          </div>
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              placeholder="Enter description..."
+            />
+          </div>
+        </div>
+
+        {/* YouTube Section */}
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
+          <h3 className="text-red-400 font-semibold mb-2 flex items-center">
+            🎥 Add YouTube Video
+          </h3>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+            <button
+              onClick={handleAddYouTube}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Add YouTube
+            </button>
+          </div>
+        </div>
+
+        {/* Google Drive Section */}
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+          <h3 className="text-blue-400 font-semibold mb-2 flex items-center">
+            ☁️ Add Google Drive Media
+          </h3>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={googleDriveUrl}
+              onChange={(e) => setGoogleDriveUrl(e.target.value)}
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              placeholder="https://drive.google.com/file/d/..."
+            />
+            <button
+              onClick={handleAddGoogleDrive}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Add Drive Media
+            </button>
+          </div>
+        </div>
+
+        {/* File Upload Section */}
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-4">
+          <h3 className="text-green-400 font-semibold mb-2 flex items-center">
+            📁 Upload Local File
+          </h3>
+          <div className="flex gap-2">
+            <input
+              type="file"
+              onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+              accept="image/*,video/*"
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-yellow-400 file:text-black"
+            />
+            <button
+              onClick={handleFileUpload}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Upload File
+            </button>
+          </div>
+        </div>
+
+        {/* Current Media Preview */}
+        <div className="bg-white/5 rounded-lg p-4">
+          <h3 className="text-white font-semibold mb-3">Current {activeTab} Media</h3>
+          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+            {currentMedia
+              .filter(m => {
+                const type = activeTab === 'background' ? ['background_video', 'youtube_background'] : 
+                           activeTab === 'hero' ? ['hero_image'] :
+                           activeTab === 'gallery' ? ['gallery_image'] : ['banner'];
+                return type.includes(m.mediaType);
+              })
+              .map(media => (
+                <div key={media.id} className={`relative rounded-lg overflow-hidden aspect-video bg-black/20 border-2 ${media.isActive ? 'border-yellow-400' : 'border-white/20'}`}>
+                  {media.type === 'youtube' ? (
+                    <div className="w-full h-full bg-red-500/20 flex items-center justify-center">
+                      <span className="text-white text-xs">📺 YouTube</span>
+                    </div>
+                  ) : media.type === 'image' ? (
+                    <img src={media.url} alt={media.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={media.url} className="w-full h-full object-cover" muted />
+                  )}
+                  {media.isActive && (
+                    <div className="absolute top-1 right-1 bg-yellow-400 text-black text-xs px-1 rounded">
+                      Active
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN HOMEPAGE COMPONENT ====================
+const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const [allMedia, setAllMedia] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false);
+
+  console.log('🏠 HomePage rendering', { user: !!user, profile: !!profile });
 
   useEffect(() => {
-    loadHomepageContent();
+    loadRealMedia();
   }, []);
 
-  // Auto-cycle through background media every 6 seconds
-  useEffect(() => {
-    const backgroundMedia = homepageMedia.filter(
-      item => (item.media_type === 'background_video' || item.media_type === 'hero_image') && item.is_active
-    );
-    
-    if (backgroundMedia.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentBgIndex(prev => (prev + 1) % backgroundMedia.length);
-      }, 6000);
-      return () => clearInterval(interval);
-    }
-  }, [homepageMedia]);
-
-  const loadHomepageContent = async () => {
+  const loadRealMedia = () => {
     try {
-      setLoading(true);
-      
-      // Load homepage media
-      const { data: mediaData, error: mediaError } = await supabase
-        .from('homepage_media')
-        .select(`
-          *,
-          media_file:media_files(*)
-        `)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (mediaError) {
-        console.error('❌ Error loading homepage media:', mediaError);
+      const savedMedia = localStorage.getItem('boujee_all_media');
+      if (savedMedia) {
+        const mediaData = JSON.parse(savedMedia);
+        setAllMedia(mediaData);
+        console.log('📱 Loaded media:', mediaData.length, 'items');
       } else {
-        setHomepageMedia(mediaData || []);
-        console.log(`✅ Loaded ${mediaData?.length || 0} homepage media items`);
+        console.log('📱 No media uploaded yet');
+        setAllMedia([]);
       }
-
-      // Load recent events
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'published')
-        .gte('end_date', new Date().toISOString())
-        .order('start_date', { ascending: true })
-        .limit(6);
-
-      if (eventsError) {
-        console.error('❌ Error loading events:', eventsError);
-      } else {
-        setEvents(eventsData || []);
-        console.log(`✅ Loaded ${eventsData?.length || 0} events`);
-      }
-
     } catch (error) {
-      console.error('❌ Failed to load homepage content:', error);
+      console.error('❌ Failed to load media:', error);
+      setAllMedia([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get media by type
-  const getMediaByType = (type: string) => {
-    return homepageMedia.filter(item => item.media_type === type && item.is_active);
+  const saveMedia = (mediaItems: MediaItem[]) => {
+    localStorage.setItem('boujee_all_media', JSON.stringify(mediaItems));
+    setAllMedia(mediaItems);
   };
 
-  const backgroundVideos = getMediaByType('background_video');
-  const heroImages = getMediaByType('hero_image');
-  const galleryImages = getMediaByType('gallery_image');
-  const banners = getMediaByType('banner');
+  const handleAddMedia = (newMedia: MediaItem) => {
+    const updatedMedia = [...allMedia, newMedia];
+    saveMedia(updatedMedia);
+    console.log('✅ Added new media:', newMedia.name);
+  };
 
-  // Get current background media (videos first, then images)
-  const backgroundMedia = [...backgroundVideos, ...heroImages];
-  const currentBackground = backgroundMedia[currentBgIndex];
+  const toggleMediaActive = (id: string) => {
+    const media = allMedia.find(m => m.id === id);
+    if (!media) return;
 
-  // Handle auth navigation
-  const handleAuthClick = (mode: 'login' | 'signup') => {
-    if (mode === 'signup') {
-      navigate('/auth?mode=signup');
-    } else {
-      navigate('/auth');
+    // Deactivate all media of the same type
+    const updatedMedia = allMedia.map(item => {
+      if (item.mediaType === media.mediaType) {
+        return { ...item, isActive: item.id === id ? !item.isActive : false };
+      }
+      return item;
+    });
+
+    saveMedia(updatedMedia);
+    console.log('🔄 Toggled media active status:', id);
+  };
+
+  const deleteMedia = (id: string) => {
+    const updatedMedia = allMedia.filter(m => m.id !== id);
+    saveMedia(updatedMedia);
+    console.log('🗑️ Deleted media:', id);
+  };
+
+  const getActiveMedia = (mediaTypes: string[]) => {
+    return allMedia.filter(item => mediaTypes.includes(item.mediaType) && item.isActive);
+  };
+
+  const activeBackgroundVideo = getActiveMedia(['background_video', 'youtube_background'])[0];
+  const activeHeroImage = getActiveMedia(['hero_image'])[0];
+  const activeGalleryImages = getActiveMedia(['gallery_image']);
+  const activeBanners = getActiveMedia(['banner']);
+
+  const handleExploreEvents = () => {
+    console.log('🎪 Navigating to Events page');
+    navigate('/events');
+  };
+
+  const handleGoToDashboard = () => {
+    if (!user || !profile) {
+      console.log('🔐 User not authenticated, redirecting to login');
+      navigate('/login');
+      return;
+    }
+
+    console.log('📊 Navigating to dashboard for role:', profile.role);
+    switch (profile.role) {
+      case 'admin':
+        navigate('/admin-dashboard');
+        break;
+      case 'organizer':
+        navigate('/organizer-dashboard');
+        break;
+      case 'member':
+        navigate('/member-dashboard');
+        break;
+      default:
+        navigate('/member-dashboard');
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
+  const featuredEvents = [
+    {
+      id: 1,
+      title: 'Sunset Paradise Festival',
+      date: 'September 15, 2025',
+      location: 'Santorini, Greece',
+      price: '$150',
+      image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800&h=600&fit=crop'
+    },
+    {
+      id: 2,
+      title: 'VIP Luxury Gala',
+      date: 'August 25, 2025',
+      location: 'Monaco',
+      price: '$500',
+      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&h=600&fit=crop'
+    },
+    {
+      id: 3,
+      title: 'Tech Innovation Summit',
+      date: 'September 10, 2025',
+      location: 'Silicon Valley',
+      price: '$250',
+      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=600&fit=crop'
+    }
+  ];
 
-  const formatPrice = (price: number, isFree: boolean) => {
-    if (isFree) return 'FREE';
-    return `$${price.toFixed(2)}`;
-  };
+  const stats = [
+    { icon: '📅', label: 'Events Organized', value: '500+' },
+    { icon: '👥', label: 'Happy Clients', value: '10,000+' },
+    { icon: '⭐', label: 'Average Rating', value: '4.9/5' },
+    { icon: '🏆', label: 'Awards Won', value: '15+' }
+  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="relative mb-8">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-transparent border-t-yellow-400 border-r-yellow-400 mx-auto"></div>
-            <div className="absolute inset-0 rounded-full h-20 w-20 border-4 border-transparent border-b-orange-500 border-l-orange-500 animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
-          </div>
-          <p className="text-white text-xl font-semibold">Loading Boujee Events</p>
-          <p className="text-gray-400 mt-2">Preparing your luxury experience...</p>
+          <div className="text-6xl mb-4 animate-pulse">✨</div>
+          <p className="text-white text-xl">Loading your experience...</p>
         </div>
       </div>
     );
@@ -158,289 +600,180 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Navigation */}
       <PublicNavbar />
       
-      {/* Hero Section with Admin's Background Media */}
+      {/* FLOATING CUSTOMIZATION BUTTON FOR ADMIN */}
+      {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+        <button
+          onClick={() => setShowCustomizationModal(true)}
+          className="fixed bottom-6 right-6 bg-yellow-400 text-black p-4 rounded-full shadow-lg hover:bg-yellow-500 transition-all transform hover:scale-110 z-40"
+          title="Customize Homepage"
+        >
+          🎨
+        </button>
+      )}
+
+      {/* CUSTOMIZATION MODAL */}
+      <CustomizationModal
+        isOpen={showCustomizationModal}
+        onClose={() => setShowCustomizationModal(false)}
+        onSave={handleAddMedia}
+        currentMedia={allMedia}
+      />
+      
+      {/* Hero Section with FULLY CUSTOMIZABLE Media */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Admin's Background Media or Default */}
+        {/* Background Media - REAL DATA from Admin Uploads */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
           
-          {currentBackground?.media_file ? (
-            <div className="relative w-full h-full">
-              {currentBackground.media_file.file_type === 'video' ? (
-                <video
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  key={currentBackground.id}
-                >
-                  <source 
-                    src={currentBackground.media_file.web_view_link} 
-                    type={currentBackground.media_file.mime_type}
+          {/* Dynamic Background with YouTube & Google Drive support */}
+          {(() => {
+            if (activeBackgroundVideo) {
+              console.log('🎬 Using background media:', activeBackgroundVideo.name, 'Type:', activeBackgroundVideo.type);
+              
+              if (activeBackgroundVideo.type === 'youtube') {
+                return (
+                  <YouTubeBackground
+                    videoId={activeBackgroundVideo.youtubeId!}
+                    className="w-full h-full object-cover"
+                    onError={() => console.log('🎬 YouTube background failed to load')}
                   />
-                </video>
-              ) : (
-                <img
-                  src={currentBackground.media_file.web_view_link}
-                  alt={currentBackground.title || 'Background'}
+                );
+              } else {
+                return (
+                  <GoogleDriveVideo
+                    src={activeBackgroundVideo.url}
+                    name={activeBackgroundVideo.name}
+                    className="w-full h-full object-cover"
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    onError={() => console.log('🎬 Background video failed to load')}
+                  />
+                );
+              }
+            } else if (activeHeroImage) {
+              console.log('🖼️ Using hero image:', activeHeroImage.name);
+              return (
+                <GoogleDriveImage
+                  src={activeHeroImage.url}
+                  directUrl={activeHeroImage.directUrl}
+                  alt={activeHeroImage.title || activeHeroImage.name}
                   className="w-full h-full object-cover"
-                  key={currentBackground.id}
+                  onError={() => console.log('🖼️ Hero image failed to load')}
                 />
-              )}
-            </div>
-          ) : (
-            /* Default elegant background when no media uploaded */
-            <div className="w-full h-full bg-gradient-to-br from-gray-900 via-purple-900/30 to-gray-900 relative">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23fbbf24" fill-opacity="0.03"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
-            </div>
-          )}
+              );
+            } else {
+              console.log('🎨 No media uploaded yet, showing admin prompt');
+              return (
+                <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
+                  <div className="text-center text-white/40">
+                    <div className="text-8xl mb-6">🎬</div>
+                    <h3 className="text-2xl font-bold mb-2">Ready to Customize?</h3>
+                    <p className="text-lg mb-4">Add YouTube videos, Google Drive media, or upload files</p>
+                    {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+                      <button
+                        onClick={() => setShowCustomizationModal(true)}
+                        className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+                      >
+                        🎨 Start Customizing
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+          })()}
         </div>
 
         {/* Hero Content */}
         <div className="relative z-20 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-            Welcome to{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
-              Boujee Events
-            </span>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
+            Discover <span className="text-yellow-400">Magic</span>
           </h1>
-          
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-200 mb-10 max-w-4xl mx-auto leading-relaxed">
-            Create extraordinary experiences with our premium event management platform
+          <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto leading-relaxed">
+            Immerse yourself in extraordinary luxury experiences, exclusive festivals, and VIP events that create unforgettable memories
           </p>
-          
-          {/* FIXED: Call-to-Action Buttons with proper routing */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Link
-              to="/events"
-              className="w-full sm:w-auto bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-4 rounded-full font-bold text-lg hover:from-yellow-500 hover:to-orange-600 transform hover:scale-105 transition-all duration-300 shadow-2xl"
-            >
-              🎪 Explore Events
-            </Link>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
-              onClick={() => handleAuthClick('signup')}
-              className="w-full sm:w-auto bg-transparent border-2 border-white text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white hover:text-black transition-all duration-300"
+              onClick={handleExploreEvents}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
             >
-              ✨ Get Started
+              📅 Explore Premium Events
             </button>
-          </div>
-
-          {/* Background Media Indicators */}
-          {backgroundMedia.length > 1 && (
-            <div className="flex justify-center items-center space-x-4">
-              <div className="flex space-x-2">
-                {backgroundMedia.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentBgIndex(index)}
-                    className={`transition-all duration-300 ${
-                      index === currentBgIndex 
-                        ? 'w-8 h-3 bg-yellow-400' 
-                        : 'w-3 h-3 bg-white/40 hover:bg-white/60'
-                    } rounded-full`}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 animate-bounce">
-          <svg className="w-6 h-6 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-        </div>
-      </section>
-
-      {/* EVENTS SECTION - Shows upcoming events */}
-      {events.length > 0 && (
-        <section className="py-16 sm:py-20 lg:py-24 bg-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                🎪 Upcoming Events
-              </h2>
-              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                Discover amazing events happening near you
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {events.map((event) => (
-                <Link
-                  key={event.id}
-                  to={`/events/${event.slug}`}
-                  className="group bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-yellow-400/50 transition-all duration-300 hover:transform hover:scale-105"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-white font-bold text-xl mb-2 group-hover:text-yellow-400 transition-colors">
-                      {event.title}
-                    </h3>
-                    <p className="text-gray-400 text-sm line-clamp-2">
-                      {event.description}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center text-gray-300">
-                      <span className="mr-2">📅</span>
-                      {formatDate(event.start_date)}
-                    </div>
-                    {event.venue_name && (
-                      <div className="flex items-center text-gray-300">
-                        <span className="mr-2">📍</span>
-                        {event.venue_name}
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-green-400">
-                        <span className="mr-2">💰</span>
-                        {formatPrice(event.price, event.is_free)}
-                      </div>
-                      <span className="text-yellow-400 font-medium">
-                        View Details →
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            <div className="text-center mt-12">
-              <Link
-                to="/events"
-                className="inline-block bg-yellow-400 text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-yellow-500 transform hover:scale-105 transition-all duration-300"
+            
+            {user ? (
+              <button
+                onClick={handleGoToDashboard}
+                className="border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
               >
-                🎟️ View All Events
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ADMIN'S GALLERY SECTION - Shows uploaded media */}
-      {galleryImages.length > 0 && (
-        <section className="py-16 sm:py-20 lg:py-24 bg-gray-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                ✨ Our Gallery
-              </h2>
-              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                Experience the magic through our curated collection
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {galleryImages.slice(0, 8).map((item, index) => (
-                <div
-                  key={item.id}
-                  className={`group relative overflow-hidden rounded-xl shadow-2xl transition-all duration-500 hover:scale-105 ${
-                    index === 0 ? 'sm:col-span-2 sm:row-span-2' : ''
-                  }`}
-                >
-                  <div className={`relative ${index === 0 ? 'aspect-square' : 'aspect-square'}`}>
-                    {item.media_file && (
-                      <>
-                        {item.media_file.file_type === 'image' ? (
-                          <img
-                            src={item.media_file.web_view_link}
-                            alt={item.title || 'Gallery Image'}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            loading={index < 4 ? 'eager' : 'lazy'}
-                          />
-                        ) : (
-                          <video
-                            src={item.media_file.web_view_link}
-                            className="w-full h-full object-cover"
-                            muted
-                            loop
-                            playsInline
-                            onMouseEnter={(e) => e.currentTarget.play()}
-                            onMouseLeave={(e) => e.currentTarget.pause()}
-                          />
-                        )}
-                        
-                        {/* Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="absolute bottom-4 left-4 right-4">
-                            {item.title && (
-                              <h3 className="text-white font-bold text-lg mb-2">
-                                {item.title}
-                              </h3>
-                            )}
-                            {item.description && (
-                              <p className="text-gray-300 text-sm">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Media Type Badge */}
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <span className="bg-black/50 text-white px-2 py-1 rounded text-xs">
-                            {item.media_file.file_type === 'image' ? '📷' : '🎥'}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {galleryImages.length > 8 && (
-              <div className="text-center mt-12">
+                📊 Go to Dashboard
+              </button>
+            ) : (
+              <div className="flex gap-3">
                 <Link
-                  to="/gallery"
-                  className="inline-block bg-yellow-400 text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-yellow-500 transform hover:scale-105 transition-all duration-300"
+                  to="/auth"
+                  className="border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300"
                 >
-                  📸 View Full Gallery ({galleryImages.length} items)
+                  🔑 Sign In
+                </Link>
+                <Link
+                  to="/auth?mode=signup"
+                  className="bg-white text-black hover:bg-gray-100 px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300"
+                >
+                  ✨ Get Started
                 </Link>
               </div>
             )}
           </div>
-        </section>
-      )}
 
-      {/* ADMIN'S BANNERS SECTION */}
-      {banners.length > 0 && (
-        <section className="py-16 bg-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {banners.map((banner) => (
-                <div
-                  key={banner.id}
-                  className="relative overflow-hidden rounded-xl shadow-2xl group cursor-pointer"
-                >
-                  {banner.media_file && (
-                    <>
-                      <img
-                        src={banner.media_file.web_view_link}
-                        alt={banner.title || 'Banner'}
-                        className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent">
-                        <div className="absolute bottom-6 left-6 right-6">
-                          {banner.title && (
-                            <h3 className="text-white font-bold text-xl mb-2">
-                              {banner.title}
-                            </h3>
-                          )}
-                          {banner.description && (
-                            <p className="text-gray-300">
-                              {banner.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </>
+          {user && profile && (
+            <div className="mt-8 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 max-w-md mx-auto">
+              <p className="text-white text-lg">
+                Welcome back, <span className="text-yellow-400 font-semibold">{profile.full_name || user.email?.split('@')[0]}!</span>
+              </p>
+              <p className="text-gray-300 text-sm mt-1">
+                Ready for your next adventure?
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Banners Section */}
+      {activeBanners.length > 0 && (
+        <section className="py-4 bg-yellow-400">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-center space-x-8 overflow-x-auto">
+              {activeBanners.map((banner) => (
+                <div key={banner.id} className="flex-shrink-0 text-center">
+                  {banner.type === 'image' ? (
+                    <GoogleDriveImage
+                      src={banner.url}
+                      directUrl={banner.directUrl}
+                      alt={banner.title || banner.name}
+                      className="h-16 object-contain mx-auto"
+                      onError={() => console.log('Banner image failed to load:', banner.name)}
+                    />
+                  ) : banner.type === 'youtube' ? (
+                    <div className="h-16 w-32 bg-red-500/20 rounded flex items-center justify-center">
+                      <span className="text-black text-sm">📺 YouTube</span>
+                    </div>
+                  ) : (
+                    <GoogleDriveVideo
+                      src={banner.url}
+                      name={banner.name}
+                      className="h-16 object-contain mx-auto"
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      onError={() => console.log('Banner video failed to load:', banner.name)}
+                    />
+                  )}
+                  {banner.title && (
+                    <p className="text-black font-semibold text-sm mt-2">{banner.title}</p>
                   )}
                 </div>
               ))}
@@ -449,120 +782,220 @@ export const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* EMPTY STATE - When no content uploaded */}
-      {!loading && homepageMedia.length === 0 && events.length === 0 && (
-        <section className="py-24 bg-gray-800">
-          <div className="max-w-4xl mx-auto text-center px-4">
-            <div className="text-6xl mb-6">🎨</div>
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Customize Your Homepage
-            </h2>
-            <p className="text-gray-400 text-lg mb-8">
-              Upload your media and create events through the admin panel to make this homepage truly yours!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/admin/media"
-                className="bg-yellow-400 text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-yellow-500 transition-colors"
-              >
-                🎬 Upload Media
-              </Link>
-              <Link
-                to="/admin"
-                className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-colors"
-              >
-                ⚙️ Admin Panel
-              </Link>
+      {/* Stats Section */}
+      <section className="py-20 bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-4xl mb-2">{stat.icon}</div>
+                <div className="text-3xl font-bold text-yellow-400 mb-2">{stat.value}</div>
+                <div className="text-gray-300">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery Section */}
+      {activeGalleryImages.length > 0 && (
+        <section className="py-20 bg-gray-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-white mb-4">Experience Gallery</h2>
+              <p className="text-xl text-gray-400">See the magic we create</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {activeGalleryImages.map((item) => (
+                <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-yellow-400/50 transition-all duration-300">
+                  <div className="aspect-video relative overflow-hidden">
+                    {item.type === 'image' ? (
+                      <GoogleDriveImage
+                        src={item.url}
+                        directUrl={item.directUrl}
+                        alt={item.title || item.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={() => console.log('Gallery image failed:', item.name)}
+                      />
+                    ) : item.type === 'youtube' ? (
+                      <div className="w-full h-full bg-red-500/20 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">📺</div>
+                          <p className="text-white text-sm">YouTube Video</p>
+                          <p className="text-yellow-400 text-xs">{item.title}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-full">
+                        <GoogleDriveVideo
+                          src={item.url}
+                          name={item.name}
+                          className="w-full h-full object-cover"
+                          muted={true}
+                          loop={true}
+                          onError={() => console.log('Gallery video failed:', item.name)}
+                        />
+                        
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors pointer-events-none">
+                          <div className="bg-yellow-400/90 rounded-full p-3 group-hover:scale-110 transition-transform">
+                            <span className="text-black font-bold">▶</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Admin Controls Overlay */}
+                    {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => toggleMediaActive(item.id)}
+                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                            item.isActive 
+                              ? 'bg-yellow-400 text-black' 
+                              : 'bg-gray-700 text-white hover:bg-gray-600'
+                          }`}
+                        >
+                          {item.isActive ? 'Active' : 'Inactive'}
+                        </button>
+                        <button
+                          onClick={() => deleteMedia(item.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Overlay with title */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <h3 className="text-white font-semibold text-lg">
+                          {item.title || item.name}
+                        </h3>
+                        {item.description && (
+                          <p className="text-gray-300 text-sm">
+                            {item.description}
+                          </p>
+                        )}
+                        <p className="text-yellow-400 text-xs mt-1">
+                          Uploaded by {item.uploadedBy}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* Call-to-Action Section */}
-      <section className="py-20 bg-gradient-to-r from-gray-900 via-purple-900/20 to-gray-900">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to Create Something Extraordinary?
-          </h2>
-          <p className="text-xl text-gray-300 mb-10">
-            Join thousands who trust Boujee Events for unforgettable experiences
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button
-              onClick={() => handleAuthClick('signup')}
-              className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-10 py-5 rounded-full font-bold text-xl hover:from-yellow-500 hover:to-orange-600 transform hover:scale-105 transition-all duration-300 shadow-2xl"
-            >
-              🚀 Get Started Today
-            </button>
-            <button
-              onClick={() => handleAuthClick('login')}
-              className="bg-transparent border-2 border-white text-white px-10 py-5 rounded-full font-bold text-xl hover:bg-white hover:text-black transition-all duration-300"
-            >
-              🔑 Sign In
-            </button>
+      {/* Featured Events */}
+      <section className="py-20 bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-white mb-4">Featured Events</h2>
+            <p className="text-xl text-gray-400">Discover our most exclusive upcoming experiences</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredEvents.map((event) => (
+              <div key={event.id} className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:border-yellow-400/50 transition-all duration-300 group">
+                <div className="relative overflow-hidden">
+                  <img
+                    src={event.image}
+                    alt={event.title}
+                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop';
+                    }}
+                  />
+                  <div className="absolute top-4 right-4 bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-semibold">
+                    {event.price}
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-white mb-2">{event.title}</h3>
+                  <p className="text-gray-400 mb-2">📅 {event.date}</p>
+                  <p className="text-gray-400 mb-4">📍 {event.location}</p>
+                  
+                  <button 
+                    onClick={handleExploreEvents}
+                    className="w-full bg-white/10 hover:bg-yellow-400 hover:text-black text-white py-2 px-4 rounded-lg transition-all duration-300 font-medium"
+                  >
+                    Learn More
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-yellow-400 to-yellow-500">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-bold text-black mb-4">Ready to Experience Magic?</h2>
+          <p className="text-xl text-gray-800 mb-8">
+            Join thousands of adventurers who trust us to create their most memorable moments
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleExploreEvents}
+              className="bg-black text-yellow-400 hover:bg-gray-800 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300"
+            >
+              Browse All Events
+            </button>
+            
+            {!user && (
+              <Link
+                to="/auth?mode=signup"
+                className="border-2 border-black text-black hover:bg-black hover:text-yellow-400 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300"
+              >
+                Create Account
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Admin Quick Access */}
+      {(profile?.role === 'admin' || profile?.role === 'organizer') && allMedia.length === 0 && (
+        <section className="py-12 bg-blue-900/20">
+          <div className="max-w-4xl mx-auto text-center px-4">
+            <h3 className="text-2xl font-bold text-blue-400 mb-4">👋 Welcome, {profile.role}!</h3>
+            <p className="text-blue-200 mb-6">
+              Your homepage is ready to customize! Add YouTube videos, Google Drive media, or upload files to make it shine!
+            </p>
+            <button
+              onClick={() => setShowCustomizationModal(true)}
+              className="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+            >
+              🎨 Start Customizing Now
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* Footer */}
       <footer className="bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-2">
-              <h3 className="text-2xl font-bold text-yellow-400 mb-4">
-                ✨ Boujee Events
-              </h3>
-              <p className="text-gray-400 leading-relaxed mb-4">
-                Creating extraordinary experiences with cutting-edge event management technology.
-              </p>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-yellow-400 mb-4">✨ Boujee Events</div>
+            <p className="text-gray-400 mb-6">Creating extraordinary experiences since 2025</p>
+            
+            <div className="flex justify-center space-x-8 mb-6">
+              <button onClick={() => navigate('/about')} className="text-gray-400 hover:text-yellow-400 transition-colors">About</button>
+              <button onClick={() => navigate('/events')} className="text-gray-400 hover:text-yellow-400 transition-colors">Events</button>
+              <button onClick={() => navigate('/gallery')} className="text-gray-400 hover:text-yellow-400 transition-colors">Gallery</button>
+              <button onClick={() => navigate('/contact')} className="text-gray-400 hover:text-yellow-400 transition-colors">Contact</button>
             </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                {[
-                  { name: 'Events', href: '/events' },
-                  { name: 'About', href: '/about' },
-                  { name: 'Contact', href: '/contact' },
-                  { name: 'Privacy', href: '/privacy' }
-                ].map((link) => (
-                  <li key={link.name}>
-                    <Link to={link.href} className="text-gray-400 hover:text-yellow-400 transition-colors">
-                      {link.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Contact</h4>
-              <div className="space-y-2 text-gray-400">
-                <p>📧 hello@boujeeevents.com</p>
-                <p>📱 +1 (555) 123-4567</p>
-                <p>📍 New York, NY</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8 mt-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center">
-              <p className="text-gray-400 text-sm">
-                © 2025 Boujee Events. All rights reserved.
-              </p>
-              <div className="flex space-x-6 mt-4 sm:mt-0">
-                {['Twitter', 'Instagram', 'LinkedIn'].map((social) => (
-                  <a
-                    key={social}
-                    href={`#${social.toLowerCase()}`}
-                    className="text-gray-400 hover:text-yellow-400 transition-colors text-sm"
-                  >
-                    {social}
-                  </a>
-                ))}
-              </div>
-            </div>
+            
+            <p className="text-gray-500 text-sm">© 2025 Boujee Events. All rights reserved.</p>
           </div>
         </div>
       </footer>
