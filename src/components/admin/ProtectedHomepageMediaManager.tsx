@@ -1,8 +1,8 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - UPDATED FOR GOOGLE IDENTITY SERVICES
+// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE FIXED VERSION
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../contexts/AuthContext';
-import { googleDriveService } from '../../services/googleDriveService';
+import { googleDriveService, DriveFile } from '../../services/googleDriveService';
 
 interface MediaFile {
   id: string;
@@ -16,6 +16,183 @@ interface MediaFile {
   title?: string;
   description?: string;
 }
+
+// NEW: Google Drive File Browser Component
+const GoogleDriveFileBrowser: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectFiles: (files: DriveFile[]) => void;
+  mediaType: string;
+}> = ({ isOpen, onClose, onSelectFiles, mediaType }) => {
+  const [files, setFiles] = useState<DriveFile[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadFiles();
+    }
+  }, [isOpen, mediaType]);
+
+  const loadFiles = async () => {
+    setLoading(true);
+    try {
+      const folders = await googleDriveService.getHomepageMediaFolders();
+      const folderId = folders[mediaType];
+      if (folderId) {
+        const driveFiles = await googleDriveService.browseFiles(folderId);
+        setFiles(driveFiles);
+      }
+    } catch (error) {
+      console.error('❌ Failed to load Google Drive files:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFileSelection = (file: DriveFile) => {
+    setSelectedFiles(prev => {
+      const isSelected = prev.find(f => f.id === file.id);
+      if (isSelected) {
+        return prev.filter(f => f.id !== file.id);
+      } else {
+        return [...prev, file];
+      }
+    });
+  };
+
+  const handleSelectFiles = () => {
+    onSelectFiles(selectedFiles);
+    setSelectedFiles([]);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">Browse Google Drive Files</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin text-4xl mb-4">⏳</div>
+            <p className="text-white">Loading Google Drive files...</p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 text-sm text-gray-400">
+              Select files from your Google Drive to add to your homepage. {selectedFiles.length} selected.
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto mb-6">
+              {files.map(file => {
+                const isSelected = selectedFiles.find(f => f.id === file.id);
+                const isImage = file.mimeType.startsWith('image/');
+                const isVideo = file.mimeType.startsWith('video/');
+
+                return (
+                  <div
+                    key={file.id}
+                    onClick={() => toggleFileSelection(file)}
+                    className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                      isSelected 
+                        ? 'border-yellow-400 bg-yellow-400/10' 
+                        : 'border-white/20 hover:border-white/40'
+                    }`}
+                  >
+                    <div className="aspect-video bg-black/20 relative">
+                      {isImage && (
+                        <img
+                          src={file.publicUrl || `https://drive.google.com/uc?id=${file.id}&export=view`}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://via.placeholder.com/300x200/444444/ffffff?text=Image';
+                          }}
+                        />
+                      )}
+                      
+                      {isVideo && (
+                        <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                          <div className="text-4xl">🎬</div>
+                        </div>
+                      )}
+
+                      {!isImage && !isVideo && (
+                        <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                          <div className="text-4xl">📄</div>
+                        </div>
+                      )}
+
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 bg-yellow-400 text-black rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                          ✓
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <div className={`px-2 py-1 rounded text-xs font-bold ${
+                          isVideo ? 'bg-red-500/80 text-white' : 
+                          isImage ? 'bg-blue-500/80 text-white' : 
+                          'bg-gray-500/80 text-white'
+                        }`}>
+                          {isVideo ? '🎬 Video' : isImage ? '🖼️ Image' : '📄 File'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2">
+                      <div className="text-white text-sm font-medium truncate">
+                        {file.name}
+                      </div>
+                      <div className="text-gray-400 text-xs">
+                        {file.size ? `${(parseInt(file.size) / 1024 / 1024).toFixed(1)}MB` : 'Unknown size'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {files.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-4xl mb-2">📁</div>
+                <p>No files found in Google Drive for this media type.</p>
+                <p className="text-sm mt-2">Upload some files first, then browse them here.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSelectFiles}
+                disabled={selectedFiles.length === 0}
+                className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 disabled:bg-gray-600 disabled:text-gray-400 transition-colors"
+              >
+                Add {selectedFiles.length} Selected File{selectedFiles.length !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const RoleProtectedWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, profile, loading } = useAuth();
@@ -36,9 +213,7 @@ const RoleProtectedWrapper: React.FC<{ children: React.ReactNode }> = ({ childre
       <div className="bg-red-500/10 backdrop-blur-sm rounded-2xl p-8 border border-red-500/20 text-center">
         <div className="text-6xl mb-4">🚫</div>
         <h2 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h2>
-        <p className="text-gray-300 mb-6">
-          Only admins and organizers can manage homepage media.
-        </p>
+        <p className="text-gray-300 mb-6">Only admins and organizers can manage homepage media.</p>
         <button
           onClick={() => window.history.back()}
           className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
@@ -60,6 +235,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'background' | 'hero' | 'gallery' | 'banner'>('background');
   const [loading, setLoading] = useState(true);
+  const [showFileBrowser, setShowFileBrowser] = useState(false);
   const [googleDriveStatus, setGoogleDriveStatus] = useState<{
     initialized: boolean;
     authenticated: boolean;
@@ -72,7 +248,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     connecting: false
   });
 
-  // Initialize component
   useEffect(() => {
     loadExistingMedia();
     checkGoogleDriveStatus();
@@ -101,9 +276,8 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
   const checkGoogleDriveStatus = async () => {
     try {
-      console.log('🔍 Checking Google Drive status with Google Identity Services...');
+      console.log('🔍 Checking Google Drive status...');
       
-      // Check environment variables first
       const hasCredentials = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_DRIVE_API_KEY);
       
       if (!hasCredentials) {
@@ -116,11 +290,9 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         return;
       }
 
-      // Try to initialize
       const initialized = await googleDriveService.initialize();
       
       if (initialized) {
-        // Check if user is already authenticated
         const authenticated = await googleDriveService.isUserAuthenticated();
         const userInfo = authenticated ? await googleDriveService.getUserInfo() : null;
         
@@ -140,7 +312,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           error: 'Failed to initialize Google Identity Services'
         });
       }
-      
     } catch (error) {
       console.error('❌ Error checking Google Drive status:', error);
       setGoogleDriveStatus({
@@ -155,7 +326,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   const connectGoogleDrive = async () => {
     try {
       setGoogleDriveStatus(prev => ({ ...prev, connecting: true, error: undefined }));
-      console.log('🔐 Attempting to connect to Google Drive with Google Identity Services...');
+      console.log('🔐 Attempting to connect to Google Drive...');
       
       const success = await googleDriveService.authenticate();
       
@@ -168,12 +339,11 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           userInfo: userInfo
         });
         
-        console.log('✅ Successfully connected to Google Drive with Google Identity Services!');
+        console.log('✅ Successfully connected to Google Drive!');
         alert('✅ Google Drive connected successfully! You can now upload files.');
       } else {
         throw new Error('Authentication was cancelled or failed');
       }
-      
     } catch (error: any) {
       console.error('❌ Failed to connect to Google Drive:', error);
       setGoogleDriveStatus(prev => ({
@@ -183,17 +353,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         error: error.message || 'Authentication failed'
       }));
       
-      // More helpful error messages
-      let errorMessage = '❌ Failed to connect to Google Drive.';
-      if (error.message.includes('popup')) {
-        errorMessage += ' Please allow popups and try again.';
-      } else if (error.message.includes('cancelled')) {
-        errorMessage += ' Authentication was cancelled. Please try again and click "Allow" when prompted.';
-      } else {
-        errorMessage += ' Please check your browser settings and try again.';
-      }
-      
-      alert(errorMessage);
+      alert('❌ Failed to connect to Google Drive. Please try again and allow access when prompted.');
     }
   };
 
@@ -207,7 +367,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         userInfo: null
       });
       console.log('🔓 Disconnected from Google Drive');
-      alert('✅ Disconnected from Google Drive successfully.');
     } catch (error) {
       console.error('❌ Error disconnecting:', error);
     }
@@ -259,14 +418,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return;
     }
 
-    // Validate file sizes
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    const oversizedFiles = acceptedFiles.filter(file => file.size > maxSize);
-    if (oversizedFiles.length > 0) {
-      alert(`❌ Some files are too large. Maximum size is 100MB. Oversized files: ${oversizedFiles.map(f => f.name).join(', ')}`);
-      return;
-    }
-
     setUploading(true);
     console.log('🚀 Starting upload of', acceptedFiles.length, 'files...');
 
@@ -274,21 +425,20 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       const mediaType = getMediaTypeForTab();
       const fileList = acceptedFiles as any as FileList;
 
-      // Upload to Google Drive with progress tracking
       const driveFiles = await googleDriveService.uploadHomepageMedia(
         fileList,
         mediaType as any,
         (progress) => {
-          console.log(`📤 Upload progress: ${progress.percentage}% (${(progress.loaded / 1024 / 1024).toFixed(1)}MB / ${(progress.total / 1024 / 1024).toFixed(1)}MB)`);
+          console.log(`📤 Upload progress: ${progress.percentage}%`);
         }
       );
 
-      // Convert to MediaFile objects
+      // Convert to MediaFile objects using PUBLIC URLs
       const newFiles: MediaFile[] = driveFiles.map(driveFile => ({
         id: driveFile.id,
         name: driveFile.name,
         type: driveFile.mimeType.startsWith('image/') ? 'image' as const : 'video' as const,
-        url: driveFile.webContentLink || driveFile.webViewLink,
+        url: driveFile.publicUrl || driveFile.webViewLink, // USE PUBLIC URL
         isActive: false,
         mediaType: getMediaTypeForTab(),
         uploadedBy: profile.full_name || profile.email,
@@ -297,50 +447,75 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         description: `Uploaded to Google Drive by ${profile.full_name || profile.email}`
       }));
 
-      // Update state and save
       const updatedMedia = [...newFiles, ...mediaFiles];
       setMediaFiles(updatedMedia);
       saveAllMedia(updatedMedia);
 
       console.log('🎉 Upload completed successfully!', newFiles.length, 'files uploaded');
-      alert(`✅ Successfully uploaded ${newFiles.length} file(s) to Google Drive!\n\nFiles: ${newFiles.map(f => f.name).join(', ')}`);
+      alert(`✅ Successfully uploaded ${newFiles.length} file(s) to Google Drive!\n\nFiles are now public and ready to use on your homepage.`);
       
     } catch (error: any) {
       console.error('❌ Upload failed:', error);
-      
-      // More specific error handling
-      let errorMessage = `❌ Upload failed: ${error.message}`;
-      if (error.message.includes('Authentication')) {
-        errorMessage += '\n\nPlease reconnect to Google Drive and try again.';
-        // Reset authentication status
-        setGoogleDriveStatus(prev => ({ ...prev, authenticated: false }));
-      } else if (error.message.includes('quota')) {
-        errorMessage += '\n\nGoogle Drive storage quota exceeded. Please free up space and try again.';
-      } else if (error.message.includes('network')) {
-        errorMessage += '\n\nNetwork error. Please check your internet connection and try again.';
-      }
-      
-      alert(errorMessage);
+      alert(`❌ Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
   }, [activeTab, profile, mediaFiles, googleDriveStatus.authenticated]);
 
+  // NEW: Handle files selected from Google Drive browser
+  const handleFilesFromDrive = (driveFiles: DriveFile[]) => {
+    if (!profile) return;
+
+    console.log('📁 Adding', driveFiles.length, 'files from Google Drive');
+
+    const newFiles: MediaFile[] = driveFiles.map(driveFile => ({
+      id: driveFile.id,
+      name: driveFile.name,
+      type: driveFile.mimeType.startsWith('image/') ? 'image' as const : 'video' as const,
+      url: driveFile.publicUrl || `https://drive.google.com/uc?id=${driveFile.id}&export=view`,
+      isActive: false,
+      mediaType: getMediaTypeForTab(),
+      uploadedBy: profile.full_name || profile.email,
+      uploadedAt: driveFile.createdTime,
+      title: driveFile.name.replace(/\.[^/.]+$/, ""),
+      description: `Selected from Google Drive by ${profile.full_name || profile.email}`
+    }));
+
+    const updatedMedia = [...newFiles, ...mediaFiles];
+    setMediaFiles(updatedMedia);
+    saveAllMedia(updatedMedia);
+
+    alert(`✅ Successfully added ${newFiles.length} file(s) from Google Drive!`);
+  };
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
-      'video/*': ['.mp4', '.webm', '.ogg', '.mov']
-    },
+    accept: getAcceptedFileTypes(),
     multiple: true,
     maxSize: 100 * 1024 * 1024, // 100MB max
     disabled: uploading || !googleDriveStatus.authenticated
   });
 
-  const setActiveMedia = (id: string) => {
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
-      return;
+  function getAcceptedFileTypes() {
+    switch (activeTab) {
+      case 'background':
+        return { 'video/*': ['.mp4', '.webm', '.ogg', '.mov'] };
+      case 'hero':
+        return { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
+      case 'gallery':
+        return {
+          'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+          'video/*': ['.mp4', '.webm', '.ogg', '.mov']
+        };
+      case 'banner':
+        return { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
+      default:
+        return { 'image/*': ['.png', '.jpg', '.jpeg'], 'video/*': ['.mp4', '.webm'] };
     }
+  }
+
+  const setActiveMedia = (id: string) => {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) return;
 
     const mediaType = getMediaTypeForTab();
     const updatedMedia = mediaFiles.map(file => ({
@@ -359,9 +534,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   };
 
   const deleteMedia = (id: string) => {
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
-      return;
-    }
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) return;
 
     const fileToDelete = mediaFiles.find(f => f.id === id);
     if (!fileToDelete) return;
@@ -370,7 +543,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       const updatedMedia = mediaFiles.filter(file => file.id !== id);
       setMediaFiles(updatedMedia);
       saveAllMedia(updatedMedia);
-      
       console.log('🗑️ Deleted media:', fileToDelete.name);
     }
   };
@@ -397,6 +569,16 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       case 'gallery': return 'Gallery Media';
       case 'banner': return 'Banner Media';
       default: return 'Media';
+    }
+  };
+
+  const getFileTypeHint = () => {
+    switch (activeTab) {
+      case 'background': return 'Only video files (MP4, WebM, MOV) are allowed';
+      case 'hero': return 'Only image files (PNG, JPG, JPEG, GIF, WebP) are allowed';
+      case 'gallery': return 'Both images and videos are allowed';
+      case 'banner': return 'Only image files (PNG, JPG, JPEG, GIF, WebP) are allowed';
+      default: return 'Select a tab to see accepted file types';
     }
   };
 
@@ -432,7 +614,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return {
         icon: '✅',
         text: 'Connected',
-        description: `Signed in as ${googleDriveStatus.userInfo.name} (${googleDriveStatus.userInfo.email}) using Google Identity Services`,
+        description: `Signed in as ${googleDriveStatus.userInfo.name}`,
         color: 'bg-green-500/10 border-green-500/20 text-green-400'
       };
     }
@@ -441,7 +623,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return {
         icon: '🔐',
         text: 'Ready to Connect',
-        description: 'Click "Connect Google Drive" to authenticate with Google Identity Services',
+        description: 'Click "Connect Google Drive" to authenticate',
         color: 'bg-blue-500/10 border-blue-500/20 text-blue-400'
       };
     }
@@ -449,7 +631,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     return {
       icon: '🔄',
       text: 'Initializing...',
-      description: 'Setting up Google Identity Services integration',
+      description: 'Setting up Google Drive integration',
       color: 'bg-gray-500/10 border-gray-500/20 text-gray-400'
     };
   };
@@ -474,7 +656,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Homepage Media Manager</h2>
-            <p className="text-gray-400">Upload images and videos using Google Identity Services</p>
+            <p className="text-gray-400">Upload and manage images and videos for your homepage</p>
           </div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -493,12 +675,8 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="text-lg">{connectionStatus.icon}</span>
               <div>
-                <div className="font-semibold">
-                  Google Drive: {connectionStatus.text}
-                </div>
-                <div className="text-sm opacity-75">
-                  {connectionStatus.description}
-                </div>
+                <div className="font-semibold">Google Drive: {connectionStatus.text}</div>
+                <div className="text-sm opacity-75">{connectionStatus.description}</div>
               </div>
             </div>
             
@@ -520,53 +698,17 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                   Disconnect
                 </button>
               )}
-              
-              {!googleDriveStatus.initialized && (
-                <button
-                  onClick={checkGoogleDriveStatus}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Retry Setup
-                </button>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Environment Variables Warning */}
-        {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || !import.meta.env.VITE_GOOGLE_DRIVE_API_KEY) && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <div className="text-red-400 font-semibold mb-2">⚙️ Configuration Required</div>
-            <div className="text-red-300 text-sm mb-4">
-              Add these to your .env.local file and restart your dev server:
-            </div>
-            <div className="bg-black/20 p-3 rounded font-mono text-xs text-gray-300">
-              <div>VITE_GOOGLE_CLIENT_ID=your_oauth_client_id</div>
-              <div>VITE_GOOGLE_DRIVE_API_KEY=your_api_key</div>
-            </div>
-            <div className="text-red-300 text-sm mt-2">
-              Get these from <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a> and make sure to use the new Google Identity Services compatible credentials.
-            </div>
-          </div>
-        )}
-
-        {/* Success Message for Google Identity Services */}
-        {googleDriveStatus.authenticated && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <div className="text-green-400 font-semibold mb-2">🎉 Google Identity Services Connected!</div>
-            <div className="text-green-300 text-sm">
-              You're now using the modern Google Identity Services API. Upload files by dragging and dropping them below or clicking the upload area.
-            </div>
-          </div>
-        )}
-
         {/* Media Type Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
           {[
-            { key: 'background', label: '🎬 Background Videos', count: mediaFiles.filter(f => f.mediaType === 'background_video').length },
-            { key: 'hero', label: '🖼️ Hero Images', count: mediaFiles.filter(f => f.mediaType === 'hero_image').length },
-            { key: 'gallery', label: '📸 Gallery', count: mediaFiles.filter(f => f.mediaType === 'gallery_image').length },
-            { key: 'banner', label: '📢 Banners', count: mediaFiles.filter(f => f.mediaType === 'banner').length, adminOnly: true }
+            { key: 'background', label: '🎬 Background Videos', count: mediaFiles.filter(f => f.mediaType === 'background_video').length, acceptedTypes: 'Videos only' },
+            { key: 'hero', label: '🖼️ Hero Images', count: mediaFiles.filter(f => f.mediaType === 'hero_image').length, acceptedTypes: 'Images only' },
+            { key: 'gallery', label: '📸 Gallery', count: mediaFiles.filter(f => f.mediaType === 'gallery_image').length, acceptedTypes: 'Images & Videos' },
+            { key: 'banner', label: '📢 Banners', count: mediaFiles.filter(f => f.mediaType === 'banner').length, adminOnly: true, acceptedTypes: 'Images only' }
           ].map(tab => {
             const isDisabled = (tab.adminOnly && profile?.role !== 'admin') || !canUpload;
             
@@ -585,39 +727,62 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
               >
                 <div className="text-sm font-bold">{tab.label}</div>
                 <div className="text-xs font-bold mt-1">{tab.count} items</div>
-                {!canUpload && <div className="text-xs text-red-300 mt-1">Connect Drive</div>}
+                <div className="text-xs mt-1 opacity-75">{tab.acceptedTypes}</div>
               </button>
             );
           })}
         </div>
 
-        {/* Upload Area */}
+        {/* File Type Information */}
+        <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <div className="text-blue-400 text-sm font-semibold mb-1">📋 {getTabLabel()} Requirements:</div>
+          <div className="text-blue-200 text-sm">{getFileTypeHint()}</div>
+        </div>
+
+        {/* Upload Area & Browse Button */}
         {canUpload ? (
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all mb-6 ${
-              isDragActive 
-                ? 'border-yellow-400 bg-yellow-400/10' 
-                : uploading
-                ? 'border-blue-400 bg-blue-400/10 cursor-not-allowed'
-                : 'border-white/30 hover:border-white/50 hover:bg-white/5'
-            }`}
-          >
-            <input {...getInputProps()} disabled={uploading} />
-            <div className="text-6xl mb-4">
-              {uploading ? '⏳' : isDragActive ? '📂' : '📁'}
+          <div className="mb-6">
+            {/* Upload Area */}
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all mb-4 ${
+                isDragActive 
+                  ? 'border-yellow-400 bg-yellow-400/10' 
+                  : uploading
+                  ? 'border-blue-400 bg-blue-400/10 cursor-not-allowed'
+                  : 'border-white/30 hover:border-white/50 hover:bg-white/5'
+              }`}
+            >
+              <input {...getInputProps()} disabled={uploading} />
+              <div className="text-6xl mb-4">
+                {uploading ? '⏳' : isDragActive ? '📂' : '📁'}
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {uploading ? 'Uploading to Google Drive...' : 
+                 isDragActive ? 'Drop files here' : 
+                 `Upload New ${getTabLabel()}`}
+              </h3>
+              <p className="text-gray-400 mb-4">
+                {uploading ? 'Please wait while files are uploaded...' : 
+                 `Drag & drop files here or click to browse • Max 100MB per file`}
+              </p>
+              <div className="mt-4 text-xs text-green-400">
+                ✅ Files will be made public and ready for your homepage
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              {uploading ? 'Uploading to Google Drive...' : 
-               isDragActive ? 'Drop files here' : 
-               `Upload ${getTabLabel()}`}
-            </h3>
-            <p className="text-gray-400 mb-4">
-              {uploading ? 'Please wait while files are uploaded...' : 
-               `Drag & drop files here or click to browse • Max 100MB per file`}
-            </p>
-            <div className="mt-4 text-xs text-green-400">
-              ✅ Connected via Google Identity Services - Files will sync across devices
+
+            {/* Browse Google Drive Button */}
+            <div className="text-center">
+              <button
+                onClick={() => setShowFileBrowser(true)}
+                disabled={uploading}
+                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                📂 Browse Existing Google Drive Files
+              </button>
+              <p className="text-sm text-gray-400 mt-2">
+                Select files you've already uploaded to Google Drive
+              </p>
             </div>
           </div>
         ) : (
@@ -627,12 +792,12 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             <p className="text-gray-400 mb-4">
               {googleDriveStatus.error 
                 ? 'Please fix the connection error above'
-                : 'Connect to Google Drive using Google Identity Services to upload and manage your media files'}
+                : 'Connect to Google Drive to upload and manage your media files'}
             </p>
           </div>
         )}
 
-        {/* Current Media Grid - Same as before */}
+        {/* Current Media Grid */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white">
@@ -643,7 +808,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             </div>
           </div>
           
-          {/* Media Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {getCurrentTabMedia().map(file => (
               <div
@@ -652,7 +816,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                   file.isActive ? 'border-yellow-400 shadow-lg shadow-yellow-400/20' : 'border-white/20 hover:border-white/40'
                 }`}
               >
-                {/* Media Preview */}
                 <div className="aspect-video bg-black/20 relative group">
                   {file.type === 'image' ? (
                     <img
@@ -660,8 +823,9 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                       alt={file.title || file.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        console.log('Image failed to load:', file.name);
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                        console.log('Image failed to load:', file.name, 'URL:', file.url);
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://via.placeholder.com/400x300/444444/ffffff?text=Image+Error';
                       }}
                     />
                   ) : (
@@ -672,7 +836,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                       loop
                       onMouseEnter={(e) => e.currentTarget.play()}
                       onMouseLeave={(e) => e.currentTarget.pause()}
-                      onError={() => console.log('Video failed to load:', file.name)}
+                      onError={() => console.log('Video failed to load:', file.name, 'URL:', file.url)}
                     />
                   )}
                   
@@ -693,13 +857,12 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* File Info */}
                 <div className="p-4">
                   <h4 className="text-white font-bold mb-1 truncate">
                     {file.title || file.name}
                   </h4>
                   <p className="text-gray-400 text-sm mb-2">
-                    📁 Google Drive (Identity Services)
+                    📁 Google Drive (Public)
                   </p>
                   <div className="text-xs text-gray-500 mb-3">
                     By {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString()}
@@ -731,14 +894,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             ))}
           </div>
 
-          {/* No Media Message */}
           {getCurrentTabMedia().length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <div className="text-6xl mb-4">📁</div>
               <h3 className="text-xl font-bold text-white mb-2">No {getTabLabel()} Yet</h3>
               <p className="mb-4">
                 {canUpload 
-                  ? `Upload your first ${activeTab === 'background' ? 'video' : 'image or video'} using the area above`
+                  ? `Upload your first files using the area above or browse existing Google Drive files`
                   : 'Connect to Google Drive first, then upload media'}
               </p>
             </div>
@@ -760,6 +922,14 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Google Drive File Browser Modal */}
+      <GoogleDriveFileBrowser
+        isOpen={showFileBrowser}
+        onClose={() => setShowFileBrowser(false)}
+        onSelectFiles={handleFilesFromDrive}
+        mediaType={getMediaTypeForTab()}
+      />
     </RoleProtectedWrapper>
   );
 };
