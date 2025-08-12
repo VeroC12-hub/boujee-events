@@ -1,4 +1,4 @@
-// src/services/googleDriveService.ts - FIXED VERSION WITH PUBLIC URLS & FILE BROWSER
+// src/services/googleDriveService.ts - FIXED VERSION WITH PROPER URLS
 export interface DriveFile {
   id: string;
   name: string;
@@ -10,7 +10,8 @@ export interface DriveFile {
   webContentLink?: string;
   thumbnailLink?: string;
   parents?: string[];
-  publicUrl?: string; // NEW: Public viewing URL
+  publicUrl?: string;
+  directUrl?: string; // NEW: Direct embedding URL
 }
 
 export interface EventFolder {
@@ -265,7 +266,7 @@ class GoogleDriveService {
     };
   }
 
-  // NEW: Validate file type for specific media categories
+  // FIXED: Validate file type for specific media categories
   private validateFileType(file: File, mediaType: string): { valid: boolean; message?: string } {
     const fileType = file.type.toLowerCase();
     const fileName = file.name.toLowerCase();
@@ -349,16 +350,17 @@ class GoogleDriveService {
         try {
           const uploadedFile = await this.uploadFile(file, folderId, onProgress);
           if (uploadedFile) {
-            // NEW: Make file public and get public URL
+            // FIXED: Make file public and get proper URLs
             await this.makeFilePublic(uploadedFile.id);
             uploadedFile.publicUrl = this.getPublicViewUrl(uploadedFile.id);
+            uploadedFile.directUrl = this.getDirectUrl(uploadedFile.id, file.type);
             
             uploadedFiles.push(uploadedFile);
             console.log(`✅ Successfully uploaded: ${uploadedFile.name}`);
           }
         } catch (error) {
           console.error(`❌ Failed to upload ${file.name}:`, error);
-          throw error; // Stop on first error to give user feedback
+          throw error;
         }
       }
       
@@ -371,7 +373,7 @@ class GoogleDriveService {
     }
   }
 
-  // NEW: Make a file publicly viewable
+  // FIXED: Make a file publicly viewable
   private async makeFilePublic(fileId: string): Promise<void> {
     try {
       await window.gapi.client.drive.permissions.create({
@@ -384,46 +386,79 @@ class GoogleDriveService {
       console.log(`🌐 Made file public: ${fileId}`);
     } catch (error) {
       console.warn(`⚠️ Could not make file public: ${fileId}`, error);
-      // Don't throw error - file upload was successful, just not public
     }
   }
 
-  // NEW: Get public viewing URL for a file
+  // FIXED: Get public viewing URL for a file
   private getPublicViewUrl(fileId: string): string {
-    return `https://drive.google.com/uc?id=${fileId}&export=view`;
+    return `https://drive.google.com/file/d/${fileId}/view`;
   }
 
-  // NEW: Browse files in Google Drive folder
+  // NEW: Get direct URL for embedding (images only - videos need special handling)
+  private getDirectUrl(fileId: string, mimeType: string): string {
+    // For images, use direct Google Drive URL that works in img tags
+    if (mimeType.startsWith('image/')) {
+      return `https://drive.google.com/uc?id=${fileId}`;
+    }
+    
+    // For videos, Google Drive doesn't support direct streaming
+    // We'll need to handle this differently in the components
+    return `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+
+  // FIXED: Browse files in ALL Google Drive locations
   async browseFiles(folderId?: string): Promise<DriveFile[]> {
     try {
       if (!await this.isUserAuthenticated()) {
         throw new Error('Authentication required to browse files');
       }
 
-      // If no folder specified, browse homepage media folders
-      if (!folderId) {
-        folderId = await this.getOrCreateMainFolder();
+      let query = 'trashed=false';
+      
+      if (folderId) {
+        // Browse specific folder
+        query = `'${folderId}' in parents and trashed=false`;
+        console.log('📂 Browsing specific Google Drive folder:', folderId);
+      } else {
+        // Browse ALL folders including manually uploaded files
+        const folders = await this.getHomepageMediaFolders();
+        const allFolderIds = Object.values(folders);
+        
+        if (allFolderIds.length > 0) {
+          // Search in homepage folders AND root folder for manually uploaded files
+          query = `(${allFolderIds.map(id => `'${id}' in parents`).join(' or ')} or parents in 'root') and trashed=false`;
+        } else {
+          // Fallback to all files if no folders exist
+          query = 'trashed=false';
+        }
+        
+        console.log('📂 Browsing ALL Google Drive files including manual uploads');
       }
 
-      console.log('📂 Browsing Google Drive folder:', folderId);
-
       const response = await window.gapi.client.drive.files.list({
-        q: `'${folderId}' in parents and trashed=false`,
+        q: query,
         fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,thumbnailLink,parents)',
-        orderBy: 'modifiedTime desc'
+        orderBy: 'modifiedTime desc',
+        pageSize: 100 // Increase to get more files
       });
 
       const files = response.result.files || [];
       
-      // Add public URLs for each file
-      const filesWithPublicUrls = files.map((file: any) => ({
-        ...file,
-        publicUrl: this.getPublicViewUrl(file.id),
-        size: file.size || '0'
-      }));
+      // FIXED: Add proper URLs for each file
+      const filesWithUrls = files
+        .filter((file: any) => {
+          // Filter for media files only
+          return file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
+        })
+        .map((file: any) => ({
+          ...file,
+          publicUrl: this.getPublicViewUrl(file.id),
+          directUrl: this.getDirectUrl(file.id, file.mimeType),
+          size: file.size || '0'
+        }));
 
-      console.log('📂 Found', filesWithPublicUrls.length, 'files in folder');
-      return filesWithPublicUrls;
+      console.log('📂 Found', filesWithUrls.length, 'media files');
+      return filesWithUrls;
       
     } catch (error) {
       console.error('❌ Error browsing files:', error);
@@ -431,7 +466,7 @@ class GoogleDriveService {
     }
   }
 
-  // NEW: Get homepage media folders for browsing
+  // Get homepage media folders for browsing
   async getHomepageMediaFolders(): Promise<{ [key: string]: string }> {
     try {
       const mainFolderId = await this.getOrCreateMainFolder();
@@ -618,7 +653,7 @@ class GoogleDriveService {
     }
   }
 
-  // Additional methods (createEventFolder, listFiles) remain the same...
+  // Additional methods for event management...
   async createEventFolder(eventName: string, eventId: string): Promise<EventFolder | null> {
     try {
       if (!await this.isUserAuthenticated()) {
