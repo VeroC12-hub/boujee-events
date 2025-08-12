@@ -342,7 +342,7 @@ class GoogleDriveService {
       }
 
       if (import.meta.env.MODE === 'development') {
-        // Mock upload for development
+        // Mock upload for development - but make it more realistic
         const mockFile: DriveFile = {
           id: `mock_file_${Date.now()}`,
           name: file.name,
@@ -351,6 +351,7 @@ class GoogleDriveService {
           createdTime: new Date().toISOString(),
           modifiedTime: new Date().toISOString(),
           webViewLink: `https://drive.google.com/file/d/mock_${file.name}`,
+          webContentLink: URL.createObjectURL(file), // CREATE REAL URL FOR PREVIEW
           parents: [parentFolderId]
         };
 
@@ -369,11 +370,85 @@ class GoogleDriveService {
         return mockFile;
       }
 
-      // Real upload implementation would go here
-      return null;
+      // REAL GOOGLE DRIVE UPLOAD IMPLEMENTATION
+      const metadata = {
+        name: file.name,
+        parents: [parentFolderId]
+      };
+
+      const formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', file);
+
+      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      return {
+        id: result.id,
+        name: result.name,
+        mimeType: file.type,
+        size: file.size.toString(),
+        createdTime: new Date().toISOString(),
+        modifiedTime: new Date().toISOString(),
+        webViewLink: `https://drive.google.com/file/d/${result.id}/view`,
+        webContentLink: `https://drive.google.com/uc?id=${result.id}`,
+        parents: [parentFolderId]
+      };
     } catch (error) {
       console.error('Error uploading file:', error);
       return null;
+    }
+  }
+
+  // NEW FUNCTION: Upload homepage media to organized Google Drive folders
+  async uploadHomepageMedia(
+    files: FileList,
+    mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner',
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<DriveFile[]> {
+    try {
+      console.log('📤 Uploading homepage media to Google Drive:', files.length, 'files');
+      
+      // Get or create homepage folders
+      const mainFolderId = await this.getOrCreateMainFolder();
+      const homepageFolderId = await this.findFolderByName('Homepage Media', mainFolderId) || 
+                              await this.createFolder('Homepage Media', mainFolderId);
+      
+      const targetFolderName = {
+        'background_video': 'Background Videos',
+        'hero_image': 'Hero Images', 
+        'gallery_image': 'Gallery Images',
+        'banner': 'Banners'
+      }[mediaType];
+      
+      const targetFolderId = await this.findFolderByName(targetFolderName, homepageFolderId?.id) ||
+                            await this.createFolder(targetFolderName, homepageFolderId?.id);
+
+      const uploadedFiles: DriveFile[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const uploadedFile = await this.uploadFile(file, targetFolderId?.id, onProgress);
+        if (uploadedFile) {
+          uploadedFiles.push(uploadedFile);
+        }
+      }
+      
+      console.log('✅ Homepage media uploaded successfully:', uploadedFiles.length, 'files');
+      return uploadedFiles;
+    } catch (error) {
+      console.error('❌ Homepage media upload failed:', error);
+      return [];
     }
   }
 
