@@ -1,7 +1,7 @@
 // src/pages/HomePage.tsx - COMPLETE MOBILE RESPONSIVE HOMEPAGE
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PublicNavbar } from '../components/PublicNavbar';
+import { PublicNavbar } from '../components/navigation/PublicNavbar';
 import { supabase } from '../lib/supabase';
 
 interface HomepageMedia {
