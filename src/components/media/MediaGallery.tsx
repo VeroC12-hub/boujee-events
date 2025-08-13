@@ -1,7 +1,105 @@
 // src/components/media/MediaGallery.tsx
 import React, { useState } from 'react';
-import { Play, Download, ExternalLink, Trash2, Eye } from 'lucide-react';
+import { Play, Download, ExternalLink, Trash2, Eye, AlertCircle, RefreshCw } from 'lucide-react';
 import type { MediaFile } from '../../services/mediaService';
+
+interface MediaGalleryProps {
+  mediaFiles: MediaFile[];
+  onDelete?: (fileId: string) => void;
+  onPreview?: (file: MediaFile) => void;
+  showActions?: boolean;
+  className?: string;
+  gridCols?: 2 | 3 | 4 | 6;
+}
+
+// 🔥 NEW: Enhanced Media Image Component with Error Handling
+const EnhancedMediaImage: React.FC<{
+  file: MediaFile;
+  className?: string;
+  onError?: () => void;
+}> = ({ file, className = '', onError }) => {
+  const [imageState, setImageState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+  
+  // Multiple URL fallback strategies for Google Drive files
+  const getImageUrls = (file: MediaFile): string[] => {
+    const urls: string[] = [];
+    
+    if (file.thumbnail_url) {
+      urls.push(file.thumbnail_url);
+    }
+    
+    if (file.google_drive_file_id) {
+      // Try different Google Drive URL formats
+      urls.push(`https://drive.google.com/thumbnail?id=${file.google_drive_file_id}&sz=s400`);
+      urls.push(`https://drive.google.com/uc?export=view&id=${file.google_drive_file_id}`);
+      urls.push(`https://lh3.googleusercontent.com/d/${file.google_drive_file_id}`);
+    }
+    
+    if (file.download_url && !urls.includes(file.download_url)) {
+      urls.push(file.download_url);
+    }
+    
+    // Always include fallback
+    urls.push('/placeholder-image.png');
+    
+    return urls;
+  };
+
+  const imageUrls = getImageUrls(file);
+  const currentUrl = imageUrls[currentUrlIndex] || '/placeholder-image.png';
+
+  const handleImageError = () => {
+    if (currentUrlIndex < imageUrls.length - 1) {
+      setCurrentUrlIndex(prev => prev + 1);
+      setImageState('loading');
+    } else {
+      setImageState('error');
+      onError?.();
+    }
+  };
+
+  const handleRetry = () => {
+    setCurrentUrlIndex(0);
+    setImageState('loading');
+  };
+
+  if (imageState === 'error' && currentUrlIndex >= imageUrls.length - 1) {
+    return (
+      <div className={`bg-gray-200 dark:bg-gray-700 flex flex-col items-center justify-center ${className}`}>
+        <AlertCircle className="w-8 h-8 text-gray-400 mb-2" />
+        <p className="text-xs text-gray-500 text-center mb-2">Failed to load image</p>
+        <button
+          onClick={handleRetry}
+          className="text-xs text-blue-500 hover:text-blue-600 flex items-center"
+          title="Retry loading image"
+        >
+          <RefreshCw className="w-3 h-3 mr-1" />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative ${className}`}>
+      {imageState === 'loading' && (
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+      <img
+        src={currentUrl}
+        alt={file.name}
+        className={`w-full h-full object-cover transition-opacity ${
+          imageState === 'loading' ? 'opacity-0' : 'opacity-100'
+        }`}
+        onLoad={() => setImageState('loaded')}
+        onError={handleImageError}
+      />
+    </div>
+  );
+};
 
 interface MediaGalleryProps {
   mediaFiles: MediaFile[];
@@ -87,14 +185,10 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
             {/* Media Preview */}
             <div className="aspect-square relative bg-gray-100 dark:bg-gray-700">
               {file.file_type === 'image' ? (
-                <img
-                  src={getThumbnailUrl(file)}
-                  alt={file.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/placeholder-image.png';
-                  }}
+                <EnhancedMediaImage
+                  file={file}
+                  className="w-full h-full"
+                  onError={() => console.warn(`Failed to load image: ${file.name}`)}
                 />
               ) : file.file_type === 'video' ? (
                 <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
@@ -190,10 +284,10 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
             
             <div className="p-4">
               {selectedFile.file_type === 'image' ? (
-                <img
-                  src={selectedFile.web_view_link || getThumbnailUrl(selectedFile)}
-                  alt={selectedFile.name}
+                <EnhancedMediaImage
+                  file={selectedFile}
                   className="max-w-full max-h-96 mx-auto"
+                  onError={() => console.warn(`Failed to load preview image: ${selectedFile.name}`)}
                 />
               ) : selectedFile.file_type === 'video' ? (
                 <video

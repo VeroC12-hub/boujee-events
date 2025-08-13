@@ -62,10 +62,22 @@ export async function fixExistingMediaFiles(): Promise<FixResults> {
       // Process batch with delay to respect rate limits
       await Promise.all(batch.map(async (file) => {
         try {
-          await googleDriveService.makeFilePublic(file.id);
-          results.successCount++;
-          results.successFiles.push(file.id);
-          console.log(`✅ Made public: ${file.name}`);
+          console.log(`🔄 Processing file: ${file.name} (${file.id})`);
+          const success = await googleDriveService.makeFilePublic(file.id);
+          
+          if (success) {
+            results.successCount++;
+            results.successFiles.push(file.id);
+            console.log(`✅ Made public and verified: ${file.name}`);
+          } else {
+            results.failedCount++;
+            results.failedFiles.push({
+              id: file.id,
+              name: file.name,
+              error: 'Failed to make public or verify accessibility'
+            });
+            console.error(`❌ Failed to make public or verify: ${file.name}`);
+          }
         } catch (error: any) {
           results.failedCount++;
           results.failedFiles.push({
@@ -169,8 +181,8 @@ export async function testFileUrl(fileId: string): Promise<boolean> {
   try {
     console.log(`🧪 Testing URL: ${publicUrl}`);
     
-    const response = await fetch(publicUrl, { method: 'HEAD' });
-    const isWorking = response.ok;
+    // Use the same verification method as the main service
+    const isWorking = await testImageLoadability(publicUrl);
     
     console.log(isWorking ? '✅ URL is working' : '❌ URL is not accessible');
     return isWorking;
@@ -180,13 +192,64 @@ export async function testFileUrl(fileId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Test if an image URL is loadable
+ */
+function testImageLoadability(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timeout = setTimeout(() => {
+      resolve(false);
+    }, 10000); // 10 second timeout for testing
+
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+
+    img.onerror = () => {
+      clearTimeout(timeout);
+      resolve(false);
+    };
+
+    img.src = url;
+  });
+}
+
+/**
+ * Test multiple file IDs and report results
+ */
+export async function testMultipleFiles(fileIds: string[]): Promise<{working: string[], broken: string[]}> {
+  console.log(`🧪 Testing ${fileIds.length} files...`);
+  
+  const working: string[] = [];
+  const broken: string[] = [];
+  
+  for (const fileId of fileIds) {
+    const isWorking = await testFileUrl(fileId);
+    if (isWorking) {
+      working.push(fileId);
+    } else {
+      broken.push(fileId);
+    }
+    
+    // Small delay between tests
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  console.log(`✅ ${working.length} files working, ❌ ${broken.length} files broken`);
+  return { working, broken };
+}
+
 // Export for use in browser console or admin tools
 if (typeof window !== 'undefined') {
   (window as any).fixExistingMediaFiles = fixExistingMediaFiles;
   (window as any).fixFilesInFolder = fixFilesInFolder;
   (window as any).testFileUrl = testFileUrl;
+  (window as any).testMultipleFiles = testMultipleFiles;
   console.log('🛠️ File fix utilities loaded. Available functions:');
   console.log('   - fixExistingMediaFiles()');
   console.log('   - fixFilesInFolder(folderId, folderName)');
   console.log('   - testFileUrl(fileId)');
+  console.log('   - testMultipleFiles([fileId1, fileId2, ...])');
 }

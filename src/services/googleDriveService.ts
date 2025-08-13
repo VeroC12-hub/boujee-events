@@ -362,8 +362,26 @@ class GoogleDriveService {
       });
 
       if (response.status === 200) {
-        console.log(`✅ File ${fileId} is now publicly accessible`);
-        return true;
+        console.log(`✅ Permission created for file ${fileId}, verifying accessibility...`);
+        
+        // 🔥 CRITICAL FIX: Verify the file is actually accessible
+        const isAccessible = await this.verifyFileIsPublic(fileId);
+        if (isAccessible) {
+          console.log(`🌐 File ${fileId} is now publicly accessible and verified`);
+          return true;
+        } else {
+          console.warn(`⚠️ File ${fileId} permission created but not publicly accessible yet`);
+          // Try again after a short delay (sometimes Google Drive needs time)
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const isAccessibleRetry = await this.verifyFileIsPublic(fileId);
+          if (isAccessibleRetry) {
+            console.log(`🌐 File ${fileId} is now publicly accessible after retry`);
+            return true;
+          } else {
+            console.error(`❌ File ${fileId} is still not publicly accessible after retry`);
+            return false;
+          }
+        }
       } else {
         console.error(`❌ Failed to make file public: ${response.status}`);
         return false;
@@ -372,6 +390,48 @@ class GoogleDriveService {
       console.error('❌ Error making file public:', error);
       throw new Error(`Failed to make file public: ${error.message}`);
     }
+  }
+
+  // 🔥 NEW: Verify if a file is actually publicly accessible
+  async verifyFileIsPublic(fileId: string): Promise<boolean> {
+    try {
+      const testUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      
+      // Test accessibility with a HEAD request
+      const response = await fetch(testUrl, { 
+        method: 'HEAD',
+        mode: 'no-cors' // Use no-cors to avoid CORS issues when testing
+      });
+      
+      // For no-cors mode, we can't check the actual status, but the fetch won't fail for 404/403
+      // So we use a different approach - try to load the actual URL
+      return await this.testFileUrlAccessibility(testUrl);
+    } catch (error) {
+      console.warn(`⚠️ Could not verify file ${fileId} accessibility:`, error);
+      return false;
+    }
+  }
+
+  // 🔥 NEW: Test file URL accessibility by creating a temporary image element
+  private async testFileUrlAccessibility(url: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const timeout = setTimeout(() => {
+        resolve(false);
+      }, 5000); // 5 second timeout
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(true);
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeout);
+        resolve(false);
+      };
+
+      img.src = url;
+    });
   }
 
   // 🔥 CRITICAL FIX: Enhanced upload with automatic public access
@@ -436,14 +496,33 @@ class GoogleDriveService {
               const result = JSON.parse(xhr.responseText);
               console.log(`✅ Upload completed: ${result.name} (ID: ${result.id})`);
               
-              // 🔥 CRITICAL FIX: Make the file public automatically
+              // 🔥 CRITICAL FIX: Make the file public automatically with retry logic
+              let isPublic = false;
               if (makePublic) {
-                try {
-                  await this.makeFilePublic(result.id);
-                  console.log(`🌐 File ${result.id} is now publicly accessible`);
-                } catch (publicError) {
-                  console.warn(`⚠️ Upload succeeded but failed to make file public:`, publicError);
-                  // Don't reject the upload, just warn
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (!isPublic && retryCount < maxRetries) {
+                  try {
+                    isPublic = await this.makeFilePublic(result.id);
+                    if (isPublic) {
+                      console.log(`🌐 File ${result.id} is now publicly accessible`);
+                    } else if (retryCount < maxRetries - 1) {
+                      console.warn(`⚠️ Failed to make file public, retrying... (${retryCount + 1}/${maxRetries})`);
+                      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+                    }
+                  } catch (publicError) {
+                    console.warn(`⚠️ Upload succeeded but failed to make file public (attempt ${retryCount + 1}):`, publicError);
+                    if (retryCount < maxRetries - 1) {
+                      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Wait before retry
+                    }
+                  }
+                  retryCount++;
+                }
+                
+                if (!isPublic) {
+                  console.error(`❌ Failed to make file ${result.id} public after ${maxRetries} attempts`);
+                  // Don't reject the upload, but log the error for later fixing
                 }
               }
 
