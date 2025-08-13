@@ -1,4 +1,4 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - YOUR CODE ENHANCED
+// src/components/admin/ProtectedHomepageMediaManager.tsx - ENHANCED WITH REAL-TIME SYNC
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../../lib/supabase';
@@ -16,7 +16,7 @@ interface MediaFile {
   displayOrder: number;
   uploadedBy?: string;
   createdAt: string;
-  google_drive_file_id?: string; // ADDED: For better URL handling
+  google_drive_file_id?: string;
 }
 
 interface DriveFile {
@@ -36,7 +36,7 @@ interface GoogleDriveModalProps {
   selectedCategory: string;
 }
 
-// ENHANCED: Your Google Drive File Browser Modal (ALL FEATURES PRESERVED)
+// PRESERVED: Your Google Drive File Browser Modal
 const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   isOpen,
   onClose,
@@ -55,7 +55,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadFiles();
-      setSelectedFiles(new Set()); // Clear selection when modal opens
+      setSelectedFiles(new Set());
     }
   }, [isOpen, currentFolder]);
 
@@ -63,9 +63,8 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      console.log(`📁 Loading files from folder: ${currentFolder}`);
+      console.log(`🔍 Loading files from folder: ${currentFolder}`);
       
-      // Ensure user is authenticated
       const isAuth = await googleDriveService.isUserAuthenticated();
       if (!isAuth) {
         console.log('🔐 User not authenticated, starting authentication...');
@@ -75,11 +74,9 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
         }
       }
 
-      // Load files from Google Drive
       const driveFiles = await googleDriveService.listFiles(currentFolder);
       console.log(`📂 Loaded ${driveFiles.length} files from Google Drive`);
 
-      // Filter for media files and folders
       const filteredFiles = driveFiles.filter((file: DriveFile) => {
         const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
         const isMedia = file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
@@ -89,7 +86,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
       setFiles(filteredFiles);
       console.log(`✅ Showing ${filteredFiles.length} files and folders`);
     } catch (error: any) {
-      console.error('❌ Failed to load Google Drive files:', error);
+      console.error('⚠️ Failed to load Google Drive files:', error);
       setError(error.message || 'Failed to load files from Google Drive');
     } finally {
       setLoading(false);
@@ -102,12 +99,10 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
     if (folderId === 'root') {
       setFolderPath([{ id: 'root', name: 'My Drive' }]);
     } else {
-      // Add to path if not already there
       const existingIndex = folderPath.findIndex(item => item.id === folderId);
       if (existingIndex === -1) {
         setFolderPath([...folderPath, { id: folderId, name: folderName }]);
       } else {
-        // Truncate path to this folder
         setFolderPath(folderPath.slice(0, existingIndex + 1));
       }
     }
@@ -138,15 +133,12 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
     const allSelected = mediaFiles.every(file => selectedFiles.has(file.id));
     
     if (allSelected) {
-      // Deselect all
       setSelectedFiles(new Set());
     } else {
-      // Select all visible media files
       setSelectedFiles(new Set(mediaFiles.map(file => file.id)));
     }
   };
 
-  // PRESERVED: Your Add Selected Files Function
   const handleAddSelected = () => {
     const selectedFileObjects = files.filter(file => selectedFiles.has(file.id));
     console.log(`📎 Adding ${selectedFileObjects.length} selected files to ${selectedCategory}`);
@@ -157,7 +149,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
     }
 
     onFilesSelected(selectedFileObjects);
-    setSelectedFiles(new Set()); // Clear selection
+    setSelectedFiles(new Set());
     onClose();
   };
 
@@ -187,12 +179,12 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-white/10">
-        {/* Header - PRESERVED */}
+        {/* Header */}
         <div className="p-4 md:p-6 border-b border-white/10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-                📁 Google Drive Files
+                🔍 Google Drive Files
                 {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-400"></div>}
               </h3>
               <p className="text-gray-400 mt-1 text-sm md:text-base">
@@ -207,7 +199,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
             </button>
           </div>
 
-          {/* Breadcrumb Navigation - PRESERVED */}
+          {/* Breadcrumb Navigation */}
           <div className="mt-4 flex items-center gap-2 text-sm overflow-x-auto">
             {folderPath.map((item, index) => (
               <React.Fragment key={item.id}>
@@ -224,7 +216,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
             ))}
           </div>
 
-          {/* Selection Controls - PRESERVED */}
+          {/* Selection Controls */}
           <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div className="flex gap-2">
               <button
@@ -233,7 +225,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                 disabled={mediaFiles.length === 0}
               >
                 {mediaFiles.length > 0 && mediaFiles.every(file => selectedFiles.has(file.id))
-                  ? '❌ Deselect All'
+                  ? '⚪ Deselect All'
                   : '✅ Select All'
                 }
               </button>
@@ -246,7 +238,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
               </button>
             </div>
 
-            {/* PRESERVED: Add Selected Button - Always Visible When Files Selected */}
             {selectedFiles.size > 0 && (
               <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 flex items-center gap-3">
                 <span className="text-yellow-400 font-medium text-sm">
@@ -263,7 +254,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
           </div>
         </div>
 
-        {/* Content - PRESERVED */}
+        {/* Content */}
         <div className="p-4 md:p-6 overflow-y-auto max-h-[60vh]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -274,7 +265,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
             </div>
           ) : error ? (
             <div className="text-center py-8">
-              <div className="text-red-400 text-lg mb-4">❌ {error}</div>
+              <div className="text-red-400 text-lg mb-4">⚠️ {error}</div>
               <button
                 onClick={loadFiles}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -310,7 +301,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                       }
                     }}
                   >
-                    {/* Selection Indicator - PRESERVED */}
                     {isMediaFile && (
                       <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                         isSelected
@@ -321,7 +311,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                       </div>
                     )}
 
-                    {/* Media Preview - PRESERVED */}
                     <div className="aspect-video bg-black/20 relative">
                       {isFolder ? (
                         <div className="w-full h-full flex items-center justify-center">
@@ -349,7 +338,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                         </div>
                       )}
 
-                      {/* Hover overlay - PRESERVED */}
                       {isFolder && (
                         <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="text-white font-medium">Open Folder</span>
@@ -357,7 +345,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                       )}
                     </div>
 
-                    {/* File Info - PRESERVED */}
                     <div className="p-3">
                       <div className="flex items-start gap-2">
                         <span className="text-lg">{getFileIcon(file.mimeType)}</span>
@@ -383,7 +370,6 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
           )}
         </div>
 
-        {/* Footer - PRESERVED */}
         {selectedFiles.size > 0 && (
           <div className="border-t border-white/10 p-4 bg-gray-800/50">
             <div className="flex items-center justify-between">
@@ -404,7 +390,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   );
 };
 
-// ENHANCED: Your Main Component (ALL FEATURES PRESERVED + DATABASE FIXES)
+// ENHANCED: Main Component with Real-time Homepage Sync
 export const ProtectedHomepageMediaManager: React.FC = () => {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -416,7 +402,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   const [driveConnected, setDriveConnected] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
 
-  // PRESERVED: Your Media category tabs configuration
   const tabs = [
     { 
       id: 'background_video', 
@@ -440,7 +425,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       desc: 'Image & video gallery',
       icon: '📸',
       acceptedTypes: ['image/*', 'video/*'],
-      maxFiles: 999 // Unlimited
+      maxFiles: 999
     },
     { 
       id: 'banner', 
@@ -452,14 +437,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   ];
 
-  // PRESERVED: Your initialization effect
   useEffect(() => {
     loadMediaFiles();
     loadUserProfile();
     checkDriveConnection();
   }, []);
 
-  // ADDED: Real-time sync for instant homepage updates
+  // Real-time sync
   useEffect(() => {
     if (!supabase) return;
 
@@ -475,9 +459,8 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         }, 
         (payload) => {
           console.log('🔄 Real-time update received:', payload);
-          loadMediaFiles(); // Instant refresh on changes
+          loadMediaFiles();
           
-          // Show notification for real-time updates
           if (payload.eventType !== 'SELECT') {
             setSuccessMessage('✅ Media updated in real-time!');
           }
@@ -491,7 +474,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     };
   }, []);
 
-  // PRESERVED: Your success message timer
   useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => setSuccessMessage(null), 5000);
@@ -499,7 +481,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   }, [successMessage]);
 
-  // PRESERVED: Your load user profile function
   const loadUserProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -518,7 +499,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // PRESERVED: Your check drive connection function
   const checkDriveConnection = async () => {
     try {
       const initialized = await googleDriveService.initialize();
@@ -533,7 +513,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // CRITICAL FIX: Enhanced load media files with proper URL construction
+  // CRITICAL FIX: Enhanced load media files with homepage sync
   const loadMediaFiles = async () => {
     try {
       console.log('📡 Loading media files from database...');
@@ -566,7 +546,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       if (error) throw error;
 
-      // CRITICAL: Process data with proper URL construction for homepage display
       const formattedFiles: MediaFile[] = (data || []).map(item => {
         const mediaFile = Array.isArray(item.media_file) ? item.media_file[0] : item.media_file;
         
@@ -575,11 +554,10 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           return null;
         }
 
-        // ENHANCED: Construct proper display URL for Google Drive files
+        // Enhanced URL construction for Google Drive files
         let displayUrl = mediaFile.download_url;
         if (!displayUrl && mediaFile.google_drive_file_id) {
-          // Construct Google Drive direct URL if missing
-          displayUrl = mediaFile.mime_type.startsWith('image/') 
+          displayUrl = mediaFile.mime_type?.startsWith('image/') 
             ? `https://drive.google.com/uc?export=view&id=${mediaFile.google_drive_file_id}`
             : `https://drive.google.com/uc?export=download&id=${mediaFile.google_drive_file_id}`;
         }
@@ -603,29 +581,40 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       setMediaFiles(formattedFiles);
       console.log(`✅ Loaded ${formattedFiles.length} media files from database`);
       
-      // CRITICAL: Update localStorage for homepage compatibility (temporary bridge)
+      // CRITICAL: Update localStorage AND trigger homepage update
       const allMediaForHomepage = formattedFiles.map(file => ({
         id: file.id,
         name: file.name,
         url: file.url,
+        directUrl: file.url, // Add directUrl for homepage compatibility
         type: file.type,
         mediaType: file.mediaType,
         isActive: file.isActive,
         size: file.size,
+        title: file.name,
+        description: `Uploaded ${new Date(file.createdAt).toLocaleDateString()}`,
         uploadedBy: file.uploadedBy,
         uploadedAt: file.createdAt
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(allMediaForHomepage));
-      console.log('🔄 Updated localStorage for homepage compatibility');
+      console.log('💾 Updated localStorage for homepage compatibility');
+
+      // CRITICAL FIX: Trigger custom event to notify homepage
+      window.dispatchEvent(new CustomEvent('mediaUpdated', { 
+        detail: { 
+          count: allMediaForHomepage.length,
+          timestamp: new Date().toISOString()
+        } 
+      }));
+      console.log('📢 Dispatched mediaUpdated event for homepage');
 
     } catch (error: any) {
-      console.error('❌ Error loading media files:', error);
+      console.error('⚠️ Error loading media files:', error);
       setUploadError(error.message);
     }
   };
 
-  // PRESERVED: Your dropzone configuration
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: async (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
@@ -636,11 +625,10 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       return acc;
     }, {} as Record<string, string[]>) || {},
     multiple: true,
-    maxSize: 100 * 1024 * 1024, // 100MB per file
+    maxSize: 100 * 1024 * 1024,
     disabled: uploading
   });
 
-  // ENHANCED: Your handle file upload with database integration
   const handleFileUpload = async (files: File[]) => {
     setUploading(true);
     setUploadError(null);
@@ -650,7 +638,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     try {
       console.log(`📤 Starting upload of ${files.length} files to ${selectedCategory}...`);
 
-      // PRESERVED: Your Google Drive connection logic
       if (!driveConnected) {
         console.log('🔗 Connecting to Google Drive...');
         const initialized = await googleDriveService.initialize();
@@ -671,7 +658,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       let successCount = 0;
       let failedFiles: string[] = [];
 
-      // PRESERVED: Your file processing loop
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileId = `upload_${i}_${Date.now()}`;
@@ -679,13 +665,11 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         try {
           console.log(`⬆️ Uploading file ${i + 1}/${files.length}: ${file.name}`);
 
-          // PRESERVED: Your progress tracking
           setUploadProgress(prev => ({
             ...prev,
             [fileId]: 0
           }));
 
-          // PRESERVED: Your Google Drive upload with progress
           const driveFile = await googleDriveService.uploadFile(file, 'root', (progress) => {
             setUploadProgress(prev => ({
               ...prev,
@@ -693,26 +677,21 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             }));
           });
 
-          // ENHANCED: Create media file record with proper database integration
           const mediaFileId = await createMediaFileRecord(driveFile, file);
-          
-          // ENHANCED: Create homepage media entry with proper database integration
           await createHomepageMediaEntry(mediaFileId, selectedCategory);
 
           successCount++;
           console.log(`✅ Successfully uploaded: ${file.name}`);
 
-          // PRESERVED: Your progress completion
           setUploadProgress(prev => ({
             ...prev,
             [fileId]: 100
           }));
 
         } catch (error: any) {
-          console.error(`❌ Failed to upload ${file.name}:`, error);
+          console.error(`⚠️ Failed to upload ${file.name}:`, error);
           failedFiles.push(file.name);
           
-          // PRESERVED: Your error tracking
           setUploadProgress(prev => ({
             ...prev,
             [fileId]: -1
@@ -720,27 +699,24 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         }
       }
 
-      // PRESERVED: Your results display logic
       if (successCount > 0) {
         setSuccessMessage(`✅ Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''} to ${selectedCategory.replace('_', ' ')}!`);
-        await loadMediaFiles(); // ENHANCED: Refresh from database
+        await loadMediaFiles(); // This will trigger homepage update
       }
 
       if (failedFiles.length > 0) {
-        setUploadError(`❌ Failed to upload: ${failedFiles.join(', ')}`);
+        setUploadError(`⚠️ Failed to upload: ${failedFiles.join(', ')}`);
       }
 
     } catch (error: any) {
-      console.error('❌ Upload process failed:', error);
+      console.error('⚠️ Upload process failed:', error);
       setUploadError(error.message || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
-      // PRESERVED: Your progress clear timer
       setTimeout(() => setUploadProgress({}), 3000);
     }
   };
 
-  // ENHANCED: Your Google Drive files handling with database integration
   const handleGoogleDriveFiles = async (driveFiles: DriveFile[]) => {
     setUploading(true);
     setUploadError(null);
@@ -754,40 +730,36 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       for (const driveFile of driveFiles) {
         try {
-          // ENHANCED: Create media file record with proper database integration
           const mediaFileId = await createMediaFileRecord(driveFile);
-          
-          // ENHANCED: Create homepage media entry with proper database integration
           await createHomepageMediaEntry(mediaFileId, selectedCategory);
 
           successCount++;
           console.log(`✅ Successfully added: ${driveFile.name}`);
 
         } catch (error: any) {
-          console.error(`❌ Failed to add ${driveFile.name}:`, error);
+          console.error(`⚠️ Failed to add ${driveFile.name}:`, error);
           failedFiles.push(driveFile.name);
         }
       }
 
-      // PRESERVED: Your results display logic
       if (successCount > 0) {
         setSuccessMessage(`✅ Successfully added ${successCount} file${successCount > 1 ? 's' : ''} from Google Drive to ${selectedCategory.replace('_', ' ')}!`);
-        await loadMediaFiles(); // ENHANCED: Refresh from database
+        await loadMediaFiles(); // This will trigger homepage update
       }
 
       if (failedFiles.length > 0) {
-        setUploadError(`❌ Failed to add: ${failedFiles.join(', ')}`);
+        setUploadError(`⚠️ Failed to add: ${failedFiles.join(', ')}`);
       }
 
     } catch (error: any) {
-      console.error('❌ Google Drive import failed:', error);
+      console.error('⚠️ Google Drive import failed:', error);
       setUploadError(error.message || 'Google Drive import failed');
     } finally {
       setUploading(false);
     }
   };
 
-  // ENHANCED: Create media file record with proper URL construction
+  // Enhanced media file record creation
   const createMediaFileRecord = async (driveFile: any, originalFile?: File): Promise<string> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -796,7 +768,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       const fileType = driveFile.mimeType?.startsWith('video/') ? 'video' : 
                       driveFile.mimeType?.startsWith('image/') ? 'image' : 'other';
 
-      // CRITICAL: Construct proper download URL for homepage display
+      // CRITICAL: Enhanced URL construction for homepage display
       const downloadUrl = driveFile.mimeType?.startsWith('image/') 
         ? `https://drive.google.com/uc?export=view&id=${driveFile.id}`
         : `https://drive.google.com/uc?export=download&id=${driveFile.id}`;
@@ -809,7 +781,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           mime_type: driveFile.mimeType,
           file_size: originalFile?.size || parseInt(driveFile.size || '0'),
           google_drive_file_id: driveFile.id,
-          download_url: downloadUrl, // CRITICAL: Use constructed direct URL
+          download_url: downloadUrl,
           thumbnail_url: driveFile.thumbnailLink || null,
           web_view_link: driveFile.webViewLink || '',
           file_type: fileType,
@@ -824,15 +796,13 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       console.log(`💾 Created media file record: ${data.id}`);
       return data.id;
     } catch (error) {
-      console.error('❌ Failed to create media file record:', error);
+      console.error('⚠️ Failed to create media file record:', error);
       throw error;
     }
   };
 
-  // ENHANCED: Create homepage media entry with proper database integration
   const createHomepageMediaEntry = async (mediaFileId: string, mediaType: string): Promise<void> => {
     try {
-      // PRESERVED: Your display order logic
       const { data: maxOrderData } = await supabase
         .from('homepage_media')
         .select('display_order')
@@ -858,12 +828,12 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       console.log(`🏠 Created homepage media entry for ${mediaType}`);
     } catch (error) {
-      console.error('❌ Failed to create homepage media entry:', error);
+      console.error('⚠️ Failed to create homepage media entry:', error);
       throw error;
     }
   };
 
-  // ENHANCED: Your toggle media active with real-time sync
+  // Enhanced toggle with homepage sync
   const toggleMediaActive = async (mediaId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
@@ -874,15 +844,15 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       
       console.log(`🔄 Toggled media ${mediaId} to ${!currentStatus ? 'active' : 'inactive'}`);
-      await loadMediaFiles(); // Refresh from database
+      await loadMediaFiles(); // This will trigger homepage update
       setSuccessMessage(`✅ Media ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
     } catch (error: any) {
-      console.error('❌ Error toggling media status:', error);
+      console.error('⚠️ Error toggling media status:', error);
       setUploadError(error.message);
     }
   };
 
-  // ENHANCED: Your delete media with real-time sync
+  // Enhanced delete with homepage sync
   const deleteMedia = async (mediaId: string, fileName: string) => {
     if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
       return;
@@ -897,20 +867,18 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       
       console.log(`🗑️ Deleted media: ${fileName}`);
-      await loadMediaFiles(); // Refresh from database
+      await loadMediaFiles(); // This will trigger homepage update
       setSuccessMessage(`✅ "${fileName}" deleted successfully!`);
     } catch (error: any) {
-      console.error('❌ Error deleting media:', error);
+      console.error('⚠️ Error deleting media:', error);
       setUploadError(error.message);
     }
   };
 
-  // PRESERVED: Your filtered media function
   const getFilteredMedia = () => {
     return mediaFiles.filter(file => file.mediaType === selectedCategory);
   };
 
-  // PRESERVED: Your Google Drive connection handler
   const handleConnectDrive = async () => {
     try {
       setUploading(true);
@@ -932,21 +900,20 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         throw new Error('Authentication was cancelled or failed');
       }
     } catch (error: any) {
-      console.error('❌ Google Drive connection failed:', error);
+      console.error('⚠️ Google Drive connection failed:', error);
       setUploadError(error.message || 'Failed to connect to Google Drive. Please try again.');
     } finally {
       setUploading(false);
     }
   };
 
-  // PRESERVED: Your helper variables
   const currentTab = tabs.find(tab => tab.id === selectedCategory);
   const currentMedia = getFilteredMedia();
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* PRESERVED: Your Header */}
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2">
             🎬 Homepage Media Manager
@@ -961,11 +928,11 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           )}
         </div>
 
-        {/* PRESERVED: Your Status Messages */}
+        {/* Status Messages */}
         {uploadError && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
             <div className="flex items-start gap-3">
-              <span className="text-red-400 text-xl">❌</span>
+              <span className="text-red-400 text-xl">⚠️</span>
               <div className="text-red-400 text-sm md:text-base">{uploadError}</div>
             </div>
           </div>
@@ -980,7 +947,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           </div>
         )}
 
-        {/* PRESERVED: Your Upload Progress */}
+        {/* Upload Progress */}
         {Object.keys(uploadProgress).length > 0 && (
           <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
             <div className="space-y-2">
@@ -1007,7 +974,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           </div>
         )}
 
-        {/* PRESERVED: Your Category Tabs - MOBILE RESPONSIVE */}
+        {/* Category Tabs */}
         <div className="mb-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
             {tabs.map((tab) => {
@@ -1040,9 +1007,9 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           </div>
         </div>
 
-        {/* PRESERVED: Your Upload Actions - MOBILE RESPONSIVE */}
+        {/* Upload Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-          {/* PRESERVED: Your Direct Upload */}
+          {/* Direct Upload */}
           <div
             {...getRootProps()}
             className={`
@@ -1067,11 +1034,10 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                 : 'Upload images'} for {currentTab?.label.toLowerCase()}
             </p>
             <p className="text-xs lg:text-sm text-gray-500">
-              Click to browse or drag & drop • Max 100MB per file • 
+              Click to browse or drag & drop • Max 100MB per file •
               {currentTab?.maxFiles === 999 ? ' Unlimited files' : ` Max ${currentTab?.maxFiles} files`}
             </p>
             
-            {/* PRESERVED: Your file limit warning */}
             {currentTab && currentMedia.length >= currentTab.maxFiles && currentTab.maxFiles !== 999 && (
               <div className="mt-3 p-2 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 text-xs">
                 ⚠️ Maximum files reached for this category ({currentTab.maxFiles})
@@ -1079,7 +1045,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             )}
           </div>
 
-          {/* PRESERVED: Your Google Drive Import */}
+          {/* Google Drive Import */}
           <div className="border-2 border-dashed border-blue-400/30 rounded-xl p-6 lg:p-8 text-center">
             <div className="text-4xl lg:text-6xl mb-4">☁️</div>
             <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">
@@ -1127,7 +1093,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           </div>
         </div>
 
-        {/* PRESERVED: Your Current Media - MOBILE RESPONSIVE */}
+        {/* Current Media */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg lg:text-xl font-semibold text-white">
@@ -1143,7 +1109,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                     : `${currentMedia.length}/${currentTab?.maxFiles} files used`
                   }
                 </div>
-                {/* ADDED: Refresh button for manual sync */}
                 <button
                   onClick={loadMediaFiles}
                   className="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors"
@@ -1163,7 +1128,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                   ${file.isActive ? 'border-yellow-400 shadow-lg' : 'border-white/20 hover:border-white/40'}
                 `}
               >
-                {/* PRESERVED: Your Media Preview */}
+                {/* Media Preview */}
                 <div className="aspect-video bg-black/20 relative overflow-hidden">
                   {file.type === 'image' ? (
                     <img
@@ -1172,7 +1137,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        // ENHANCED: Try alternative URL construction if primary fails
                         if (file.google_drive_file_id && !target.src.includes('uc?export=view')) {
                           target.src = `https://drive.google.com/uc?export=view&id=${file.google_drive_file_id}`;
                         } else {
@@ -1189,7 +1153,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                     </div>
                   )}
 
-                  {/* PRESERVED: Your Status Badge */}
+                  {/* Status Badge */}
                   <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
                     file.isActive 
                       ? 'bg-green-500 text-white shadow-lg' 
@@ -1198,7 +1162,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                     {file.isActive ? '✅ Active' : '💤 Inactive'}
                   </div>
 
-                  {/* PRESERVED: Your Hover Overlay */}
+                  {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="flex gap-2">
                       <button
@@ -1226,7 +1190,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* PRESERVED: Your File Info */}
+                {/* File Info */}
                 <div className="p-3 lg:p-4">
                   <h4 className="text-white font-medium text-sm lg:text-base truncate mb-1" title={file.name}>
                     {file.name}
@@ -1243,7 +1207,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
                     </span>
                   </p>
 
-                  {/* PRESERVED: Your Action Buttons - MOBILE RESPONSIVE */}
+                  {/* Action Buttons */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => toggleMediaActive(file.id, file.isActive)}
@@ -1269,7 +1233,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             ))}
           </div>
 
-          {/* PRESERVED: Your Empty State */}
+          {/* Empty State */}
           {currentMedia.length === 0 && (
             <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-xl">
               <div className="text-4xl lg:text-6xl mb-4">{currentTab?.icon}</div>
@@ -1299,20 +1263,20 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           )}
         </div>
 
-        {/* PRESERVED: Your Upload Progress Indicator */}
+        {/* Upload Progress Indicator */}
         {uploading && (
           <div className="fixed bottom-4 right-4 bg-gray-800 border border-white/20 rounded-lg p-4 shadow-xl z-40">
             <div className="flex items-center gap-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
               <div className="text-white text-sm">
                 <div className="font-medium">Processing files...</div>
-                <div className="text-gray-400 text-xs">Database sync in progress</div>
+                <div className="text-gray-400 text-xs">Homepage will update automatically</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* PRESERVED: Your Google Drive Modal */}
+        {/* Google Drive Modal */}
         <GoogleDriveModal
           isOpen={driveModalOpen}
           onClose={() => setDriveModalOpen(false)}
@@ -1320,23 +1284,32 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           selectedCategory={selectedCategory}
         />
 
-        {/* ADDED: Development Debug Panel */}
+        {/* Enhanced Debug Panel */}
         {process.env.NODE_ENV === 'development' && (
-          <div className="fixed bottom-4 left-4 bg-black/80 text-white p-3 rounded-lg text-xs max-w-xs">
+          <div className="fixed bottom-4 left-4 bg-black/90 text-white p-3 rounded-lg text-xs max-w-xs z-50">
             <div className="font-bold mb-2">🛠️ Debug Info</div>
             <div>Total Files: {mediaFiles.length}</div>
             <div>Current Category: {selectedCategory}</div>
             <div>Filtered: {currentMedia.length}</div>
-            <div>Drive Connected: {driveConnected ? '✅' : '❌'}</div>
-            <div>Database: {supabase ? '✅' : '❌'}</div>
+            <div>Drive Connected: {driveConnected ? '✅' : '⚠️'}</div>
+            <div>Database: {supabase ? '✅' : '⚠️'}</div>
+            <div>LocalStorage: {localStorage.getItem('boujee_all_media') ? '✅' : '⚠️'}</div>
             <button
               onClick={() => {
-                console.log('Current media files:', mediaFiles);
-                console.log('LocalStorage:', localStorage.getItem('boujee_all_media'));
+                console.log('🏠 Current media files:', mediaFiles);
+                console.log('💾 LocalStorage data:', localStorage.getItem('boujee_all_media'));
+                // Manually trigger homepage update
+                window.dispatchEvent(new CustomEvent('mediaUpdated'));
               }}
-              className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs"
+              className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
             >
-              Log State
+              📢 Trigger Homepage Update
+            </button>
+            <button
+              onClick={loadMediaFiles}
+              className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
+            >
+              🔄 Refresh Media
             </button>
           </div>
         )}
@@ -1345,5 +1318,4 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
   );
 };
 
-// PRESERVED: Your export structure
 export default ProtectedHomepageMediaManager;
