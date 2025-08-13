@@ -45,13 +45,14 @@ console.log({
 });
 ```
 
-#### `googleDriveService.uploadFile(file: File, folderId: string, onProgress?: Function)`
-Uploads a file to Google Drive with progress tracking.
+#### `googleDriveService.uploadFile(file: File, folderId: string, onProgress?: Function, makePublic?: boolean)`
+Uploads a file to Google Drive with progress tracking and automatic public access.
 
 **Parameters:**
 - `file`: File object to upload
 - `folderId`: Google Drive folder ID
 - `onProgress`: Optional callback for upload progress
+- `makePublic`: Whether to make file public automatically (default: true)
 
 **Returns:** `Promise<DriveFile>`
 
@@ -63,8 +64,39 @@ const uploadedFile = await googleDriveService.uploadFile(
   eventFolder.photosFolderId,
   (progress) => {
     console.log(`Upload progress: ${progress.percentage}%`);
-  }
+  },
+  true // Make file public
 );
+```
+
+#### `googleDriveService.makeFilePublic(fileId: string)`
+Makes a file publicly accessible with verification.
+
+**Parameters:**
+- `fileId`: Google Drive file ID
+
+**Returns:** `Promise<boolean>` - true if successful and verified
+
+**Example:**
+```typescript
+const success = await googleDriveService.makeFilePublic('your-file-id');
+if (success) {
+  console.log('File is now publicly accessible');
+}
+```
+
+#### `googleDriveService.verifyFileIsPublic(fileId: string)`
+Verifies if a file is actually publicly accessible.
+
+**Parameters:**
+- `fileId`: Google Drive file ID
+
+**Returns:** `Promise<boolean>` - true if file is accessible
+
+**Example:**
+```typescript
+const isAccessible = await googleDriveService.verifyFileIsPublic('your-file-id');
+console.log('File accessible:', isAccessible);
 ```
 
 #### `googleDriveService.getEventMedia(eventFolderId: string)`
@@ -136,6 +168,63 @@ const homepageMedia = await mediaService.createHomepageMedia({
   title: 'Welcome Video',
   description: 'Homepage background video'
 });
+```
+
+## Fix Utilities
+
+### `fixExistingMediaFiles()`
+Fixes all existing media files by making them public.
+
+**Returns:** `Promise<FixResults>`
+
+**Example:**
+```typescript
+import { fixExistingMediaFiles } from '../utils/fixExistingFiles';
+
+const results = await fixExistingMediaFiles();
+console.log(`Fixed ${results.successCount}/${results.totalFiles} files`);
+```
+
+### `fixFilesInFolder(folderId: string, folderName?: string)`
+Fixes files in a specific folder.
+
+**Parameters:**
+- `folderId`: Google Drive folder ID
+- `folderName`: Optional folder name for logging
+
+**Returns:** `Promise<FixResults>`
+
+**Example:**
+```typescript
+const results = await fixFilesInFolder('folder-id-123', 'Event Photos');
+```
+
+### `testFileUrl(fileId: string)`
+Tests if a specific file URL is accessible.
+
+**Parameters:**
+- `fileId`: Google Drive file ID
+
+**Returns:** `Promise<boolean>`
+
+**Example:**
+```typescript
+const isWorking = await testFileUrl('file-id-123');
+console.log('File accessible:', isWorking);
+```
+
+### `testMultipleFiles(fileIds: string[])`
+Tests multiple files and reports results.
+
+**Parameters:**
+- `fileIds`: Array of Google Drive file IDs
+
+**Returns:** `Promise<{working: string[], broken: string[]}>`
+
+**Example:**
+```typescript
+const results = await testMultipleFiles(['file1', 'file2', 'file3']);
+console.log(`${results.working.length} working, ${results.broken.length} broken`);
 ```
 
 ## Type Definitions
