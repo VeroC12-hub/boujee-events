@@ -1,5 +1,5 @@
-// src/pages/HomePage.tsx - FIXED VERSION WITH REAL-TIME UPDATES
-import React, { useState, useEffect, useCallback } from 'react';
+// src/pages/HomePage.tsx - ENHANCED WITH FIXES + DYNAMIC ANIMATIONS
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
 import { useAuth } from '../hooks/useAuth';
@@ -19,113 +19,144 @@ interface MediaItem {
   uploadedAt: string;
 }
 
-// Enhanced GoogleDriveVideo component
-const GoogleDriveVideo: React.FC<{
-  src: string;
-  name: string;
-  className?: string;
-  autoPlay?: boolean;
-  muted?: boolean;
-  loop?: boolean;
-  onError?: () => void;
-}> = ({ src, name, className, autoPlay = false, muted = true, loop = false, onError }) => {
-  const [loadError, setLoadError] = useState(false);
-  const [useIframe, setUseIframe] = useState(false);
+interface FloatingElement {
+  id: string;
+  url: string;
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+  rotation: number;
+  opacity: number;
+}
 
-  const handleVideoError = () => {
-    console.log('⚠️ Direct video failed, trying iframe:', name);
+// CRITICAL FIX: Enhanced Media Display with Multiple URL Fallbacks
+const EnhancedMediaDisplay: React.FC<{
+  src: string;
+  alt: string;
+  className?: string;
+  type?: 'image' | 'video';
+  googleDriveFileId?: string;
+  onError?: () => void;
+  onLoad?: () => void;
+}> = ({ src, alt, className = '', type = 'image', googleDriveFileId, onError, onLoad }) => {
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [loadError, setLoadError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [urlIndex, setUrlIndex] = useState(0);
+
+  // CRITICAL: Multiple URL strategies for Google Drive files
+  const getAlternativeUrls = (fileId: string): string[] => {
+    return [
+      `https://drive.google.com/uc?export=view&id=${fileId}`,
+      `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
+      `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
+      `https://drive.google.com/uc?id=${fileId}&export=download`,
+      `https://drive.google.com/file/d/${fileId}/view`
+    ];
+  };
+
+  const extractFileId = (url: string): string | null => {
+    const patterns = [
+      /\/d\/([a-zA-Z0-9-_]+)/,
+      /id=([a-zA-Z0-9-_]+)/,
+      /\/file\/d\/([a-zA-Z0-9-_]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
+
+  const handleError = () => {
+    const fileId = googleDriveFileId || extractFileId(currentSrc);
+    
+    if (fileId && !loadError) {
+      const alternativeUrls = getAlternativeUrls(fileId);
+      const nextIndex = urlIndex + 1;
+      
+      if (nextIndex < alternativeUrls.length) {
+        console.log(`🔄 Trying alternative URL ${nextIndex + 1}/${alternativeUrls.length} for: ${alt}`);
+        setCurrentSrc(alternativeUrls[nextIndex]);
+        setUrlIndex(nextIndex);
+        setIsLoading(true);
+        return;
+      }
+    }
+    
+    console.log(`❌ All URL alternatives failed for: ${alt}`);
     setLoadError(true);
-    setUseIframe(true);
+    setIsLoading(false);
     onError?.();
   };
 
-  if (src.includes('drive.google.com')) {
-    const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
-    
-    if (fileId && (loadError || useIframe)) {
-      return (
-        <iframe
-          src={`https://drive.google.com/file/d/${fileId}/preview`}
-          className={className}
-          allow="autoplay"
-          style={{ border: 'none' }}
-          title={name}
-          onError={() => {
-            console.log('⚠️ Iframe also failed for:', name);
-            onError?.();
-          }}
-        />
-      );
-    }
+  const handleLoad = () => {
+    console.log(`✅ Media loaded successfully: ${alt}`);
+    setIsLoading(false);
+    setLoadError(false);
+    onLoad?.();
+  };
 
-    const directUrl = `https://drive.google.com/uc?id=${fileId}`;
+  useEffect(() => {
+    setCurrentSrc(src);
+    setLoadError(false);
+    setIsLoading(true);
+    setUrlIndex(0);
+  }, [src]);
+
+  if (isLoading && !loadError) {
     return (
-      <video
-        src={directUrl}
-        className={className}
-        autoPlay={autoPlay}
-        muted={muted}
-        loop={loop}
-        playsInline
-        onError={handleVideoError}
-        onLoadStart={() => console.log('🎬 Loading Google Drive video:', name)}
-        onCanPlay={() => console.log('🎬 Google Drive video ready:', name)}
-      />
+      <div className={`bg-gray-800 animate-pulse flex items-center justify-center ${className}`}>
+        <div className="text-center text-gray-400">
+          <div className="text-2xl mb-2">{type === 'video' ? '🎥' : '🖼️'}</div>
+          <div className="text-sm">Loading...</div>
+        </div>
+      </div>
     );
   }
 
-  return (
-    <video
-      src={src}
-      className={className}
-      autoPlay={autoPlay}
-      muted={muted}
-      loop={loop}
-      playsInline
-      onError={handleVideoError}
-    />
-  );
-};
+  if (loadError) {
+    return (
+      <div className={`bg-gray-800 flex items-center justify-center ${className}`}>
+        <div className="text-center text-gray-400 p-4">
+          <div className="text-3xl mb-2">📷</div>
+          <div className="text-sm mb-2">Media unavailable</div>
+          <button
+            onClick={() => {
+              setLoadError(false);
+              setIsLoading(true);
+              setUrlIndex(0);
+              const fileId = googleDriveFileId || extractFileId(src);
+              if (fileId) {
+                setCurrentSrc(getAlternativeUrls(fileId)[0]);
+              }
+            }}
+            className="text-blue-400 hover:text-blue-300 text-xs underline"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-// Enhanced GoogleDriveImage component
-const GoogleDriveImage: React.FC<{
-  src: string;
-  directUrl?: string;
-  alt: string;
-  className?: string;
-  onError?: () => void;
-}> = ({ src, directUrl, alt, className, onError }) => {
-  const [currentSrc, setCurrentSrc] = useState(directUrl || src);
-  const [hasError, setHasError] = useState(false);
-
-  const handleError = () => {
-    if (!hasError) {
-      setHasError(true);
-      
-      const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
-      
-      if (fileId) {
-        const alternatives = [
-          `https://drive.google.com/uc?id=${fileId}`,
-          `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
-          `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
-          'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop'
-        ];
-        
-        const currentIndex = alternatives.indexOf(currentSrc);
-        const nextIndex = currentIndex + 1;
-        
-        if (nextIndex < alternatives.length) {
-          console.log(`🔄 Trying alternative ${nextIndex + 1} for:`, alt);
-          setCurrentSrc(alternatives[nextIndex]);
-          return;
-        }
-      }
-      
-      console.log('⚠️ All image alternatives failed for:', alt);
-      onError?.();
-    }
-  };
+  if (type === 'video') {
+    return (
+      <video
+        src={currentSrc}
+        className={className}
+        onError={handleError}
+        onLoadedData={handleLoad}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+    );
+  }
 
   return (
     <img
@@ -133,20 +164,345 @@ const GoogleDriveImage: React.FC<{
       alt={alt}
       className={className}
       onError={handleError}
-      onLoad={() => console.log('✅ Image loaded successfully:', alt)}
+      onLoad={handleLoad}
+      loading="lazy"
+      crossOrigin="anonymous"
+      referrerPolicy="no-referrer"
     />
   );
 };
 
+// NEW: Floating Images Component
+const FloatingImages: React.FC<{ images: MediaItem[] }> = ({ images }) => {
+  const [floatingElements, setFloatingElements] = useState<FloatingElement[]>([]);
+  const animationRef = useRef<number>();
+
+  useEffect(() => {
+    if (images.length === 0) return;
+
+    const elements: FloatingElement[] = [];
+    const numElements = Math.min(images.length, 8);
+
+    for (let i = 0; i < numElements; i++) {
+      const image = images[i % images.length];
+      elements.push({
+        id: `float-${i}`,
+        url: image.url,
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: 50 + Math.random() * 100,
+        speed: 0.2 + Math.random() * 0.8,
+        rotation: Math.random() * 360,
+        opacity: 0.1 + Math.random() * 0.3
+      });
+    }
+
+    setFloatingElements(elements);
+  }, [images]);
+
+  useEffect(() => {
+    const animate = () => {
+      setFloatingElements(prev => 
+        prev.map(element => ({
+          ...element,
+          x: (element.x + element.speed) % (window.innerWidth + element.size),
+          y: element.y + Math.sin(Date.now() * 0.001 + element.x * 0.01) * 0.5,
+          rotation: element.rotation + 0.2
+        }))
+      );
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+      {floatingElements.map(element => (
+        <div
+          key={element.id}
+          className="absolute rounded-full overflow-hidden blur-sm"
+          style={{
+            left: `${element.x}px`,
+            top: `${element.y}px`,
+            width: `${element.size}px`,
+            height: `${element.size}px`,
+            transform: `rotate(${element.rotation}deg)`,
+            opacity: element.opacity,
+            filter: 'blur(2px)',
+            transition: 'none'
+          }}
+        >
+          <EnhancedMediaDisplay
+            src={element.url}
+            alt="Floating decoration"
+            className="w-full h-full object-cover"
+            type="image"
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// NEW: Parallax Background Component
+const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  if (!media) {
+    return (
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black">
+        <div className="absolute inset-0 bg-black/40"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="absolute inset-0"
+      style={{
+        transform: `translateY(${scrollY * 0.5}px)`,
+        willChange: 'transform'
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
+      <EnhancedMediaDisplay
+        src={media.url}
+        directUrl={media.directUrl}
+        alt={media.title || media.name}
+        className="w-full h-full object-cover scale-110"
+        type={media.type}
+        googleDriveFileId={media.url.match(/id=([^&]+)/)?.[1]}
+      />
+    </div>
+  );
+};
+
+// NEW: Animated Stats Component
+const AnimatedStats: React.FC = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
+
+  const stats = [
+    { icon: '🎪', label: 'Events Organized', value: 500, suffix: '+' },
+    { icon: '👥', label: 'Happy Clients', value: 10000, suffix: '+' },
+    { icon: '⭐', label: 'Average Rating', value: 4.9, suffix: '/5' },
+    { icon: '🏆', label: 'Awards Won', value: 15, suffix: '+' }
+  ];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.3 }
+    );
+
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const [animatedValues, setAnimatedValues] = useState(stats.map(() => 0));
+
+  useEffect(() => {
+    if (isVisible) {
+      stats.forEach((stat, index) => {
+        const duration = 2000;
+        const startTime = Date.now();
+        const animate = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const easedProgress = 1 - Math.pow(1 - progress, 3);
+          
+          setAnimatedValues(prev => {
+            const newValues = [...prev];
+            newValues[index] = stat.value * easedProgress;
+            return newValues;
+          });
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+        setTimeout(() => requestAnimationFrame(animate), index * 200);
+      });
+    }
+  }, [isVisible]);
+
+  return (
+    <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-8">
+      {stats.map((stat, index) => (
+        <div 
+          key={index} 
+          className={`text-center transform transition-all duration-1000 ${
+            isVisible 
+              ? 'translate-y-0 opacity-100' 
+              : 'translate-y-10 opacity-0'
+          }`}
+          style={{ transitionDelay: `${index * 200}ms` }}
+        >
+          <div className="text-4xl mb-2 animate-bounce" style={{ animationDelay: `${index * 100}ms` }}>
+            {stat.icon}
+          </div>
+          <div className="text-3xl font-bold text-yellow-400 mb-2">
+            {stat.value === 4.9 
+              ? animatedValues[index].toFixed(1)
+              : Math.floor(animatedValues[index])
+            }{stat.suffix}
+          </div>
+          <div className="text-gray-300">{stat.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// NEW: Image Carousel Component
+const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (images.length === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % images.length);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  if (images.length === 0) return null;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl h-96 group">
+      <div 
+        className="flex transition-transform duration-1000 ease-in-out h-full"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {images.map((image, index) => (
+          <div key={image.id} className="w-full h-full flex-shrink-0 relative">
+            <EnhancedMediaDisplay
+              src={image.url}
+              directUrl={image.directUrl}
+              alt={image.title || image.name}
+              className="w-full h-full object-cover"
+              type={image.type}
+              googleDriveFileId={image.url.match(/id=([^&]+)/)?.[1]}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent">
+              <div className="absolute bottom-4 left-4 right-4">
+                <h3 className="text-white font-bold text-xl mb-2">
+                  {image.title || image.name}
+                </h3>
+                <p className="text-gray-300 text-sm">
+                  {image.description || `Uploaded by ${image.uploadedBy}`}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        {images.map((_, index) => (
+          <button
+            key={index}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              index === currentIndex ? 'bg-yellow-400 w-6' : 'bg-white/50'
+            }`}
+            onClick={() => setCurrentIndex(index)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ENHANCED: Media URL Processing Function
+const processMediaUrl = (mediaFile: any): { url: string; directUrl: string } => {
+  if (mediaFile.download_url && !mediaFile.download_url.includes('drive.google.com')) {
+    return {
+      url: mediaFile.download_url,
+      directUrl: mediaFile.download_url
+    };
+  }
+
+  const fileId = mediaFile.google_drive_file_id || 
+                 extractFileIdFromUrl(mediaFile.download_url || mediaFile.web_view_link || '');
+
+  if (!fileId) {
+    return {
+      url: mediaFile.download_url || mediaFile.web_view_link || '',
+      directUrl: mediaFile.download_url || mediaFile.web_view_link || ''
+    };
+  }
+
+  const isImage = mediaFile.mime_type?.startsWith('image/') || mediaFile.file_type === 'image';
+  const isVideo = mediaFile.mime_type?.startsWith('video/') || mediaFile.file_type === 'video';
+
+  let primaryUrl: string;
+  let directUrl: string;
+
+  if (isImage) {
+    primaryUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`;
+  } else if (isVideo) {
+    primaryUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    directUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+  } else {
+    primaryUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+
+  return { url: primaryUrl, directUrl };
+};
+
+const extractFileIdFromUrl = (url: string): string | null => {
+  if (!url) return null;
+  const patterns = [
+    /\/d\/([a-zA-Z0-9-_]+)/,
+    /id=([a-zA-Z0-9-_]+)/,
+    /\/file\/d\/([a-zA-Z0-9-_]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
+
+// MAIN HOMEPAGE COMPONENT
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [allMedia, setAllMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  console.log('🏠 HomePage rendering', { user: !!user, profile: !!profile });
+  // Mouse tracking for interactive effects
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
 
-  // CRITICAL FIX: Enhanced media loading from database with fallback to localStorage
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // ENHANCED: Media loading with proper URL processing
   const loadMediaFromDatabase = useCallback(async () => {
     try {
       console.log('📡 Loading media from database...');
@@ -184,7 +540,6 @@ const HomePage: React.FC = () => {
         return;
       }
 
-      // Process database data
       const formattedMedia: MediaItem[] = (data || []).map(item => {
         const mediaFile = Array.isArray(item.media_file) ? item.media_file[0] : item.media_file;
         
@@ -193,19 +548,13 @@ const HomePage: React.FC = () => {
           return null;
         }
 
-        // Enhanced URL construction for Google Drive files
-        let displayUrl = mediaFile.download_url;
-        if (!displayUrl && mediaFile.google_drive_file_id) {
-          displayUrl = mediaFile.mime_type?.startsWith('image/') 
-            ? `https://drive.google.com/uc?export=view&id=${mediaFile.google_drive_file_id}`
-            : `https://drive.google.com/uc?export=download&id=${mediaFile.google_drive_file_id}`;
-        }
+        const { url, directUrl } = processMediaUrl(mediaFile);
 
         return {
           id: item.id,
           name: mediaFile.name || 'Unknown File',
-          url: displayUrl || mediaFile.web_view_link || '',
-          directUrl: displayUrl,
+          url,
+          directUrl,
           type: mediaFile.file_type === 'video' ? 'video' : 'image',
           mediaType: item.media_type,
           isActive: item.is_active,
@@ -218,12 +567,12 @@ const HomePage: React.FC = () => {
 
       setAllMedia(formattedMedia);
       console.log(`✅ Loaded ${formattedMedia.length} media items from database`);
-      
-      // Update localStorage as backup
+
       const localStorageData = formattedMedia.map(item => ({
         id: item.id,
         name: item.name,
         url: item.url,
+        directUrl: item.directUrl,
         type: item.type,
         mediaType: item.mediaType,
         isActive: item.isActive,
@@ -234,7 +583,7 @@ const HomePage: React.FC = () => {
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(localStorageData));
-      console.log('💾 Updated localStorage backup');
+      window.dispatchEvent(new CustomEvent('mediaUpdated'));
 
     } catch (error) {
       console.error('⚠️ Database loading failed, falling back to localStorage:', error);
@@ -244,17 +593,14 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // BACKUP: LocalStorage loading function
   const loadMediaFromLocalStorage = useCallback(() => {
     try {
-      console.log('📱 Loading media from localStorage...');
       const savedMedia = localStorage.getItem('boujee_all_media');
       if (savedMedia) {
         const mediaData = JSON.parse(savedMedia);
         setAllMedia(mediaData);
         console.log('📱 Loaded media from localStorage:', mediaData.length, 'items');
       } else {
-        console.log('📱 No media in localStorage');
         setAllMedia([]);
       }
     } catch (error) {
@@ -265,87 +611,21 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // CRITICAL FIX: Real-time subscription for immediate updates
+  // Real-time subscription
   useEffect(() => {
-    // Initial load from database
     loadMediaFromDatabase();
 
-    // Set up real-time subscription for database changes
     if (supabase) {
-      console.log('🔄 Setting up real-time subscription...');
-      
       const subscription = supabase
         .channel('homepage_media_realtime')
         .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'homepage_media' 
-          }, 
-          (payload) => {
-            console.log('🔄 Real-time database update received:', payload.eventType);
-            // Reload media when any change occurs
-            setTimeout(() => loadMediaFromDatabase(), 500); // Small delay to ensure transaction completion
-          }
-        )
-        .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: 'media_files' 
-          }, 
-          (payload) => {
-            console.log('🔄 Real-time media files update received:', payload.eventType);
-            // Reload media when media files change
-            setTimeout(() => loadMediaFromDatabase(), 500);
-          }
+          { event: '*', schema: 'public', table: 'homepage_media' }, 
+          () => setTimeout(() => loadMediaFromDatabase(), 500)
         )
         .subscribe();
 
-      // Cleanup subscription
-      return () => {
-        console.log('🔄 Cleaning up real-time subscription');
-        subscription.unsubscribe();
-      };
+      return () => subscription.unsubscribe();
     }
-  }, [loadMediaFromDatabase]);
-
-  // CRITICAL FIX: Listen for localStorage changes (for cross-tab updates)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'boujee_all_media' && e.newValue) {
-        console.log('💾 localStorage updated, refreshing media...');
-        try {
-          const newMediaData = JSON.parse(e.newValue);
-          setAllMedia(newMediaData);
-        } catch (error) {
-          console.error('⚠️ Failed to parse localStorage update:', error);
-        }
-      }
-    };
-
-    // Listen for storage events (cross-tab updates)
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Custom event for same-tab updates
-    const handleCustomMediaUpdate = () => {
-      console.log('🔄 Custom media update event received');
-      loadMediaFromDatabase();
-    };
-    
-    window.addEventListener('mediaUpdated', handleCustomMediaUpdate);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('mediaUpdated', handleCustomMediaUpdate);
-    };
-  }, [loadMediaFromDatabase]);
-
-  // CRITICAL FIX: Manual refresh function for testing
-  const forceRefresh = useCallback(() => {
-    console.log('🔄 Forcing media refresh...');
-    setLoading(true);
-    loadMediaFromDatabase();
   }, [loadMediaFromDatabase]);
 
   // Helper functions
@@ -358,39 +638,16 @@ const HomePage: React.FC = () => {
   const activeGalleryImages = getActiveMedia('gallery_image');
   const activeBanners = getActiveMedia('banner');
 
-  console.log('🎨 Media loaded:', {
-    backgroundVideo: !!activeBackgroundVideo,
-    heroImage: !!activeHeroImage,
-    galleryImages: activeGalleryImages.length,
-    banners: activeBanners.length,
-    totalMedia: allMedia.length
-  });
-
-  const handleExploreEvents = () => {
-    console.log('🎪 Navigating to Events page');
-    navigate('/events');
-  };
-
+  const handleExploreEvents = () => navigate('/events');
   const handleGoToDashboard = () => {
     if (!user || !profile) {
-      console.log('🔐 User not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
-
-    console.log('📊 Navigating to dashboard for role:', profile.role);
     switch (profile.role) {
-      case 'admin':
-        navigate('/admin-dashboard');
-        break;
-      case 'organizer':
-        navigate('/organizer-dashboard');
-        break;
-      case 'member':
-        navigate('/member-dashboard');
-        break;
-      default:
-        navigate('/member-dashboard');
+      case 'admin': navigate('/admin-dashboard'); break;
+      case 'organizer': navigate('/organizer-dashboard'); break;
+      default: navigate('/member-dashboard');
     }
   };
 
@@ -421,173 +678,91 @@ const HomePage: React.FC = () => {
     }
   ];
 
-  const stats = [
-    { icon: '📅', label: 'Events Organized', value: '500+' },
-    { icon: '👥', label: 'Happy Clients', value: '10,000+' },
-    { icon: '⭐', label: 'Average Rating', value: '4.9/5' },
-    { icon: '🏆', label: 'Awards Won', value: '15+' }
-  ];
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-pulse">✨</div>
-          <p className="text-white text-xl">Loading your experience...</p>
-          <p className="text-gray-400 text-sm mt-2">Syncing with database...</p>
+          <div className="text-6xl mb-4 animate-spin">✨</div>
+          <p className="text-white text-xl animate-pulse">Loading your magical experience...</p>
         </div>
       </div>
     );
   }
 
+  const backgroundMedia = activeBackgroundVideo || activeHeroImage;
+
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-black overflow-x-hidden">
       <PublicNavbar />
       
-      {/* DEVELOPER DEBUG PANEL */}
-      {(profile?.role === 'admin' || profile?.role === 'organizer') && (
-        <div className="fixed top-20 right-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
-          <div className="font-bold mb-2">🛠️ Admin Debug</div>
-          <div>Total Media: {allMedia.length}</div>
-          <div>Active BG Videos: {getActiveMedia('background_video').length}</div>
-          <div>Active Hero Images: {getActiveMedia('hero_image').length}</div>
-          <div>Active Gallery: {getActiveMedia('gallery_image').length}</div>
-          <div>Active Banners: {getActiveMedia('banner').length}</div>
-          <button
-            onClick={forceRefresh}
-            className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
-          >
-            🔄 Force Refresh
-          </button>
-          <button
-            onClick={() => console.log('Current media state:', allMedia)}
-            className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
-          >
-            📝 Log State
-          </button>
-        </div>
-      )}
+      {/* NEW: Floating Images */}
+      <FloatingImages images={activeGalleryImages.slice(0, 8)} />
       
-      {/* Hero Section with REAL Uploaded Media */}
+      {/* Hero Section with Parallax */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Media - REAL DATA from Admin Uploads */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
-          
-          {/* Dynamic Background with proper Google Drive support */}
-          {(() => {
-            if (activeBackgroundVideo) {
-              console.log('🎬 Using uploaded background video:', activeBackgroundVideo.name);
-              return (
-                <GoogleDriveVideo
-                  src={activeBackgroundVideo.url}
-                  directUrl={activeBackgroundVideo.directUrl}
-                  name={activeBackgroundVideo.name}
-                  className="w-full h-full object-cover"
-                  autoPlay={true}
-                  muted={true}
-                  loop={true}
-                  onError={() => console.log('🎬 Background video failed to load')}
-                />
-              );
-            } else if (activeHeroImage) {
-              console.log('🖼️ Using uploaded hero image:', activeHeroImage.name);
-              return (
-                <GoogleDriveImage
-                  src={activeHeroImage.url}
-                  directUrl={activeHeroImage.directUrl}
-                  alt={activeHeroImage.title || activeHeroImage.name}
-                  className="w-full h-full object-cover"
-                  onError={() => console.log('🖼️ Hero image failed to load')}
-                />
-              );
-            } else {
-              console.log('🎨 No uploaded media, using default background');
-              return (
-                <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-                  <div className="text-center text-white/20">
-                    <div className="text-6xl mb-4">📸</div>
-                    <p className="text-xl">Upload media from Admin Dashboard to customize this background</p>
-                    {(profile?.role === 'admin' || profile?.role === 'organizer') && (
-                      <button
-                        onClick={handleGoToDashboard}
-                        className="mt-4 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors"
-                      >
-                        Go to Dashboard
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            }
-          })()}
-        </div>
+        {/* NEW: Parallax Background */}
+        <ParallaxBackground media={backgroundMedia} />
+        
+        {/* NEW: Interactive cursor effect */}
+        <div 
+          className="fixed pointer-events-none z-20 w-8 h-8 rounded-full bg-yellow-400/20 blur-sm transition-all duration-300"
+          style={{
+            left: mousePosition.x - 16,
+            top: mousePosition.y - 16,
+            transform: `scale(${Math.sin(Date.now() * 0.005) * 0.5 + 1})`
+          }}
+        />
 
         {/* Hero Content */}
-        <div className="relative z-20 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
-            Discover <span className="text-yellow-400">Magic</span>
+        <div className="relative z-30 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 animate-pulse">
+            Discover <span className="text-yellow-400 animate-bounce">Magic</span>
           </h1>
-          <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto leading-relaxed opacity-0 animate-fadeIn">
             Immerse yourself in extraordinary luxury experiences, exclusive festivals, and VIP events that create unforgettable memories
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
               onClick={handleExploreEvents}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 hover:rotate-1 flex items-center gap-2 animate-bounce"
             >
-              📅 Explore Premium Events
+              🎪 Explore Premium Events
             </button>
             
             <button
               onClick={handleGoToDashboard}
-              className="border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+              className="border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 hover:-rotate-1 flex items-center gap-2"
             >
               📊 Go to Dashboard
             </button>
           </div>
 
           {user && profile && (
-            <div className="mt-8 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 max-w-md mx-auto">
+            <div className="mt-8 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 max-w-md mx-auto opacity-0 animate-slideUp">
               <p className="text-white text-lg">
                 Welcome back, <span className="text-yellow-400 font-semibold">{profile.full_name || user.email?.split('@')[0]}!</span>
               </p>
-              <p className="text-gray-300 text-sm mt-1">
-                Ready for your next adventure?
-              </p>
+              <p className="text-gray-300 text-sm mt-1">Ready for your next adventure?</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Banner Section with proper Google Drive support */}
+      {/* Banner Section */}
       {activeBanners.length > 0 && (
         <section className="py-4 bg-yellow-400">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-center space-x-8 overflow-x-auto">
               {activeBanners.map((banner) => (
                 <div key={banner.id} className="flex-shrink-0 text-center">
-                  {banner.type === 'image' ? (
-                    <GoogleDriveImage
-                      src={banner.url}
-                      directUrl={banner.directUrl}
-                      alt={banner.title || banner.name}
-                      className="h-16 object-contain mx-auto"
-                      onError={() => console.log('Banner image failed to load:', banner.name)}
-                    />
-                  ) : (
-                    <GoogleDriveVideo
-                      src={banner.url}
-                      directUrl={banner.directUrl}
-                      name={banner.name}
-                      className="h-16 object-contain mx-auto"
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      onError={() => console.log('Banner video failed to load:', banner.name)}
-                    />
-                  )}
+                  <EnhancedMediaDisplay
+                    src={banner.url}
+                    directUrl={banner.directUrl}
+                    alt={banner.title || banner.name}
+                    className="h-16 object-contain mx-auto"
+                    type={banner.type}
+                  />
                   {banner.title && (
                     <p className="text-black font-semibold text-sm mt-2">{banner.title}</p>
                   )}
@@ -598,98 +773,39 @@ const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* Stats Section */}
-      <section className="py-20 bg-gray-800">
+      {/* NEW: Animated Stats Section */}
+      <section className="py-20 bg-gray-800/50 backdrop-blur-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-4xl mb-2">{stat.icon}</div>
-                <div className="text-3xl font-bold text-yellow-400 mb-2">{stat.value}</div>
-                <div className="text-gray-300">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+          <AnimatedStats />
         </div>
       </section>
 
-      {/* Gallery Section with proper Google Drive support */}
+      {/* NEW: Dynamic Gallery Carousel */}
       {activeGalleryImages.length > 0 && (
-        <section className="py-20 bg-gray-900">
+        <section className="py-20 bg-gradient-to-br from-gray-900 to-black relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-white mb-4">Experience Gallery</h2>
-              <p className="text-xl text-gray-400">See the magic we create - uploaded by our team</p>
+              <h2 className="text-4xl font-bold text-white mb-4 opacity-0 animate-slideUp">Experience Gallery</h2>
+              <p className="text-xl text-gray-400 opacity-0 animate-slideUp" style={{ animationDelay: '200ms' }}>
+                See the magic we create - live from our events
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {activeGalleryImages.map((item) => (
-                <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-yellow-400/50 transition-all duration-300">
-                  <div className="aspect-video relative overflow-hidden">
-                    {item.type === 'image' ? (
-                      <GoogleDriveImage
-                        src={item.url}
-                        directUrl={item.directUrl}
-                        alt={item.title || item.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={() => console.log('Gallery image failed:', item.name)}
-                      />
-                    ) : (
-                      <div className="relative w-full h-full">
-                        <GoogleDriveVideo
-                          src={item.url}
-                          directUrl={item.directUrl}
-                          name={item.name}
-                          className="w-full h-full object-cover"
-                          muted={true}
-                          loop={true}
-                          onError={() => console.log('Gallery video failed:', item.name)}
-                        />
-                        
-                        {/* Video Play Indicator */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors pointer-events-none">
-                          <div className="bg-yellow-400/90 rounded-full p-3 group-hover:scale-110 transition-transform">
-                            <span className="text-black font-bold">▶</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Overlay with title */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-white font-semibold text-lg">
-                          {item.title || item.name}
-                        </h3>
-                        {item.description && (
-                          <p className="text-gray-300 text-sm">
-                            {item.description}
-                          </p>
-                        )}
-                        <p className="text-yellow-400 text-xs mt-1">
-                          Uploaded by {item.uploadedBy}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ImageCarousel images={activeGalleryImages} />
           </div>
         </section>
       )}
 
-      {/* No Gallery Message when no images uploaded */}
+      {/* No Gallery Message */}
       {activeGalleryImages.length === 0 && (
         <section className="py-20 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="text-6xl mb-4">📸</div>
+            <div className="text-6xl mb-4 animate-bounce">📸</div>
             <h2 className="text-2xl font-bold text-white mb-4">Gallery Coming Soon</h2>
             <p className="text-gray-400 mb-4">Admin can upload gallery images from the dashboard</p>
             {(profile?.role === 'admin' || profile?.role === 'organizer') && (
               <button
                 onClick={handleGoToDashboard}
-                className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
+                className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors transform hover:scale-105"
               >
                 Upload Gallery Images
               </button>
@@ -707,8 +823,12 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredEvents.map((event) => (
-              <div key={event.id} className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:border-yellow-400/50 transition-all duration-300 group">
+            {featuredEvents.map((event, index) => (
+              <div 
+                key={event.id} 
+                className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 hover:border-yellow-400/50 transition-all duration-300 group transform hover:scale-105 opacity-0 animate-slideUp"
+                style={{ animationDelay: `${index * 200}ms` }}
+              >
                 <div className="relative overflow-hidden">
                   <img
                     src={event.image}
@@ -731,7 +851,7 @@ const HomePage: React.FC = () => {
                   
                   <button 
                     onClick={handleExploreEvents}
-                    className="w-full bg-white/10 hover:bg-yellow-400 hover:text-black text-white py-2 px-4 rounded-lg transition-all duration-300 font-medium"
+                    className="w-full bg-white/10 hover:bg-yellow-400 hover:text-black text-white py-2 px-4 rounded-lg transition-all duration-300 font-medium transform hover:scale-105"
                   >
                     Learn More
                   </button>
@@ -743,17 +863,18 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-yellow-400 to-yellow-500">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-black mb-4">Ready to Experience Magic?</h2>
-          <p className="text-xl text-gray-800 mb-8">
+      <section className="py-20 bg-gradient-to-r from-yellow-400 to-yellow-500 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8 relative z-10">
+          <h2 className="text-4xl font-bold text-black mb-4 animate-bounce">Ready to Experience Magic?</h2>
+          <p className="text-xl text-gray-800 mb-8 animate-pulse">
             Join thousands of adventurers who trust us to create their most memorable moments
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={handleExploreEvents}
-              className="bg-black text-yellow-400 hover:bg-gray-800 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300"
+              className="bg-black text-yellow-400 hover:bg-gray-800 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-110 hover:rotate-2"
             >
               Browse All Events
             </button>
@@ -761,7 +882,7 @@ const HomePage: React.FC = () => {
             {!user && (
               <Link
                 to="/register"
-                className="border-2 border-black text-black hover:bg-black hover:text-yellow-400 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300"
+                className="border-2 border-black text-black hover:bg-black hover:text-yellow-400 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-110 hover:-rotate-2"
               >
                 Create Account
               </Link>
@@ -780,7 +901,7 @@ const HomePage: React.FC = () => {
             </p>
             <button
               onClick={handleGoToDashboard}
-              className="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+              className="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors transform hover:scale-105"
             >
               🎨 Customize Homepage Media
             </button>
@@ -792,7 +913,7 @@ const HomePage: React.FC = () => {
       <footer className="bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-400 mb-4">✨ Boujee Events</div>
+            <div className="text-2xl font-bold text-yellow-400 mb-4 animate-pulse">✨ Boujee Events</div>
             <p className="text-gray-400 mb-6">Creating extraordinary experiences since 2025</p>
             
             <div className="flex justify-center space-x-8 mb-6">
@@ -806,6 +927,44 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Admin Debug Panel */}
+      {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+        <div className="fixed top-20 right-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
+          <div className="font-bold mb-2">🛠️ Admin Debug</div>
+          <div>Total Media: {allMedia.length}</div>
+          <div>BG Videos: {getActiveMedia('background_video').length}</div>
+          <div>Hero Images: {getActiveMedia('hero_image').length}</div>
+          <div>Gallery: {getActiveMedia('gallery_image').length}</div>
+          <div>Banners: {getActiveMedia('banner').length}</div>
+          <button
+            onClick={() => loadMediaFromDatabase()}
+            className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
+          >
+            🔄 Force Refresh
+          </button>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 1s ease-out 0.5s both;
+        }
+        
+        .animate-slideUp {
+          animation: slideUp 0.8s ease-out both;
+        }
+      `}</style>
     </div>
   );
 };
