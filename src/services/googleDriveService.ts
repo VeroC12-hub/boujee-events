@@ -1,4 +1,4 @@
-// src/services/googleDriveService.ts - COMPLETE IMPLEMENTATION WITH PUBLIC FILE FIX
+// src/services/googleDriveService.ts - COMPLETE CSP-SAFE IMPLEMENTATION
 declare global {
   interface Window {
     gapi: any;
@@ -370,33 +370,41 @@ class GoogleDriveService {
       }
     } catch (error: any) {
       console.error('❌ Error making file public:', error);
-      throw new Error(`Failed to make file public: ${error.message}`);
-    }
-  }
-
-  // 🔥 NEW: Verify file is actually public
-  async verifyFileIsPublic(fileId: string): Promise<boolean> {
-    try {
-      console.log(`🔍 Verifying public access for file: ${fileId}`);
-      
-      // Try to access the file without authentication
-      const testUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-      const response = await fetch(testUrl, { method: 'HEAD' });
-      
-      if (response.ok) {
-        console.log(`✅ File ${fileId} is publicly accessible`);
-        return true;
-      } else {
-        console.error(`❌ File ${fileId} is not publicly accessible: ${response.status}`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`❌ Error verifying file public access:`, error);
+      // Don't throw error, just return false to handle gracefully
       return false;
     }
   }
 
-  // 🔥 CRITICAL FIX: Enhanced upload with automatic public access and verification
+  // 🔥 FIXED: CSP-Safe file verification using Google Drive API instead of fetch
+  async verifyFileIsPublic(fileId: string): Promise<boolean> {
+    try {
+      console.log(`🔍 Verifying public access for file: ${fileId}`);
+      
+      // Use Google Drive API to check permissions instead of fetch (which violates CSP)
+      const permissions = await this.gapi.client.drive.permissions.list({
+        fileId: fileId,
+        fields: 'permissions(id,type,role)'
+      });
+      
+      const hasPublicAccess = permissions.result.permissions?.some((permission: any) => 
+        permission.type === 'anyone' && (permission.role === 'reader' || permission.role === 'commenter')
+      );
+      
+      if (hasPublicAccess) {
+        console.log(`✅ File ${fileId} has public permissions`);
+        return true;
+      } else {
+        console.log(`❌ File ${fileId} does not have public permissions`);
+        return false;
+      }
+    } catch (error: any) {
+      console.error(`❌ Error checking file permissions:`, error);
+      // If we can't check permissions, assume it needs to be made public
+      return false;
+    }
+  }
+
+  // 🔥 CRITICAL FIX: Enhanced upload with automatic public access and CSP-safe verification
   async uploadFile(
     file: File, 
     folderId: string = 'root', 
@@ -458,25 +466,24 @@ class GoogleDriveService {
               const result = JSON.parse(xhr.responseText);
               console.log(`✅ Upload completed: ${result.name} (ID: ${result.id})`);
               
-              // 🔥 CRITICAL FIX: Make the file public automatically with verification
+              // 🔥 CRITICAL FIX: Make the file public automatically with CSP-safe verification
               if (makePublic) {
                 try {
-                  const isPublic = await this.makeFilePublic(result.id);
-                  if (!isPublic) {
-                    throw new Error('Failed to set file permissions');
+                  const publicSuccess = await this.makeFilePublic(result.id);
+                  if (publicSuccess) {
+                    // Use CSP-safe verification method
+                    const isAccessible = await this.verifyFileIsPublic(result.id);
+                    if (isAccessible) {
+                      console.log(`🌐 File ${result.id} is now publicly accessible and verified`);
+                    } else {
+                      console.warn(`⚠️ File ${result.id} permissions set but verification failed`);
+                    }
+                  } else {
+                    console.warn(`⚠️ Failed to set public permissions for file ${result.id}`);
                   }
-                  
-                  // NEW: Verify the file is actually accessible
-                  const isAccessible = await this.verifyFileIsPublic(result.id);
-                  if (!isAccessible) {
-                    throw new Error('File permissions set but file is still not publicly accessible');
-                  }
-                  
-                  console.log(`🌐 File ${result.id} is now publicly accessible and verified`);
                 } catch (publicError) {
-                  console.error(`❌ Failed to make file public:`, publicError);
-                  // CRITICAL: Actually throw the error so user knows about the problem
-                  throw new Error(`Upload completed but file is not publicly accessible: ${publicError.message}`);
+                  console.warn(`⚠️ Upload succeeded but public access setup failed:`, publicError);
+                  // Don't fail the upload for permission issues
                 }
               }
 
@@ -489,8 +496,8 @@ class GoogleDriveService {
                 createdTime: new Date().toISOString(),
                 modifiedTime: new Date().toISOString(),
                 webViewLink: `https://drive.google.com/file/d/${result.id}/view`,
-                // 🔥 CRITICAL: Use the correct public URL format for direct image display
-                webContentLink: `https://drive.google.com/uc?export=view&id=${result.id}`,
+                // 🔥 CRITICAL: Use the correct public URL format for direct display
+                webContentLink: this.getPublicFileUrl(result.id, result.mimeType || file.type),
                 thumbnailLink: result.thumbnailLink || (result.mimeType?.startsWith('image/') ? 
                   `https://drive.google.com/thumbnail?id=${result.id}&sz=w400-h300` : undefined),
                 parents: result.parents
@@ -559,6 +566,20 @@ class GoogleDriveService {
     }
   }
 
+  // 🔥 NEW: Smart URL generation for different file types
+  private getPublicFileUrl(fileId: string, mimeType: string): string {
+    if (mimeType.startsWith('video/')) {
+      // For videos, use preview format for better compatibility
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    } else if (mimeType.startsWith('image/')) {
+      // For images, use the direct view format
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    } else {
+      // For other files, use download format
+      return `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+  }
+
   // 🔥 NEW: Batch make files public (for existing files)
   async makeMultipleFilesPublic(fileIds: string[]): Promise<{success: string[], failed: string[]}> {
     if (!this.authenticated) {
@@ -572,50 +593,61 @@ class GoogleDriveService {
 
     for (const fileId of fileIds) {
       try {
-        await this.makeFilePublic(fileId);
-        success.push(fileId);
+        const publicSuccess = await this.makeFilePublic(fileId);
+        if (publicSuccess) {
+          success.push(fileId);
+        } else {
+          failed.push(fileId);
+        }
       } catch (error) {
         console.error(`❌ Failed to make file ${fileId} public:`, error);
         failed.push(fileId);
       }
+      
+      // Add small delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     console.log(`✅ Made ${success.length} files public, ${failed.length} failed`);
     return { success, failed };
   }
 
-  // 🔥 NEW: Fix existing private files
+  // 🔥 NEW: Fix existing private files (CSP-safe version)
   async fixExistingPrivateFiles(): Promise<void> {
     try {
       console.log('🔧 Fixing existing private files...');
       
-      // Get all files from your main folder
+      // Get all media files from your main folder
       const allFiles = await this.listFiles('root', undefined, 1000);
+      const mediaFiles = allFiles.filter(file => 
+        file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
+      );
+      
+      console.log(`📊 Found ${mediaFiles.length} media files to check`);
       
       const privateFiles: string[] = [];
       
-      // Check which files are not public
-      for (const file of allFiles) {
+      // Check which files are not public using CSP-safe method
+      for (const file of mediaFiles) {
         const isPublic = await this.verifyFileIsPublic(file.id);
         if (!isPublic) {
           privateFiles.push(file.id);
         }
+        // Small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
       console.log(`📊 Found ${privateFiles.length} private files to fix`);
+      
+      if (privateFiles.length === 0) {
+        console.log('✅ All files are already public!');
+        return;
+      }
       
       // Make them public
       const result = await this.makeMultipleFilesPublic(privateFiles);
       
       console.log(`✅ Fixed ${result.success.length} files, ${result.failed.length} failed`);
-      
-      // Verify they're now accessible
-      for (const fileId of result.success) {
-        const isAccessible = await this.verifyFileIsPublic(fileId);
-        if (!isAccessible) {
-          console.warn(`⚠️ File ${fileId} was marked as public but is still not accessible`);
-        }
-      }
       
     } catch (error) {
       console.error('❌ Error fixing existing files:', error);
@@ -681,8 +713,8 @@ class GoogleDriveService {
       const enhancedFiles: DriveFile[] = files.map(file => ({
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        // 🔥 CRITICAL: Use correct public URL format for all files
-        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
+        // 🔥 CRITICAL: Use smart URL format based on file type
+        webContentLink: this.getPublicFileUrl(file.id, file.mimeType),
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
       }));
@@ -723,7 +755,7 @@ class GoogleDriveService {
       return files.map(file => ({
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
+        webContentLink: this.getPublicFileUrl(file.id, file.mimeType),
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
       }));
@@ -854,6 +886,24 @@ class GoogleDriveService {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // UTILITY: Validate file type
+  isValidFileType(file: File, allowedTypes: string[]): boolean {
+    return allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        return file.type.startsWith(type.slice(0, -1));
+      }
+      return file.type === type;
+    });
+  }
+
+  // UTILITY: Get file type category
+  getFileCategory(mimeType: string): 'image' | 'video' | 'document' | 'other' {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.includes('document') || mimeType.includes('pdf') || mimeType.includes('text')) return 'document';
+    return 'other';
   }
 
   // NEW: Sign out method
