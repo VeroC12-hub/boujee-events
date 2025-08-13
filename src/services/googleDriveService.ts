@@ -1,4 +1,4 @@
-// src/services/googleDriveService.ts - COMPLETE IMPLEMENTATION
+// src/services/googleDriveService.ts - COMPLETE IMPLEMENTATION WITH PUBLIC FILE FIX
 declare global {
   interface Window {
     gapi: any;
@@ -243,7 +243,7 @@ class GoogleDriveService {
               throw new Error(`Authentication failed: ${response.error}`);
             }
 
-            console.log('📝 Access token received, verifying authentication...');
+            console.log('🔐 Access token received, verifying authentication...');
             
             // Verify authentication by getting user info
             const userInfo = await this.getUserInfo();
@@ -342,11 +342,44 @@ class GoogleDriveService {
     }
   }
 
-  // CRITICAL FIX: File upload with comprehensive progress tracking and error handling
+  // 🔥 NEW: Make a file publicly accessible - THIS FIXES YOUR MEDIA LOADING ISSUE
+  async makeFilePublic(fileId: string): Promise<boolean> {
+    if (!this.authenticated) {
+      throw new Error('Not authenticated with Google Drive');
+    }
+
+    try {
+      console.log(`🔓 Making file public: ${fileId}`);
+      
+      // Create public permission for the file
+      const response = await this.gapi.client.drive.permissions.create({
+        fileId: fileId,
+        sendNotificationEmail: false,
+        resource: {
+          role: 'reader',
+          type: 'anyone'
+        }
+      });
+
+      if (response.status === 200) {
+        console.log(`✅ File ${fileId} is now publicly accessible`);
+        return true;
+      } else {
+        console.error(`❌ Failed to make file public: ${response.status}`);
+        return false;
+      }
+    } catch (error: any) {
+      console.error('❌ Error making file public:', error);
+      throw new Error(`Failed to make file public: ${error.message}`);
+    }
+  }
+
+  // 🔥 CRITICAL FIX: Enhanced upload with automatic public access
   async uploadFile(
     file: File, 
     folderId: string = 'root', 
-    onProgress?: (progress: UploadProgress) => void
+    onProgress?: (progress: UploadProgress) => void,
+    makePublic: boolean = true // NEW: Auto-make files public
   ): Promise<DriveFile> {
     if (!this.authenticated) {
       throw new Error('Not authenticated with Google Drive. Please sign in first.');
@@ -397,13 +430,24 @@ class GoogleDriveService {
           };
         }
 
-        xhr.onload = () => {
+        xhr.onload = async () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const result = JSON.parse(xhr.responseText);
               console.log(`✅ Upload completed: ${result.name} (ID: ${result.id})`);
               
-              // Create standardized DriveFile object
+              // 🔥 CRITICAL FIX: Make the file public automatically
+              if (makePublic) {
+                try {
+                  await this.makeFilePublic(result.id);
+                  console.log(`🌐 File ${result.id} is now publicly accessible`);
+                } catch (publicError) {
+                  console.warn(`⚠️ Upload succeeded but failed to make file public:`, publicError);
+                  // Don't reject the upload, just warn
+                }
+              }
+
+              // Create standardized DriveFile object with correct public URLs
               const driveFile: DriveFile = {
                 id: result.id,
                 name: result.name,
@@ -412,8 +456,10 @@ class GoogleDriveService {
                 createdTime: new Date().toISOString(),
                 modifiedTime: new Date().toISOString(),
                 webViewLink: `https://drive.google.com/file/d/${result.id}/view`,
-                webContentLink: `https://drive.google.com/uc?id=${result.id}&export=download`,
-                thumbnailLink: result.thumbnailLink,
+                // 🔥 CRITICAL: Use the correct public URL format for direct image display
+                webContentLink: `https://drive.google.com/uc?export=view&id=${result.id}`,
+                thumbnailLink: result.thumbnailLink || (result.mimeType?.startsWith('image/') ? 
+                  `https://drive.google.com/thumbnail?id=${result.id}&sz=w400-h300` : undefined),
                 parents: result.parents
               };
 
@@ -480,6 +526,31 @@ class GoogleDriveService {
     }
   }
 
+  // 🔥 NEW: Batch make files public (for existing files)
+  async makeMultipleFilesPublic(fileIds: string[]): Promise<{success: string[], failed: string[]}> {
+    if (!this.authenticated) {
+      throw new Error('Not authenticated with Google Drive');
+    }
+
+    const success: string[] = [];
+    const failed: string[] = [];
+
+    console.log(`🔓 Making ${fileIds.length} files public...`);
+
+    for (const fileId of fileIds) {
+      try {
+        await this.makeFilePublic(fileId);
+        success.push(fileId);
+      } catch (error) {
+        console.error(`❌ Failed to make file ${fileId} public:`, error);
+        failed.push(fileId);
+      }
+    }
+
+    console.log(`✅ Made ${success.length} files public, ${failed.length} failed`);
+    return { success, failed };
+  }
+
   // ENHANCED: List files with comprehensive filtering and error handling
   async listFiles(
     folderId: string = 'root',
@@ -517,7 +588,7 @@ class GoogleDriveService {
       // Handle pagination if needed
       let nextPageToken = response.result.nextPageToken;
       while (nextPageToken && files.length < maxResults) {
-        console.log('📄 Fetching next page of results...');
+        console.log('🔄 Fetching next page of results...');
         
         const nextResponse = await this.gapi.client.drive.files.list({
           q: query,
@@ -534,11 +605,12 @@ class GoogleDriveService {
 
       console.log(`✅ Found ${files.length} files in folder ${folderId}`);
       
-      // Enhance files with proper URLs
+      // Enhance files with proper public URLs
       const enhancedFiles: DriveFile[] = files.map(file => ({
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        webContentLink: file.webContentLink || `https://drive.google.com/uc?id=${file.id}&export=download`,
+        // 🔥 CRITICAL: Use correct public URL format for all files
+        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
       }));
@@ -572,11 +644,11 @@ class GoogleDriveService {
       const file = response.result;
       console.log(`✅ File details retrieved: ${file.name}`);
 
-      // Enhance with proper URLs
+      // Enhance with proper public URLs
       return {
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        webContentLink: file.webContentLink || `https://drive.google.com/uc?id=${file.id}&export=download`,
+        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
       };
@@ -593,7 +665,7 @@ class GoogleDriveService {
     }
 
     try {
-      console.log(`📁 Creating folder: ${name} in parent: ${parentId}`);
+      console.log(`📂 Creating folder: ${name} in parent: ${parentId}`);
 
       const metadata = {
         name: name,
@@ -664,7 +736,7 @@ class GoogleDriveService {
   // NEW: Create event folder structure with error handling
   async createEventFolder(eventName: string, eventId: string): Promise<EventFolder> {
     try {
-      console.log(`📁 Creating event folder structure for: ${eventName} (${eventId})`);
+      console.log(`📂 Creating event folder structure for: ${eventName} (${eventId})`);
 
       // Clean event name for folder creation
       const cleanEventName = eventName.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
@@ -774,7 +846,7 @@ class GoogleDriveService {
       return files.map(file => ({
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        webContentLink: file.webContentLink || `https://drive.google.com/uc?id=${file.id}&export=download`,
+        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
       }));
