@@ -1,4 +1,4 @@
-// src/utils/fixExistingFiles.ts - Utility to fix existing private files
+// src/utils/fixExistingFiles.ts - CSP-SAFE UTILITY
 import { googleDriveService } from '../services/googleDriveService';
 
 interface FixResults {
@@ -14,10 +14,10 @@ interface FixResults {
 }
 
 /**
- * Fix all existing media files by making them public
+ * Fix all existing media files by making them public (CSP-Safe version)
  */
 export async function fixAllExistingFiles(): Promise<FixResults> {
-  console.log('🔧 Starting fix for all existing media files...');
+  console.log('🔧 Starting CSP-safe fix for all existing media files...');
 
   const results: FixResults = {
     totalFiles: 0,
@@ -40,9 +40,9 @@ export async function fixAllExistingFiles(): Promise<FixResults> {
 
     console.log('✅ Authenticated, searching for media files...');
 
-    // Search for all image and video files
-    const imageFiles = await googleDriveService.searchFiles('', 500); // Get more files
-    const mediaFiles = imageFiles.filter(file => 
+    // Get all files from main directory
+    const allFiles = await googleDriveService.listFiles('root', undefined, 500);
+    const mediaFiles = allFiles.filter(file => 
       file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
     );
 
@@ -55,18 +55,42 @@ export async function fixAllExistingFiles(): Promise<FixResults> {
     }
 
     // Process files in batches to avoid rate limits
-    const batchSize = 10;
+    const batchSize = 5; // Smaller batches for stability
     for (let i = 0; i < mediaFiles.length; i += batchSize) {
       const batch = mediaFiles.slice(i, i + batchSize);
       console.log(`🔄 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(mediaFiles.length/batchSize)}...`);
       
-      // Process batch with delay to respect rate limits
-      await Promise.all(batch.map(async (file) => {
+      // Process batch sequentially to avoid rate limits
+      for (const file of batch) {
         try {
-          await googleDriveService.makeFilePublic(file.id);
-          results.successCount++;
-          results.successFiles.push(file.id);
-          console.log(`✅ Made public: ${file.name}`);
+          // First check if file is already public using CSP-safe method
+          const isPublic = await googleDriveService.verifyFileIsPublic(file.id);
+          
+          if (isPublic) {
+            console.log(`ℹ️ Already public: ${file.name}`);
+            results.successCount++;
+            results.successFiles.push(file.id);
+          } else {
+            // Make file public
+            const success = await googleDriveService.makeFilePublic(file.id);
+            if (success) {
+              results.successCount++;
+              results.successFiles.push(file.id);
+              console.log(`✅ Made public: ${file.name}`);
+            } else {
+              results.failedCount++;
+              results.failedFiles.push({
+                id: file.id,
+                name: file.name,
+                error: 'Failed to set public permissions'
+              });
+              console.error(`❌ Failed to make public: ${file.name}`);
+            }
+          }
+          
+          // Small delay between files to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
         } catch (error: any) {
           results.failedCount++;
           results.failedFiles.push({
@@ -74,9 +98,9 @@ export async function fixAllExistingFiles(): Promise<FixResults> {
             name: file.name,
             error: error.message
           });
-          console.error(`❌ Failed to make public: ${file.name} - ${error.message}`);
+          console.error(`❌ Error processing: ${file.name} - ${error.message}`);
         }
-      }));
+      }
 
       // Add delay between batches to respect rate limits
       if (i + batchSize < mediaFiles.length) {
@@ -85,7 +109,7 @@ export async function fixAllExistingFiles(): Promise<FixResults> {
       }
     }
 
-    console.log(`🎉 Fix completed! ${results.successCount}/${results.totalFiles} files made public`);
+    console.log(`🎉 Fix completed! ${results.successCount}/${results.totalFiles} files processed`);
     
     if (results.failedCount > 0) {
       console.warn(`⚠️ ${results.failedCount} files failed to be made public`);
@@ -103,26 +127,27 @@ export async function fixAllExistingFiles(): Promise<FixResults> {
 }
 
 /**
- * Test a single file to see if it's publicly accessible
+ * Test a single file using CSP-safe method
  */
 export async function testFileAccess(fileId: string): Promise<boolean> {
   try {
-    const testUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    const response = await fetch(testUrl, { method: 'HEAD' });
-    return response.ok;
+    console.log(`🧪 Testing file access: ${fileId}`);
+    return await googleDriveService.verifyFileIsPublic(fileId);
   } catch (error) {
-    console.error('Error testing file access:', error);
+    console.error('❌ Error testing file access:', error);
     return false;
   }
 }
 
 /**
- * Verify and fix a specific file
+ * Verify and fix a specific file (CSP-safe)
  */
 export async function verifyAndFixFile(fileId: string): Promise<boolean> {
   try {
-    // First test if file is already public
-    const isPublic = await testFileAccess(fileId);
+    console.log(`🔧 Checking file: ${fileId}`);
+    
+    // First test if file is already public using CSP-safe method
+    const isPublic = await googleDriveService.verifyFileIsPublic(fileId);
     if (isPublic) {
       console.log(`✅ File ${fileId} is already public`);
       return true;
@@ -130,19 +155,97 @@ export async function verifyAndFixFile(fileId: string): Promise<boolean> {
 
     // If not public, make it public
     console.log(`🔧 Making file ${fileId} public...`);
-    await googleDriveService.makeFilePublic(fileId);
-
-    // Verify it worked
-    const isNowPublic = await testFileAccess(fileId);
-    if (isNowPublic) {
-      console.log(`✅ File ${fileId} is now public`);
-      return true;
+    const success = await googleDriveService.makeFilePublic(fileId);
+    
+    if (success) {
+      // Verify it worked using CSP-safe method
+      const isNowPublic = await googleDriveService.verifyFileIsPublic(fileId);
+      if (isNowPublic) {
+        console.log(`✅ File ${fileId} is now public`);
+        return true;
+      } else {
+        console.error(`❌ File ${fileId} still not public after fix attempt`);
+        return false;
+      }
     } else {
-      console.error(`❌ File ${fileId} still not public after fix attempt`);
+      console.error(`❌ Failed to make file ${fileId} public`);
       return false;
     }
   } catch (error: any) {
     console.error(`❌ Error fixing file ${fileId}:`, error);
     return false;
   }
+}
+
+/**
+ * Quick fix for files in browser console (CSP-safe)
+ */
+export function createConsoleFixFunction() {
+  return `
+// 🔧 CSP-SAFE CONSOLE FIX FUNCTION
+// Paste this in your browser console on the admin page
+(async function quickFixFiles() {
+  console.log('🔧 Starting CSP-safe file fix...');
+  
+  try {
+    // Access the Google Drive service from window
+    const service = window.googleDriveService || (window as any).googleDriveService;
+    
+    if (!service) {
+      console.error('❌ Google Drive service not found');
+      return;
+    }
+    
+    // Check authentication
+    const isAuth = await service.isUserAuthenticated();
+    if (!isAuth) {
+      console.log('🔐 Please authenticate first');
+      return;
+    }
+    
+    // Get files and make them public
+    const files = await service.listFiles('root');
+    const mediaFiles = files.filter(f => 
+      f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/')
+    );
+    
+    console.log(\`📊 Found \${mediaFiles.length} media files\`);
+    
+    let fixed = 0;
+    for (const file of mediaFiles) {
+      try {
+        const isPublic = await service.verifyFileIsPublic(file.id);
+        if (!isPublic) {
+          const success = await service.makeFilePublic(file.id);
+          if (success) {
+            fixed++;
+            console.log(\`✅ Fixed: \${file.name}\`);
+          }
+        }
+        await new Promise(r => setTimeout(r, 200)); // Rate limit delay
+      } catch (error) {
+        console.error(\`❌ Failed: \${file.name}\`, error);
+      }
+    }
+    
+    console.log(\`🎉 Fixed \${fixed} files!\`);
+    console.log('🔄 Now refresh your homepage to see the changes');
+    
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+})();
+  `;
+}
+
+// Browser-safe exports
+if (typeof window !== 'undefined') {
+  (window as any).fixAllExistingFiles = fixAllExistingFiles;
+  (window as any).testFileAccess = testFileAccess;
+  (window as any).verifyAndFixFile = verifyAndFixFile;
+  
+  console.log('🛠️ CSP-safe file fix utilities loaded:');
+  console.log('   - fixAllExistingFiles() - Fix all media files');
+  console.log('   - testFileAccess(fileId) - Test single file');
+  console.log('   - verifyAndFixFile(fileId) - Fix single file');
 }
