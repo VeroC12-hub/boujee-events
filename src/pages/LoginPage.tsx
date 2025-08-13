@@ -149,9 +149,9 @@ const LoginPage: React.FC = () => {
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
           <h3 className="text-blue-400 font-semibold mb-2">Test Credentials:</h3>
           <div className="text-sm text-blue-200 space-y-1">
-            <div><strong>Admin:</strong> admin@test.com / TestAdmin2025</div>
-            <div><strong>Organizer:</strong> organizer@test.com / TestOrganizer2025</div>
-            <div><strong>Member:</strong> member@test.com / TestMember2025</div>
+            <div><strong>Admin:</strong> admin@nexacore-innovations.com / NexaCore2024!</div>
+            <div><strong>Organizer:</strong> N/A / N/A</div>
+            <div><strong>Member:</strong> N/A / N/A</div>
           </div>
         </div>
 
