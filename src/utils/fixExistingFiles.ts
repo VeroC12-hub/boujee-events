@@ -1,6 +1,4 @@
-// src/utils/fixExistingFiles.ts
-// Utility to make existing Google Drive files public
-
+// src/utils/fixExistingFiles.ts - Utility to fix existing private files
 import { googleDriveService } from '../services/googleDriveService';
 
 interface FixResults {
@@ -8,15 +6,18 @@ interface FixResults {
   successCount: number;
   failedCount: number;
   successFiles: string[];
-  failedFiles: {id: string, name: string, error: string}[];
+  failedFiles: Array<{
+    id: string;
+    name: string;
+    error: string;
+  }>;
 }
 
 /**
- * Fix existing files in your Google Drive by making them public
- * This should be run once to fix all your existing uploaded media
+ * Fix all existing media files by making them public
  */
-export async function fixExistingMediaFiles(): Promise<FixResults> {
-  console.log('🔧 Starting fix for existing media files...');
+export async function fixAllExistingFiles(): Promise<FixResults> {
+  console.log('🔧 Starting fix for all existing media files...');
 
   const results: FixResults = {
     totalFiles: 0,
@@ -102,91 +103,46 @@ export async function fixExistingMediaFiles(): Promise<FixResults> {
 }
 
 /**
- * Fix files in a specific folder
+ * Test a single file to see if it's publicly accessible
  */
-export async function fixFilesInFolder(folderId: string, folderName?: string): Promise<FixResults> {
-  console.log(`🔧 Fixing files in folder: ${folderName || folderId}`);
-
-  const results: FixResults = {
-    totalFiles: 0,
-    successCount: 0,
-    failedCount: 0,
-    successFiles: [],
-    failedFiles: []
-  };
-
+export async function testFileAccess(fileId: string): Promise<boolean> {
   try {
-    const isAuth = await googleDriveService.isUserAuthenticated();
-    if (!isAuth) {
-      const authSuccess = await googleDriveService.authenticate();
-      if (!authSuccess) {
-        throw new Error('Authentication failed');
-      }
-    }
-
-    const files = await googleDriveService.listFiles(folderId);
-    const mediaFiles = files.filter(file => 
-      file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
-    );
-
-    results.totalFiles = mediaFiles.length;
-    console.log(`📊 Found ${mediaFiles.length} media files in folder`);
-
-    for (const file of mediaFiles) {
-      try {
-        await googleDriveService.makeFilePublic(file.id);
-        results.successCount++;
-        results.successFiles.push(file.id);
-        console.log(`✅ Made public: ${file.name}`);
-      } catch (error: any) {
-        results.failedCount++;
-        results.failedFiles.push({
-          id: file.id,
-          name: file.name,
-          error: error.message
-        });
-        console.error(`❌ Failed: ${file.name} - ${error.message}`);
-      }
-      
-      // Small delay between files
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-
-    return results;
-
-  } catch (error: any) {
-    console.error('❌ Error fixing folder files:', error);
-    throw error;
-  }
-}
-
-/**
- * Test a specific file URL to see if it's working
- */
-export async function testFileUrl(fileId: string): Promise<boolean> {
-  const publicUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-  
-  try {
-    console.log(`🧪 Testing URL: ${publicUrl}`);
-    
-    const response = await fetch(publicUrl, { method: 'HEAD' });
-    const isWorking = response.ok;
-    
-    console.log(isWorking ? '✅ URL is working' : '❌ URL is not accessible');
-    return isWorking;
+    const testUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    const response = await fetch(testUrl, { method: 'HEAD' });
+    return response.ok;
   } catch (error) {
-    console.error('❌ Error testing URL:', error);
+    console.error('Error testing file access:', error);
     return false;
   }
 }
 
-// Export for use in browser console or admin tools
-if (typeof window !== 'undefined') {
-  (window as any).fixExistingMediaFiles = fixExistingMediaFiles;
-  (window as any).fixFilesInFolder = fixFilesInFolder;
-  (window as any).testFileUrl = testFileUrl;
-  console.log('🛠️ File fix utilities loaded. Available functions:');
-  console.log('   - fixExistingMediaFiles()');
-  console.log('   - fixFilesInFolder(folderId, folderName)');
-  console.log('   - testFileUrl(fileId)');
+/**
+ * Verify and fix a specific file
+ */
+export async function verifyAndFixFile(fileId: string): Promise<boolean> {
+  try {
+    // First test if file is already public
+    const isPublic = await testFileAccess(fileId);
+    if (isPublic) {
+      console.log(`✅ File ${fileId} is already public`);
+      return true;
+    }
+
+    // If not public, make it public
+    console.log(`🔧 Making file ${fileId} public...`);
+    await googleDriveService.makeFilePublic(fileId);
+
+    // Verify it worked
+    const isNowPublic = await testFileAccess(fileId);
+    if (isNowPublic) {
+      console.log(`✅ File ${fileId} is now public`);
+      return true;
+    } else {
+      console.error(`❌ File ${fileId} still not public after fix attempt`);
+      return false;
+    }
+  } catch (error: any) {
+    console.error(`❌ Error fixing file ${fileId}:`, error);
+    return false;
+  }
 }
