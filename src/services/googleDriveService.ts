@@ -97,12 +97,12 @@ class GoogleDriveService {
 
       this.gapi = window.gapi;
 
-      // Initialize token client
+      // Initialize token client with FULL DRIVE SCOPE for permission management
       console.log('🔑 Initializing OAuth token client...');
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: [
-          'https://www.googleapis.com/auth/drive.readonly',
+          'https://www.googleapis.com/auth/drive',  // 🔥 CRITICAL: Full Drive access for permissions
           'https://www.googleapis.com/auth/drive.file',
           'https://www.googleapis.com/auth/drive.metadata.readonly'
         ].join(' '),
@@ -342,7 +342,7 @@ class GoogleDriveService {
     }
   }
 
-  // 🔥 NEW: Make a file publicly accessible - THIS FIXES YOUR MEDIA LOADING ISSUE
+  // 🔥 CRITICAL FIX: Make a file publicly accessible
   async makeFilePublic(fileId: string): Promise<boolean> {
     if (!this.authenticated) {
       throw new Error('Not authenticated with Google Drive');
@@ -374,7 +374,29 @@ class GoogleDriveService {
     }
   }
 
-  // 🔥 CRITICAL FIX: Enhanced upload with automatic public access
+  // 🔥 NEW: Verify file is actually public
+  async verifyFileIsPublic(fileId: string): Promise<boolean> {
+    try {
+      console.log(`🔍 Verifying public access for file: ${fileId}`);
+      
+      // Try to access the file without authentication
+      const testUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      const response = await fetch(testUrl, { method: 'HEAD' });
+      
+      if (response.ok) {
+        console.log(`✅ File ${fileId} is publicly accessible`);
+        return true;
+      } else {
+        console.error(`❌ File ${fileId} is not publicly accessible: ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ Error verifying file public access:`, error);
+      return false;
+    }
+  }
+
+  // 🔥 CRITICAL FIX: Enhanced upload with automatic public access and verification
   async uploadFile(
     file: File, 
     folderId: string = 'root', 
@@ -436,14 +458,25 @@ class GoogleDriveService {
               const result = JSON.parse(xhr.responseText);
               console.log(`✅ Upload completed: ${result.name} (ID: ${result.id})`);
               
-              // 🔥 CRITICAL FIX: Make the file public automatically
+              // 🔥 CRITICAL FIX: Make the file public automatically with verification
               if (makePublic) {
                 try {
-                  await this.makeFilePublic(result.id);
-                  console.log(`🌐 File ${result.id} is now publicly accessible`);
+                  const isPublic = await this.makeFilePublic(result.id);
+                  if (!isPublic) {
+                    throw new Error('Failed to set file permissions');
+                  }
+                  
+                  // NEW: Verify the file is actually accessible
+                  const isAccessible = await this.verifyFileIsPublic(result.id);
+                  if (!isAccessible) {
+                    throw new Error('File permissions set but file is still not publicly accessible');
+                  }
+                  
+                  console.log(`🌐 File ${result.id} is now publicly accessible and verified`);
                 } catch (publicError) {
-                  console.warn(`⚠️ Upload succeeded but failed to make file public:`, publicError);
-                  // Don't reject the upload, just warn
+                  console.error(`❌ Failed to make file public:`, publicError);
+                  // CRITICAL: Actually throw the error so user knows about the problem
+                  throw new Error(`Upload completed but file is not publicly accessible: ${publicError.message}`);
                 }
               }
 
@@ -551,6 +584,45 @@ class GoogleDriveService {
     return { success, failed };
   }
 
+  // 🔥 NEW: Fix existing private files
+  async fixExistingPrivateFiles(): Promise<void> {
+    try {
+      console.log('🔧 Fixing existing private files...');
+      
+      // Get all files from your main folder
+      const allFiles = await this.listFiles('root', undefined, 1000);
+      
+      const privateFiles: string[] = [];
+      
+      // Check which files are not public
+      for (const file of allFiles) {
+        const isPublic = await this.verifyFileIsPublic(file.id);
+        if (!isPublic) {
+          privateFiles.push(file.id);
+        }
+      }
+      
+      console.log(`📊 Found ${privateFiles.length} private files to fix`);
+      
+      // Make them public
+      const result = await this.makeMultipleFilesPublic(privateFiles);
+      
+      console.log(`✅ Fixed ${result.success.length} files, ${result.failed.length} failed`);
+      
+      // Verify they're now accessible
+      for (const fileId of result.success) {
+        const isAccessible = await this.verifyFileIsPublic(fileId);
+        if (!isAccessible) {
+          console.warn(`⚠️ File ${fileId} was marked as public but is still not accessible`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fixing existing files:', error);
+      throw error;
+    }
+  }
+
   // ENHANCED: List files with comprehensive filtering and error handling
   async listFiles(
     folderId: string = 'root',
@@ -627,34 +699,37 @@ class GoogleDriveService {
     }
   }
 
-  // NEW: Get file details by ID
-  async getFileDetails(fileId: string): Promise<DriveFile> {
+  // NEW: Search files across Drive
+  async searchFiles(query: string, maxResults: number = 100): Promise<DriveFile[]> {
     if (!this.authenticated) {
       throw new Error('Not authenticated with Google Drive');
     }
 
     try {
-      console.log(`📄 Getting details for file: ${fileId}`);
+      console.log(`🔍 Searching for files: ${query}`);
       
-      const response = await this.gapi.client.drive.files.get({
-        fileId: fileId,
-        fields: 'id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink,parents'
+      const searchQuery = `name contains '${query}' and trashed=false`;
+      
+      const response = await this.gapi.client.drive.files.list({
+        q: searchQuery,
+        pageSize: Math.min(maxResults, 1000),
+        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink,parents)',
+        orderBy: 'relevance desc'
       });
 
-      const file = response.result;
-      console.log(`✅ File details retrieved: ${file.name}`);
+      const files: DriveFile[] = response.result.files || [];
+      console.log(`✅ Search found ${files.length} files`);
 
-      // Enhance with proper public URLs
-      return {
+      return files.map(file => ({
         ...file,
         webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
         webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
         thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
           `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
-      };
+      }));
     } catch (error: any) {
-      console.error('❌ Failed to get file details:', error);
-      throw new Error(`Failed to get file details: ${error.message}`);
+      console.error('❌ Search failed:', error);
+      throw new Error(`Search failed: ${error.message}`);
     }
   }
 
@@ -693,43 +768,6 @@ class GoogleDriveService {
     } catch (error: any) {
       console.error('❌ Failed to create folder:', error);
       throw new Error(`Failed to create folder: ${error.message}`);
-    }
-  }
-
-  // NEW: Test connection with comprehensive checks
-  async testConnection(): Promise<boolean> {
-    try {
-      if (!this.initialized) {
-        console.log('🧪 Service not initialized, initializing...');
-        await this.initialize();
-      }
-
-      if (!this.authenticated) {
-        console.log('🧪 User not authenticated');
-        return false;
-      }
-
-      console.log('🧪 Testing Google Drive connection...');
-      
-      // Test basic API access
-      const response = await this.gapi.client.drive.about.get({
-        fields: 'user,storageQuota'
-      });
-
-      if (response.result && response.result.user) {
-        console.log('✅ Connection test successful:', response.result.user.displayName);
-        return true;
-      }
-
-      console.log('⚠️ Connection test returned unexpected response');
-      return false;
-    } catch (error: any) {
-      console.error('❌ Connection test failed:', error);
-      if (error.status === 401) {
-        this.authenticated = false;
-        this.currentUser = null;
-      }
-      return false;
     }
   }
 
@@ -772,87 +810,40 @@ class GoogleDriveService {
     }
   }
 
-  // NEW: Get event media with categorization
-  async getEventMedia(eventFolderId: string): Promise<{photos: DriveFile[], videos: DriveFile[], all: DriveFile[]}> {
+  // NEW: Test connection with comprehensive checks
+  async testConnection(): Promise<boolean> {
     try {
-      console.log(`📊 Getting event media for folder: ${eventFolderId}`);
-      
-      // Get all files in the event folder and subfolders
-      const allFiles = await this.listFiles(eventFolderId);
-      
-      const photos: DriveFile[] = [];
-      const videos: DriveFile[] = [];
-      const folders: DriveFile[] = [];
-      const other: DriveFile[] = [];
-
-      // Categorize files
-      for (const file of allFiles) {
-        if (file.mimeType === 'application/vnd.google-apps.folder') {
-          folders.push(file);
-        } else if (file.mimeType.startsWith('image/')) {
-          photos.push(file);
-        } else if (file.mimeType.startsWith('video/')) {
-          videos.push(file);
-        } else {
-          other.push(file);
-        }
+      if (!this.initialized) {
+        console.log('🧪 Service not initialized, initializing...');
+        await this.initialize();
       }
 
-      // Also get files from Photos and Videos subfolders
-      for (const folder of folders) {
-        if (folder.name.toLowerCase().includes('photo')) {
-          const folderPhotos = await this.listFiles(folder.id, 'image/*');
-          photos.push(...folderPhotos);
-        } else if (folder.name.toLowerCase().includes('video')) {
-          const folderVideos = await this.listFiles(folder.id, 'video/*');
-          videos.push(...folderVideos);
-        }
+      if (!this.authenticated) {
+        console.log('🧪 User not authenticated');
+        return false;
       }
 
-      console.log(`✅ Found ${photos.length} photos, ${videos.length} videos, ${other.length} other files`);
+      console.log('🧪 Testing Google Drive connection...');
       
-      return { 
-        photos: photos.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()),
-        videos: videos.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()),
-        all: [...photos, ...videos, ...other].sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
-      };
-    } catch (error: any) {
-      console.error('❌ Failed to get event media:', error);
-      throw new Error(`Failed to get event media: ${error.message}`);
-    }
-  }
-
-  // NEW: Search files across Drive
-  async searchFiles(query: string, maxResults: number = 100): Promise<DriveFile[]> {
-    if (!this.authenticated) {
-      throw new Error('Not authenticated with Google Drive');
-    }
-
-    try {
-      console.log(`🔍 Searching for files: ${query}`);
-      
-      const searchQuery = `name contains '${query}' and trashed=false`;
-      
-      const response = await this.gapi.client.drive.files.list({
-        q: searchQuery,
-        pageSize: Math.min(maxResults, 1000),
-        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink,parents)',
-        orderBy: 'relevance desc'
+      // Test basic API access
+      const response = await this.gapi.client.drive.about.get({
+        fields: 'user,storageQuota'
       });
 
-      const files: DriveFile[] = response.result.files || [];
-      console.log(`✅ Search found ${files.length} files`);
+      if (response.result && response.result.user) {
+        console.log('✅ Connection test successful:', response.result.user.displayName);
+        return true;
+      }
 
-      return files.map(file => ({
-        ...file,
-        webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-        webContentLink: `https://drive.google.com/uc?export=view&id=${file.id}`,
-        thumbnailLink: file.thumbnailLink || (file.mimeType?.startsWith('image/') ? 
-          `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300` : undefined)
-      }));
+      console.log('⚠️ Connection test returned unexpected response');
+      return false;
     } catch (error: any) {
-      console.error('❌ Search failed:', error);
-      throw new Error(`Search failed: ${error.message}`);
+      console.error('❌ Connection test failed:', error);
+      if (error.status === 401) {
+        this.authenticated = false;
+        this.currentUser = null;
+      }
+      return false;
     }
   }
 
@@ -863,41 +854,6 @@ class GoogleDriveService {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  // UTILITY: Validate file type
-  isValidFileType(file: File, allowedTypes: string[]): boolean {
-    return allowedTypes.some(type => {
-      if (type.endsWith('/*')) {
-        return file.type.startsWith(type.slice(0, -1));
-      }
-      return file.type === type;
-    });
-  }
-
-  // UTILITY: Get file type category
-  getFileCategory(mimeType: string): 'image' | 'video' | 'document' | 'other' {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.includes('document') || mimeType.includes('pdf') || mimeType.includes('text')) return 'document';
-    return 'other';
-  }
-
-  // Getters for service status
-  get isInitialized(): boolean {
-    return this.initialized;
-  }
-
-  get isAuthenticated(): boolean {
-    return this.authenticated;
-  }
-
-  get currentAuthenticatedUser(): any {
-    return this.currentUser;
-  }
-
-  get hasValidConnection(): boolean {
-    return this.initialized && this.authenticated && this.currentUser;
   }
 
   // NEW: Sign out method
@@ -934,8 +890,25 @@ class GoogleDriveService {
       initialized: this.initialized,
       authenticated: this.authenticated,
       user: this.currentUser,
-      hasConnection: this.hasValidConnection
+      hasConnection: this.initialized && this.authenticated && this.currentUser
     };
+  }
+
+  // Getters for service status
+  get isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  get isAuthenticated(): boolean {
+    return this.authenticated;
+  }
+
+  get currentAuthenticatedUser(): any {
+    return this.currentUser;
+  }
+
+  get hasValidConnection(): boolean {
+    return this.initialized && this.authenticated && this.currentUser;
   }
 }
 
