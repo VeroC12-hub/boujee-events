@@ -1,15 +1,16 @@
-// src/pages/HomePage.tsx - FIXED VERSION WITH PROPER GOOGLE DRIVE SUPPORT
-import React, { useState, useEffect } from 'react';
+// src/pages/HomePage.tsx - FIXED VERSION WITH REAL-TIME UPDATES
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 interface MediaItem {
   id: string;
   name: string;
   type: 'image' | 'video';
   url: string;
-  directUrl?: string; // NEW: For direct embedding
+  directUrl?: string;
   mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
   isActive: boolean;
   title?: string;
@@ -18,7 +19,7 @@ interface MediaItem {
   uploadedAt: string;
 }
 
-// NEW: GoogleDriveVideo component for proper video handling
+// Enhanced GoogleDriveVideo component
 const GoogleDriveVideo: React.FC<{
   src: string;
   name: string;
@@ -31,20 +32,17 @@ const GoogleDriveVideo: React.FC<{
   const [loadError, setLoadError] = useState(false);
   const [useIframe, setUseIframe] = useState(false);
 
-  // Try direct video first, fallback to iframe
   const handleVideoError = () => {
-    console.log('❌ Direct video failed, trying iframe:', name);
+    console.log('⚠️ Direct video failed, trying iframe:', name);
     setLoadError(true);
     setUseIframe(true);
     onError?.();
   };
 
-  // For Google Drive videos, we need special handling
   if (src.includes('drive.google.com')) {
     const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
     
     if (fileId && (loadError || useIframe)) {
-      // Use iframe preview for Google Drive videos
       return (
         <iframe
           src={`https://drive.google.com/file/d/${fileId}/preview`}
@@ -53,14 +51,13 @@ const GoogleDriveVideo: React.FC<{
           style={{ border: 'none' }}
           title={name}
           onError={() => {
-            console.log('❌ Iframe also failed for:', name);
+            console.log('⚠️ Iframe also failed for:', name);
             onError?.();
           }}
         />
       );
     }
 
-    // Try direct video URL first
     const directUrl = `https://drive.google.com/uc?id=${fileId}`;
     return (
       <video
@@ -77,7 +74,6 @@ const GoogleDriveVideo: React.FC<{
     );
   }
 
-  // Regular video URL
   return (
     <video
       src={src}
@@ -91,7 +87,7 @@ const GoogleDriveVideo: React.FC<{
   );
 };
 
-// NEW: GoogleDriveImage component for proper image handling
+// Enhanced GoogleDriveImage component
 const GoogleDriveImage: React.FC<{
   src: string;
   directUrl?: string;
@@ -106,7 +102,6 @@ const GoogleDriveImage: React.FC<{
     if (!hasError) {
       setHasError(true);
       
-      // Try different URL formats for Google Drive images
       const fileId = src.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || src.match(/id=([a-zA-Z0-9-_]+)/)?.[1];
       
       if (fileId) {
@@ -117,7 +112,6 @@ const GoogleDriveImage: React.FC<{
           'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1920&h=1080&fit=crop'
         ];
         
-        // Try next alternative
         const currentIndex = alternatives.indexOf(currentSrc);
         const nextIndex = currentIndex + 1;
         
@@ -128,7 +122,7 @@ const GoogleDriveImage: React.FC<{
         }
       }
       
-      console.log('❌ All image alternatives failed for:', alt);
+      console.log('⚠️ All image alternatives failed for:', alt);
       onError?.();
     }
   };
@@ -152,33 +146,209 @@ const HomePage: React.FC = () => {
 
   console.log('🏠 HomePage rendering', { user: !!user, profile: !!profile });
 
-  useEffect(() => {
-    loadRealMedia();
+  // CRITICAL FIX: Enhanced media loading from database with fallback to localStorage
+  const loadMediaFromDatabase = useCallback(async () => {
+    try {
+      console.log('📡 Loading media from database...');
+      
+      const { data, error } = await supabase
+        .from('homepage_media')
+        .select(`
+          id,
+          media_type,
+          title,
+          description,
+          is_active,
+          display_order,
+          created_at,
+          media_file:media_files(
+            id,
+            name,
+            original_name,
+            mime_type,
+            file_size,
+            google_drive_file_id,
+            download_url,
+            web_view_link,
+            thumbnail_url,
+            file_type,
+            uploaded_by
+          )
+        `)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.warn('⚠️ Database query failed, falling back to localStorage:', error);
+        loadMediaFromLocalStorage();
+        return;
+      }
+
+      // Process database data
+      const formattedMedia: MediaItem[] = (data || []).map(item => {
+        const mediaFile = Array.isArray(item.media_file) ? item.media_file[0] : item.media_file;
+        
+        if (!mediaFile) {
+          console.warn('⚠️ Homepage media item has no associated media file:', item.id);
+          return null;
+        }
+
+        // Enhanced URL construction for Google Drive files
+        let displayUrl = mediaFile.download_url;
+        if (!displayUrl && mediaFile.google_drive_file_id) {
+          displayUrl = mediaFile.mime_type?.startsWith('image/') 
+            ? `https://drive.google.com/uc?export=view&id=${mediaFile.google_drive_file_id}`
+            : `https://drive.google.com/uc?export=download&id=${mediaFile.google_drive_file_id}`;
+        }
+
+        return {
+          id: item.id,
+          name: mediaFile.name || 'Unknown File',
+          url: displayUrl || mediaFile.web_view_link || '',
+          directUrl: displayUrl,
+          type: mediaFile.file_type === 'video' ? 'video' : 'image',
+          mediaType: item.media_type,
+          isActive: item.is_active,
+          title: item.title,
+          description: item.description,
+          uploadedBy: mediaFile.uploaded_by || 'Unknown',
+          uploadedAt: item.created_at
+        };
+      }).filter(Boolean) as MediaItem[];
+
+      setAllMedia(formattedMedia);
+      console.log(`✅ Loaded ${formattedMedia.length} media items from database`);
+      
+      // Update localStorage as backup
+      const localStorageData = formattedMedia.map(item => ({
+        id: item.id,
+        name: item.name,
+        url: item.url,
+        type: item.type,
+        mediaType: item.mediaType,
+        isActive: item.isActive,
+        title: item.title,
+        description: item.description,
+        uploadedBy: item.uploadedBy,
+        uploadedAt: item.uploadedAt
+      }));
+      
+      localStorage.setItem('boujee_all_media', JSON.stringify(localStorageData));
+      console.log('💾 Updated localStorage backup');
+
+    } catch (error) {
+      console.error('⚠️ Database loading failed, falling back to localStorage:', error);
+      loadMediaFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadRealMedia = () => {
+  // BACKUP: LocalStorage loading function
+  const loadMediaFromLocalStorage = useCallback(() => {
     try {
+      console.log('📱 Loading media from localStorage...');
       const savedMedia = localStorage.getItem('boujee_all_media');
       if (savedMedia) {
         const mediaData = JSON.parse(savedMedia);
         setAllMedia(mediaData);
-        console.log('📱 Loaded real uploaded media:', mediaData.length, 'items');
-        console.log('☁️ Media sources:', {
-          googleDrive: mediaData.filter((m: any) => m.url.includes('drive.google.com')).length,
-          local: mediaData.filter((m: any) => m.url.includes('blob:')).length
-        });
+        console.log('📱 Loaded media from localStorage:', mediaData.length, 'items');
       } else {
-        console.log('📱 No media uploaded yet - admin needs to upload media');
+        console.log('📱 No media in localStorage');
         setAllMedia([]);
       }
     } catch (error) {
-      console.error('❌ Failed to load media:', error);
+      console.error('⚠️ Failed to load from localStorage:', error);
       setAllMedia([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // CRITICAL FIX: Real-time subscription for immediate updates
+  useEffect(() => {
+    // Initial load from database
+    loadMediaFromDatabase();
+
+    // Set up real-time subscription for database changes
+    if (supabase) {
+      console.log('🔄 Setting up real-time subscription...');
+      
+      const subscription = supabase
+        .channel('homepage_media_realtime')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'homepage_media' 
+          }, 
+          (payload) => {
+            console.log('🔄 Real-time database update received:', payload.eventType);
+            // Reload media when any change occurs
+            setTimeout(() => loadMediaFromDatabase(), 500); // Small delay to ensure transaction completion
+          }
+        )
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'media_files' 
+          }, 
+          (payload) => {
+            console.log('🔄 Real-time media files update received:', payload.eventType);
+            // Reload media when media files change
+            setTimeout(() => loadMediaFromDatabase(), 500);
+          }
+        )
+        .subscribe();
+
+      // Cleanup subscription
+      return () => {
+        console.log('🔄 Cleaning up real-time subscription');
+        subscription.unsubscribe();
+      };
+    }
+  }, [loadMediaFromDatabase]);
+
+  // CRITICAL FIX: Listen for localStorage changes (for cross-tab updates)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'boujee_all_media' && e.newValue) {
+        console.log('💾 localStorage updated, refreshing media...');
+        try {
+          const newMediaData = JSON.parse(e.newValue);
+          setAllMedia(newMediaData);
+        } catch (error) {
+          console.error('⚠️ Failed to parse localStorage update:', error);
+        }
+      }
+    };
+
+    // Listen for storage events (cross-tab updates)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for same-tab updates
+    const handleCustomMediaUpdate = () => {
+      console.log('🔄 Custom media update event received');
+      loadMediaFromDatabase();
+    };
+    
+    window.addEventListener('mediaUpdated', handleCustomMediaUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('mediaUpdated', handleCustomMediaUpdate);
+    };
+  }, [loadMediaFromDatabase]);
+
+  // CRITICAL FIX: Manual refresh function for testing
+  const forceRefresh = useCallback(() => {
+    console.log('🔄 Forcing media refresh...');
+    setLoading(true);
+    loadMediaFromDatabase();
+  }, [loadMediaFromDatabase]);
+
+  // Helper functions
   const getActiveMedia = (mediaType: string) => {
     return allMedia.filter(item => item.mediaType === mediaType && item.isActive);
   };
@@ -188,7 +358,7 @@ const HomePage: React.FC = () => {
   const activeGalleryImages = getActiveMedia('gallery_image');
   const activeBanners = getActiveMedia('banner');
 
-  console.log('🎨 Real media loaded:', {
+  console.log('🎨 Media loaded:', {
     backgroundVideo: !!activeBackgroundVideo,
     heroImage: !!activeHeroImage,
     galleryImages: activeGalleryImages.length,
@@ -264,6 +434,7 @@ const HomePage: React.FC = () => {
         <div className="text-center">
           <div className="text-6xl mb-4 animate-pulse">✨</div>
           <p className="text-white text-xl">Loading your experience...</p>
+          <p className="text-gray-400 text-sm mt-2">Syncing with database...</p>
         </div>
       </div>
     );
@@ -273,16 +444,40 @@ const HomePage: React.FC = () => {
     <div className="min-h-screen bg-gray-900">
       <PublicNavbar />
       
+      {/* DEVELOPER DEBUG PANEL */}
+      {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+        <div className="fixed top-20 right-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
+          <div className="font-bold mb-2">🛠️ Admin Debug</div>
+          <div>Total Media: {allMedia.length}</div>
+          <div>Active BG Videos: {getActiveMedia('background_video').length}</div>
+          <div>Active Hero Images: {getActiveMedia('hero_image').length}</div>
+          <div>Active Gallery: {getActiveMedia('gallery_image').length}</div>
+          <div>Active Banners: {getActiveMedia('banner').length}</div>
+          <button
+            onClick={forceRefresh}
+            className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
+          >
+            🔄 Force Refresh
+          </button>
+          <button
+            onClick={() => console.log('Current media state:', allMedia)}
+            className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
+          >
+            📝 Log State
+          </button>
+        </div>
+      )}
+      
       {/* Hero Section with REAL Uploaded Media */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Media - REAL DATA from Admin Uploads */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
           
-          {/* FIXED: Dynamic Background with proper Google Drive support */}
+          {/* Dynamic Background with proper Google Drive support */}
           {(() => {
             if (activeBackgroundVideo) {
-              console.log('🎬 Using real uploaded background video:', activeBackgroundVideo.name);
+              console.log('🎬 Using uploaded background video:', activeBackgroundVideo.name);
               return (
                 <GoogleDriveVideo
                   src={activeBackgroundVideo.url}
@@ -296,7 +491,7 @@ const HomePage: React.FC = () => {
                 />
               );
             } else if (activeHeroImage) {
-              console.log('🖼️ Using real uploaded hero image:', activeHeroImage.name);
+              console.log('🖼️ Using uploaded hero image:', activeHeroImage.name);
               return (
                 <GoogleDriveImage
                   src={activeHeroImage.url}
@@ -307,12 +502,20 @@ const HomePage: React.FC = () => {
                 />
               );
             } else {
-              console.log('🎨 No real media uploaded yet, using default background');
+              console.log('🎨 No uploaded media, using default background');
               return (
                 <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
                   <div className="text-center text-white/20">
-                    <div className="text-6xl mb-4">📁</div>
+                    <div className="text-6xl mb-4">📸</div>
                     <p className="text-xl">Upload media from Admin Dashboard to customize this background</p>
+                    {(profile?.role === 'admin' || profile?.role === 'organizer') && (
+                      <button
+                        onClick={handleGoToDashboard}
+                        className="mt-4 bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors"
+                      >
+                        Go to Dashboard
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -358,7 +561,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* FIXED: Banner Section with proper Google Drive support */}
+      {/* Banner Section with proper Google Drive support */}
       {activeBanners.length > 0 && (
         <section className="py-4 bg-yellow-400">
           <div className="max-w-7xl mx-auto px-4">
@@ -410,7 +613,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* FIXED: Gallery Section with proper Google Drive support */}
+      {/* Gallery Section with proper Google Drive support */}
       {activeGalleryImages.length > 0 && (
         <section className="py-20 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
