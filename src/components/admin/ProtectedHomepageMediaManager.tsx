@@ -1,4 +1,4 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE FIX WITH PERFECT SYNC
+// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE CORS-SAFE VERSION
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../../lib/supabase';
@@ -27,7 +27,7 @@ interface GoogleDriveModalProps {
   selectedCategory: string;
 }
 
-// 🔥 ENHANCED: Google Drive File Browser Modal
+// Google Drive File Browser Modal
 const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   isOpen,
   onClose,
@@ -381,7 +381,7 @@ const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   );
 };
 
-// 🔥 MAIN COMPONENT: Enhanced Homepage Media Manager
+// MAIN COMPONENT: ProtectedHomepageMediaManager
 export const ProtectedHomepageMediaManager: React.FC = () => {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -434,7 +434,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     checkDriveConnection();
   }, []);
 
-  // 🔥 CRITICAL: Real-time sync with homepage
+  // Real-time sync with homepage
   useEffect(() => {
     if (!supabase) return;
 
@@ -450,7 +450,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         }, 
         (payload) => {
           console.log('🔄 Real-time update received:', payload.eventType);
-          loadMediaFiles(); // This will trigger homepage update
+          loadMediaFiles();
           
           if (payload.eventType !== 'SELECT') {
             setSuccessMessage('✅ Media updated in real-time!');
@@ -504,7 +504,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // 🔥 CRITICAL: Enhanced load media files with perfect URL processing
+  // Load media files with perfect URL processing
   const loadMediaFiles = async () => {
     try {
       console.log('📡 Loading media files from database...');
@@ -545,7 +545,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
           return null;
         }
 
-        // 🔥 CRITICAL: Enhanced URL construction for Google Drive files
+        // Enhanced URL construction for Google Drive files
         let displayUrl = mediaFile.download_url;
         let thumbnailUrl = mediaFile.thumbnail_url;
 
@@ -582,7 +582,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       setMediaFiles(formattedFiles);
       console.log(`✅ Loaded ${formattedFiles.length} media files from database`);
       
-      // 🔥 CRITICAL: Update localStorage AND trigger homepage update
+      // Update localStorage AND trigger homepage update
       const allMediaForHomepage = formattedFiles.map(file => ({
         id: file.id,
         name: file.name,
@@ -597,13 +597,14 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
         description: `Uploaded ${new Date(file.createdAt).toLocaleDateString()}`,
         uploadedBy: file.uploadedBy,
         uploadedAt: file.createdAt,
-        googleDriveFileId: file.google_drive_file_id
+        googleDriveFileId: file.google_drive_file_id,
+        mimeType: file.mimeType
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(allMediaForHomepage));
       console.log('💾 Updated localStorage for homepage compatibility');
 
-      // 🔥 CRITICAL: Trigger custom event to notify homepage
+      // Trigger custom event to notify homepage
       window.dispatchEvent(new CustomEvent('mediaUpdated', { 
         detail: { 
           count: allMediaForHomepage.length,
@@ -633,7 +634,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     disabled: uploading
   });
 
-  // 🔥 ENHANCED: File upload with automatic public access
+  // File upload with automatic public access
   const handleFileUpload = async (files: File[]) => {
     setUploading(true);
     setUploadError(null);
@@ -676,7 +677,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
             [fileId]: 0
           }));
 
-          // 🔥 CRITICAL: Upload with automatic public access
+          // Upload with automatic public access
           const driveFile = await googleDriveService.uploadFile(file, 'root', (progress) => {
             setUploadProgress(prev => ({
               ...prev,
@@ -711,7 +712,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       if (successCount > 0) {
         setSuccessMessage(`✅ Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''} to ${selectedCategory.replace('_', ' ')}!`);
-        await loadMediaFiles(); // This will trigger homepage update
+        await loadMediaFiles();
       }
 
       if (failedFiles.length > 0) {
@@ -727,7 +728,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // 🔥 ENHANCED: Google Drive files import
+  // Google Drive files import
   const handleGoogleDriveFiles = async (driveFiles: DriveFile[]) => {
     setUploading(true);
     setUploadError(null);
@@ -741,12 +742,9 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       for (const driveFile of driveFiles) {
         try {
-          // 🔥 CRITICAL: Ensure files are public before importing
-          const isPublic = await googleDriveService.verifyFileIsPublic(driveFile.id);
-          if (!isPublic) {
-            console.log(`🔓 Making file public: ${driveFile.name}`);
-            await googleDriveService.makeFilePublic(driveFile.id);
-          }
+          // 🔥 SAFE: Don't verify with fetch, just make public through API
+          console.log(`🔓 Making file public: ${driveFile.name}`);
+          await googleDriveService.makeFilePublic(driveFile.id);
 
           const mediaFileId = await createMediaFileRecord(driveFile);
           await createHomepageMediaEntry(mediaFileId, selectedCategory);
@@ -762,7 +760,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       if (successCount > 0) {
         setSuccessMessage(`✅ Successfully added ${successCount} file${successCount > 1 ? 's' : ''} from Google Drive to ${selectedCategory.replace('_', ' ')}!`);
-        await loadMediaFiles(); // This will trigger homepage update
+        await loadMediaFiles();
       }
 
       if (failedFiles.length > 0) {
@@ -777,7 +775,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // 🔥 ENHANCED: Create media file record with optimal URLs
+  // Create media file record with optimal URLs
   const createMediaFileRecord = async (driveFile: any, originalFile?: File): Promise<string> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -787,7 +785,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       const isVideo = driveFile.mimeType?.startsWith('video/') || originalFile?.type.startsWith('video/');
       const fileType = isVideo ? 'video' : isImage ? 'image' : 'other';
 
-      // 🔥 CRITICAL: Generate optimal URLs for database storage
+      // Generate optimal URLs for database storage
       let downloadUrl: string;
       let thumbnailUrl: string;
 
@@ -862,7 +860,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // 🔥 ENHANCED: Toggle with perfect homepage sync
+  // Toggle with perfect homepage sync
   const toggleMediaActive = async (mediaId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
@@ -873,7 +871,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       
       console.log(`🔄 Toggled media ${mediaId} to ${!currentStatus ? 'active' : 'inactive'}`);
-      await loadMediaFiles(); // This will trigger homepage update
+      await loadMediaFiles();
       setSuccessMessage(`✅ Media ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
     } catch (error: any) {
       console.error('⚠️ Error toggling media status:', error);
@@ -881,7 +879,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // 🔥 ENHANCED: Delete with perfect homepage sync
+  // Delete with perfect homepage sync
   const deleteMedia = async (mediaId: string, fileName: string) => {
     if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
       return;
@@ -896,7 +894,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       
       console.log(`🗑️ Deleted media: ${fileName}`);
-      await loadMediaFiles(); // This will trigger homepage update
+      await loadMediaFiles();
       setSuccessMessage(`✅ "${fileName}" deleted successfully!`);
     } catch (error: any) {
       console.error('⚠️ Error deleting media:', error);
@@ -1334,7 +1332,6 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
               onClick={() => {
                 console.log('🏠 Current media files:', mediaFiles);
                 console.log('💾 LocalStorage data:', localStorage.getItem('boujee_all_media'));
-                // Manually trigger homepage update
                 window.dispatchEvent(new CustomEvent('mediaUpdated', {
                   detail: { count: mediaFiles.length, manual: true }
                 }));
