@@ -1,4 +1,4 @@
-// src/pages/HomePage.tsx - ENHANCED WITH FIXES + DYNAMIC ANIMATIONS
+// src/pages/HomePage.tsx - COMPLETE FIX WITH WORKING GOOGLE DRIVE IMAGES
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
@@ -11,12 +11,14 @@ interface MediaItem {
   type: 'image' | 'video';
   url: string;
   directUrl?: string;
+  thumbnailUrl?: string;
   mediaType: 'background_video' | 'hero_image' | 'gallery_image' | 'banner';
   isActive: boolean;
   title?: string;
   description?: string;
   uploadedBy: string;
   uploadedAt: string;
+  googleDriveFileId?: string;
 }
 
 interface FloatingElement {
@@ -30,28 +32,58 @@ interface FloatingElement {
   opacity: number;
 }
 
-// CRITICAL FIX: Enhanced Media Display with Multiple URL Fallbacks
+// 🔥 CRITICAL FIX: Enhanced Media Display with Google Drive URL optimization
 const EnhancedMediaDisplay: React.FC<{
   src: string;
   alt: string;
   className?: string;
   type?: 'image' | 'video';
   googleDriveFileId?: string;
+  mimeType?: string;
+  thumbnailUrl?: string;
   onError?: () => void;
   onLoad?: () => void;
-}> = ({ src, alt, className = '', type = 'image', googleDriveFileId, onError, onLoad }) => {
+}> = ({ 
+  src, 
+  alt, 
+  className = '', 
+  type = 'image', 
+  googleDriveFileId, 
+  mimeType,
+  thumbnailUrl,
+  onError, 
+  onLoad 
+}) => {
   const [currentSrc, setCurrentSrc] = useState(src);
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [urlIndex, setUrlIndex] = useState(0);
 
-  // CRITICAL: Multiple URL strategies for Google Drive files
-  const getAlternativeUrls = (fileId: string): string[] => {
+  // 🔥 CRITICAL: Multiple URL strategies for Google Drive files
+  const getOptimalUrls = (fileId: string, fileType: string, fileMimeType?: string): string[] => {
+    const isImage = fileType === 'image' || fileMimeType?.startsWith('image/');
+    const isVideo = fileType === 'video' || fileMimeType?.startsWith('video/');
+
+    if (isImage) {
+      return [
+        // 🔥 BEST for images - Google's CDN with size optimization
+        `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
+        `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
+        `https://drive.google.com/uc?export=view&id=${fileId}`,
+        `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
+        `https://drive.google.com/file/d/${fileId}/view`
+      ];
+    } else if (isVideo) {
+      return [
+        // 🔥 BEST for videos - Preview format works better
+        `https://drive.google.com/file/d/${fileId}/preview`,
+        `https://drive.google.com/uc?export=download&id=${fileId}`,
+        `https://drive.google.com/file/d/${fileId}/view`
+      ];
+    }
+
     return [
       `https://drive.google.com/uc?export=view&id=${fileId}`,
-      `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
-      `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
-      `https://drive.google.com/uc?id=${fileId}&export=download`,
       `https://drive.google.com/file/d/${fileId}/view`
     ];
   };
@@ -74,7 +106,7 @@ const EnhancedMediaDisplay: React.FC<{
     const fileId = googleDriveFileId || extractFileId(currentSrc);
     
     if (fileId && !loadError) {
-      const alternativeUrls = getAlternativeUrls(fileId);
+      const alternativeUrls = getOptimalUrls(fileId, type, mimeType);
       const nextIndex = urlIndex + 1;
       
       if (nextIndex < alternativeUrls.length) {
@@ -100,18 +132,28 @@ const EnhancedMediaDisplay: React.FC<{
   };
 
   useEffect(() => {
-    setCurrentSrc(src);
+    // 🔥 CRITICAL: Use optimal URL from start
+    const fileId = googleDriveFileId || extractFileId(src);
+    if (fileId) {
+      const optimalUrls = getOptimalUrls(fileId, type, mimeType);
+      setCurrentSrc(optimalUrls[0]);
+    } else {
+      setCurrentSrc(src);
+    }
     setLoadError(false);
     setIsLoading(true);
     setUrlIndex(0);
-  }, [src]);
+  }, [src, googleDriveFileId, type, mimeType]);
 
   if (isLoading && !loadError) {
     return (
-      <div className={`bg-gray-800 animate-pulse flex items-center justify-center ${className}`}>
+      <div className={`bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse flex items-center justify-center ${className}`}>
         <div className="text-center text-gray-400">
-          <div className="text-2xl mb-2">{type === 'video' ? '🎥' : '🖼️'}</div>
-          <div className="text-sm">Loading...</div>
+          <div className="text-2xl mb-2 animate-spin">⏳</div>
+          <div className="text-sm">Loading {type}...</div>
+          {googleDriveFileId && (
+            <div className="text-xs text-gray-500 mt-1">Google Drive</div>
+          )}
         </div>
       </div>
     );
@@ -123,6 +165,7 @@ const EnhancedMediaDisplay: React.FC<{
         <div className="text-center text-gray-400 p-4">
           <div className="text-3xl mb-2">📷</div>
           <div className="text-sm mb-2">Media unavailable</div>
+          <div className="text-xs text-gray-500 mb-3">{alt}</div>
           <button
             onClick={() => {
               setLoadError(false);
@@ -130,12 +173,15 @@ const EnhancedMediaDisplay: React.FC<{
               setUrlIndex(0);
               const fileId = googleDriveFileId || extractFileId(src);
               if (fileId) {
-                setCurrentSrc(getAlternativeUrls(fileId)[0]);
+                const optimalUrls = getOptimalUrls(fileId, type, mimeType);
+                setCurrentSrc(optimalUrls[0]);
+              } else {
+                setCurrentSrc(src);
               }
             }}
-            className="text-blue-400 hover:text-blue-300 text-xs underline"
+            className="text-blue-400 hover:text-blue-300 text-xs underline px-3 py-1 bg-blue-900/20 rounded"
           >
-            Retry
+            🔄 Retry
           </button>
         </div>
       </div>
@@ -154,6 +200,7 @@ const EnhancedMediaDisplay: React.FC<{
         loop
         playsInline
         preload="metadata"
+        crossOrigin="anonymous"
       />
     );
   }
@@ -187,7 +234,7 @@ const FloatingImages: React.FC<{ images: MediaItem[] }> = ({ images }) => {
       const image = images[i % images.length];
       elements.push({
         id: `float-${i}`,
-        url: image.url,
+        url: image.thumbnailUrl || image.url,
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
         size: 50 + Math.random() * 100,
@@ -256,7 +303,7 @@ const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -279,11 +326,11 @@ const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10"></div>
       <EnhancedMediaDisplay
         src={media.url}
-        directUrl={media.directUrl}
         alt={media.title || media.name}
         className="w-full h-full object-cover scale-110"
         type={media.type}
-        googleDriveFileId={media.url.match(/id=([^&]+)/)?.[1]}
+        googleDriveFileId={media.googleDriveFileId}
+        thumbnailUrl={media.thumbnailUrl}
       />
     </div>
   );
@@ -369,7 +416,7 @@ const AnimatedStats: React.FC = () => {
   );
 };
 
-// NEW: Image Carousel Component
+// NEW: Enhanced Image Carousel Component
 const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -386,7 +433,7 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   if (images.length === 0) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl h-96 group">
+    <div className="relative overflow-hidden rounded-2xl h-96 group shadow-2xl">
       <div 
         className="flex transition-transform duration-1000 ease-in-out h-full"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -395,11 +442,11 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
           <div key={image.id} className="w-full h-full flex-shrink-0 relative">
             <EnhancedMediaDisplay
               src={image.url}
-              directUrl={image.directUrl}
               alt={image.title || image.name}
               className="w-full h-full object-cover"
               type={image.type}
-              googleDriveFileId={image.url.match(/id=([^&]+)/)?.[1]}
+              googleDriveFileId={image.googleDriveFileId}
+              thumbnailUrl={image.thumbnailUrl}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent">
               <div className="absolute bottom-4 left-4 right-4">
@@ -407,7 +454,7 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
                   {image.title || image.name}
                 </h3>
                 <p className="text-gray-300 text-sm">
-                  {image.description || `Uploaded by ${image.uploadedBy}`}
+                  {image.description || `Uploaded ${new Date(image.uploadedAt).toLocaleDateString()}`}
                 </p>
               </div>
             </div>
@@ -430,58 +477,35 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   );
 };
 
-// ENHANCED: Media URL Processing Function
-const processMediaUrl = (mediaFile: any): { url: string; directUrl: string } => {
-  if (mediaFile.download_url && !mediaFile.download_url.includes('drive.google.com')) {
-    return {
-      url: mediaFile.download_url,
-      directUrl: mediaFile.download_url
-    };
-  }
-
-  const fileId = mediaFile.google_drive_file_id || 
-                 extractFileIdFromUrl(mediaFile.download_url || mediaFile.web_view_link || '');
-
-  if (!fileId) {
-    return {
-      url: mediaFile.download_url || mediaFile.web_view_link || '',
-      directUrl: mediaFile.download_url || mediaFile.web_view_link || ''
-    };
-  }
-
+// 🔥 ENHANCED: Media URL Processing Function
+const processMediaUrl = (mediaFile: any): { url: string; directUrl: string; thumbnailUrl?: string } => {
+  const fileId = mediaFile.google_drive_file_id;
   const isImage = mediaFile.mime_type?.startsWith('image/') || mediaFile.file_type === 'image';
   const isVideo = mediaFile.mime_type?.startsWith('video/') || mediaFile.file_type === 'video';
 
-  let primaryUrl: string;
-  let directUrl: string;
-
-  if (isImage) {
-    primaryUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    directUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`;
-  } else if (isVideo) {
-    primaryUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    directUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
-  } else {
-    primaryUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+  // 🔥 CRITICAL: Use optimal URLs for Google Drive files
+  if (fileId) {
+    if (isImage) {
+      return {
+        url: `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
+        directUrl: `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
+        thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300`
+      };
+    } else if (isVideo) {
+      return {
+        url: `https://drive.google.com/file/d/${fileId}/preview`,
+        directUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+        thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300`
+      };
+    }
   }
 
-  return { url: primaryUrl, directUrl };
-};
-
-const extractFileIdFromUrl = (url: string): string | null => {
-  if (!url) return null;
-  const patterns = [
-    /\/d\/([a-zA-Z0-9-_]+)/,
-    /id=([a-zA-Z0-9-_]+)/,
-    /\/file\/d\/([a-zA-Z0-9-_]+)/
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
+  // Fallback to stored URLs
+  return {
+    url: mediaFile.download_url || mediaFile.web_view_link || '',
+    directUrl: mediaFile.download_url || mediaFile.web_view_link || '',
+    thumbnailUrl: mediaFile.thumbnail_url
+  };
 };
 
 // MAIN HOMEPAGE COMPONENT
@@ -498,11 +522,11 @@ const HomePage: React.FC = () => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // ENHANCED: Media loading with proper URL processing
+  // 🔥 ENHANCED: Media loading with optimal URL processing
   const loadMediaFromDatabase = useCallback(async () => {
     try {
       console.log('📡 Loading media from database...');
@@ -548,42 +572,52 @@ const HomePage: React.FC = () => {
           return null;
         }
 
-        const { url, directUrl } = processMediaUrl(mediaFile);
+        const { url, directUrl, thumbnailUrl } = processMediaUrl(mediaFile);
 
         return {
           id: item.id,
           name: mediaFile.name || 'Unknown File',
           url,
           directUrl,
+          thumbnailUrl,
           type: mediaFile.file_type === 'video' ? 'video' : 'image',
           mediaType: item.media_type,
           isActive: item.is_active,
           title: item.title,
           description: item.description,
           uploadedBy: mediaFile.uploaded_by || 'Unknown',
-          uploadedAt: item.created_at
+          uploadedAt: item.created_at,
+          googleDriveFileId: mediaFile.google_drive_file_id
         };
       }).filter(Boolean) as MediaItem[];
 
       setAllMedia(formattedMedia);
       console.log(`✅ Loaded ${formattedMedia.length} media items from database`);
 
+      // Update localStorage for offline functionality
       const localStorageData = formattedMedia.map(item => ({
         id: item.id,
         name: item.name,
         url: item.url,
         directUrl: item.directUrl,
+        thumbnailUrl: item.thumbnailUrl,
         type: item.type,
         mediaType: item.mediaType,
         isActive: item.isActive,
         title: item.title,
         description: item.description,
         uploadedBy: item.uploadedBy,
-        uploadedAt: item.uploadedAt
+        uploadedAt: item.uploadedAt,
+        googleDriveFileId: item.googleDriveFileId
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(localStorageData));
-      window.dispatchEvent(new CustomEvent('mediaUpdated'));
+      console.log('💾 Updated localStorage cache');
+
+      // Dispatch event for real-time updates
+      window.dispatchEvent(new CustomEvent('mediaUpdated', { 
+        detail: { count: formattedMedia.length, timestamp: new Date().toISOString() }
+      }));
 
     } catch (error) {
       console.error('⚠️ Database loading failed, falling back to localStorage:', error);
@@ -611,7 +645,7 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // Real-time subscription
+  // Real-time subscription for database changes
   useEffect(() => {
     loadMediaFromDatabase();
 
@@ -620,12 +654,24 @@ const HomePage: React.FC = () => {
         .channel('homepage_media_realtime')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'homepage_media' }, 
-          () => setTimeout(() => loadMediaFromDatabase(), 500)
+          (payload) => {
+            console.log('🔄 Real-time update received:', payload.eventType);
+            setTimeout(() => loadMediaFromDatabase(), 500);
+          }
         )
         .subscribe();
 
       return () => subscription.unsubscribe();
     }
+
+    // Listen for manual updates from admin panel
+    const handleMediaUpdate = () => {
+      console.log('📢 Manual media update triggered');
+      loadMediaFromDatabase();
+    };
+
+    window.addEventListener('mediaUpdated', handleMediaUpdate);
+    return () => window.removeEventListener('mediaUpdated', handleMediaUpdate);
   }, [loadMediaFromDatabase]);
 
   // Helper functions
@@ -684,6 +730,7 @@ const HomePage: React.FC = () => {
         <div className="text-center">
           <div className="text-6xl mb-4 animate-spin">✨</div>
           <p className="text-white text-xl animate-pulse">Loading your magical experience...</p>
+          <p className="text-gray-400 text-sm mt-2">Connecting to Google Drive...</p>
         </div>
       </div>
     );
@@ -695,15 +742,15 @@ const HomePage: React.FC = () => {
     <div className="min-h-screen bg-black overflow-x-hidden">
       <PublicNavbar />
       
-      {/* NEW: Floating Images */}
+      {/* Floating Images */}
       <FloatingImages images={activeGalleryImages.slice(0, 8)} />
       
       {/* Hero Section with Parallax */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* NEW: Parallax Background */}
+        {/* Parallax Background */}
         <ParallaxBackground media={backgroundMedia} />
         
-        {/* NEW: Interactive cursor effect */}
+        {/* Interactive cursor effect */}
         <div 
           className="fixed pointer-events-none z-20 w-8 h-8 rounded-full bg-yellow-400/20 blur-sm transition-all duration-300"
           style={{
@@ -758,10 +805,11 @@ const HomePage: React.FC = () => {
                 <div key={banner.id} className="flex-shrink-0 text-center">
                   <EnhancedMediaDisplay
                     src={banner.url}
-                    directUrl={banner.directUrl}
                     alt={banner.title || banner.name}
                     className="h-16 object-contain mx-auto"
                     type={banner.type}
+                    googleDriveFileId={banner.googleDriveFileId}
+                    thumbnailUrl={banner.thumbnailUrl}
                   />
                   {banner.title && (
                     <p className="text-black font-semibold text-sm mt-2">{banner.title}</p>
@@ -773,14 +821,14 @@ const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* NEW: Animated Stats Section */}
+      {/* Animated Stats Section */}
       <section className="py-20 bg-gray-800/50 backdrop-blur-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedStats />
         </div>
       </section>
 
-      {/* NEW: Dynamic Gallery Carousel */}
+      {/* Gallery Carousel */}
       {activeGalleryImages.length > 0 && (
         <section className="py-20 bg-gradient-to-br from-gray-900 to-black relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -928,7 +976,7 @@ const HomePage: React.FC = () => {
         </div>
       </footer>
 
-      {/* Admin Debug Panel */}
+      {/* Enhanced Debug Panel */}
       {(profile?.role === 'admin' || profile?.role === 'organizer') && (
         <div className="fixed top-20 right-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
           <div className="font-bold mb-2">🛠️ Admin Debug</div>
@@ -937,11 +985,23 @@ const HomePage: React.FC = () => {
           <div>Hero Images: {getActiveMedia('hero_image').length}</div>
           <div>Gallery: {getActiveMedia('gallery_image').length}</div>
           <div>Banners: {getActiveMedia('banner').length}</div>
+          <div className="mt-2 text-xs">
+            Drive IDs: {allMedia.filter(m => m.googleDriveFileId).length}
+          </div>
           <button
             onClick={() => loadMediaFromDatabase()}
             className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
           >
             🔄 Force Refresh
+          </button>
+          <button
+            onClick={() => {
+              console.log('🏠 Current media:', allMedia);
+              window.dispatchEvent(new CustomEvent('mediaUpdated'));
+            }}
+            className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
+          >
+            📢 Test Update
           </button>
         </div>
       )}
