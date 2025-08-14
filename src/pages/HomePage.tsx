@@ -1,9 +1,10 @@
-// src/pages/HomePage.tsx - COMPLETE FIX WITH WORKING GOOGLE DRIVE IMAGES
+// src/pages/HomePage.tsx - COMPLETE CORS-SAFE VERSION
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { EnhancedMediaDisplay } from '../components/media/EnhancedMediaDisplay';
 
 interface MediaItem {
   id: string;
@@ -19,6 +20,7 @@ interface MediaItem {
   uploadedBy: string;
   uploadedAt: string;
   googleDriveFileId?: string;
+  mimeType?: string;
 }
 
 interface FloatingElement {
@@ -32,194 +34,7 @@ interface FloatingElement {
   opacity: number;
 }
 
-// 🔥 CRITICAL FIX: Enhanced Media Display with Google Drive URL optimization
-const EnhancedMediaDisplay: React.FC<{
-  src: string;
-  alt: string;
-  className?: string;
-  type?: 'image' | 'video';
-  googleDriveFileId?: string;
-  mimeType?: string;
-  thumbnailUrl?: string;
-  onError?: () => void;
-  onLoad?: () => void;
-}> = ({ 
-  src, 
-  alt, 
-  className = '', 
-  type = 'image', 
-  googleDriveFileId, 
-  mimeType,
-  thumbnailUrl,
-  onError, 
-  onLoad 
-}) => {
-  const [currentSrc, setCurrentSrc] = useState(src);
-  const [loadError, setLoadError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [urlIndex, setUrlIndex] = useState(0);
-
-  // 🔥 CRITICAL: Multiple URL strategies for Google Drive files
-  const getOptimalUrls = (fileId: string, fileType: string, fileMimeType?: string): string[] => {
-    const isImage = fileType === 'image' || fileMimeType?.startsWith('image/');
-    const isVideo = fileType === 'video' || fileMimeType?.startsWith('video/');
-
-    if (isImage) {
-      return [
-        // 🔥 BEST for images - Google's CDN with size optimization
-        `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
-        `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
-        `https://drive.google.com/uc?export=view&id=${fileId}`,
-        `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
-        `https://drive.google.com/file/d/${fileId}/view`
-      ];
-    } else if (isVideo) {
-      return [
-        // 🔥 BEST for videos - Preview format works better
-        `https://drive.google.com/file/d/${fileId}/preview`,
-        `https://drive.google.com/uc?export=download&id=${fileId}`,
-        `https://drive.google.com/file/d/${fileId}/view`
-      ];
-    }
-
-    return [
-      `https://drive.google.com/uc?export=view&id=${fileId}`,
-      `https://drive.google.com/file/d/${fileId}/view`
-    ];
-  };
-
-  const extractFileId = (url: string): string | null => {
-    const patterns = [
-      /\/d\/([a-zA-Z0-9-_]+)/,
-      /id=([a-zA-Z0-9-_]+)/,
-      /\/file\/d\/([a-zA-Z0-9-_]+)/
-    ];
-    
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) return match[1];
-    }
-    return null;
-  };
-
-  const handleError = () => {
-    const fileId = googleDriveFileId || extractFileId(currentSrc);
-    
-    if (fileId && !loadError) {
-      const alternativeUrls = getOptimalUrls(fileId, type, mimeType);
-      const nextIndex = urlIndex + 1;
-      
-      if (nextIndex < alternativeUrls.length) {
-        console.log(`🔄 Trying alternative URL ${nextIndex + 1}/${alternativeUrls.length} for: ${alt}`);
-        setCurrentSrc(alternativeUrls[nextIndex]);
-        setUrlIndex(nextIndex);
-        setIsLoading(true);
-        return;
-      }
-    }
-    
-    console.log(`❌ All URL alternatives failed for: ${alt}`);
-    setLoadError(true);
-    setIsLoading(false);
-    onError?.();
-  };
-
-  const handleLoad = () => {
-    console.log(`✅ Media loaded successfully: ${alt}`);
-    setIsLoading(false);
-    setLoadError(false);
-    onLoad?.();
-  };
-
-  useEffect(() => {
-    // 🔥 CRITICAL: Use optimal URL from start
-    const fileId = googleDriveFileId || extractFileId(src);
-    if (fileId) {
-      const optimalUrls = getOptimalUrls(fileId, type, mimeType);
-      setCurrentSrc(optimalUrls[0]);
-    } else {
-      setCurrentSrc(src);
-    }
-    setLoadError(false);
-    setIsLoading(true);
-    setUrlIndex(0);
-  }, [src, googleDriveFileId, type, mimeType]);
-
-  if (isLoading && !loadError) {
-    return (
-      <div className={`bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse flex items-center justify-center ${className}`}>
-        <div className="text-center text-gray-400">
-          <div className="text-2xl mb-2 animate-spin">⏳</div>
-          <div className="text-sm">Loading {type}...</div>
-          {googleDriveFileId && (
-            <div className="text-xs text-gray-500 mt-1">Google Drive</div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className={`bg-gray-800 flex items-center justify-center ${className}`}>
-        <div className="text-center text-gray-400 p-4">
-          <div className="text-3xl mb-2">📷</div>
-          <div className="text-sm mb-2">Media unavailable</div>
-          <div className="text-xs text-gray-500 mb-3">{alt}</div>
-          <button
-            onClick={() => {
-              setLoadError(false);
-              setIsLoading(true);
-              setUrlIndex(0);
-              const fileId = googleDriveFileId || extractFileId(src);
-              if (fileId) {
-                const optimalUrls = getOptimalUrls(fileId, type, mimeType);
-                setCurrentSrc(optimalUrls[0]);
-              } else {
-                setCurrentSrc(src);
-              }
-            }}
-            className="text-blue-400 hover:text-blue-300 text-xs underline px-3 py-1 bg-blue-900/20 rounded"
-          >
-            🔄 Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'video') {
-    return (
-      <video
-        src={currentSrc}
-        className={className}
-        onError={handleError}
-        onLoadedData={handleLoad}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        crossOrigin="anonymous"
-      />
-    );
-  }
-
-  return (
-    <img
-      src={currentSrc}
-      alt={alt}
-      className={className}
-      onError={handleError}
-      onLoad={handleLoad}
-      loading="lazy"
-      crossOrigin="anonymous"
-      referrerPolicy="no-referrer"
-    />
-  );
-};
-
-// NEW: Floating Images Component
+// Floating Images Component
 const FloatingImages: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   const [floatingElements, setFloatingElements] = useState<FloatingElement[]>([]);
   const animationRef = useRef<number>();
@@ -297,7 +112,7 @@ const FloatingImages: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   );
 };
 
-// NEW: Parallax Background Component
+// Parallax Background Component
 const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
   const [scrollY, setScrollY] = useState(0);
 
@@ -330,13 +145,14 @@ const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
         className="w-full h-full object-cover scale-110"
         type={media.type}
         googleDriveFileId={media.googleDriveFileId}
+        mimeType={media.mimeType}
         thumbnailUrl={media.thumbnailUrl}
       />
     </div>
   );
 };
 
-// NEW: Animated Stats Component
+// Animated Stats Component
 const AnimatedStats: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
@@ -416,7 +232,7 @@ const AnimatedStats: React.FC = () => {
   );
 };
 
-// NEW: Enhanced Image Carousel Component
+// Image Carousel Component
 const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -446,6 +262,7 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
               className="w-full h-full object-cover"
               type={image.type}
               googleDriveFileId={image.googleDriveFileId}
+              mimeType={image.mimeType}
               thumbnailUrl={image.thumbnailUrl}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent">
@@ -587,7 +404,8 @@ const HomePage: React.FC = () => {
           description: item.description,
           uploadedBy: mediaFile.uploaded_by || 'Unknown',
           uploadedAt: item.created_at,
-          googleDriveFileId: mediaFile.google_drive_file_id
+          googleDriveFileId: mediaFile.google_drive_file_id,
+          mimeType: mediaFile.mime_type
         };
       }).filter(Boolean) as MediaItem[];
 
@@ -608,7 +426,8 @@ const HomePage: React.FC = () => {
         description: item.description,
         uploadedBy: item.uploadedBy,
         uploadedAt: item.uploadedAt,
-        googleDriveFileId: item.googleDriveFileId
+        googleDriveFileId: item.googleDriveFileId,
+        mimeType: item.mimeType
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(localStorageData));
@@ -809,6 +628,7 @@ const HomePage: React.FC = () => {
                     className="h-16 object-contain mx-auto"
                     type={banner.type}
                     googleDriveFileId={banner.googleDriveFileId}
+                    mimeType={banner.mimeType}
                     thumbnailUrl={banner.thumbnailUrl}
                   />
                   {banner.title && (
