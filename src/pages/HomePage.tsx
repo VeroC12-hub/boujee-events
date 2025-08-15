@@ -143,7 +143,7 @@ const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
         src={media.url}
         alt={media.title || media.name}
         className="w-full h-full object-cover scale-110"
-        type={media.type}
+        type={media.mimeType?.startsWith('video/') ? 'video' : media.type}
         googleDriveFileId={media.googleDriveFileId}
         mimeType={media.mimeType}
         thumbnailUrl={media.thumbnailUrl}
@@ -260,7 +260,7 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
               src={image.url}
               alt={image.title || image.name}
               className="w-full h-full object-cover"
-              type={image.type}
+              type={image.mimeType?.startsWith('video/') ? 'video' : image.type}
               googleDriveFileId={image.googleDriveFileId}
               mimeType={image.mimeType}
               thumbnailUrl={image.thumbnailUrl}
@@ -626,7 +626,7 @@ const HomePage: React.FC = () => {
                     src={banner.url}
                     alt={banner.title || banner.name}
                     className="h-16 object-contain mx-auto"
-                    type={banner.type}
+                    type={banner.mimeType?.startsWith('video/') ? 'video' : banner.type}
                     googleDriveFileId={banner.googleDriveFileId}
                     mimeType={banner.mimeType}
                     thumbnailUrl={banner.thumbnailUrl}
