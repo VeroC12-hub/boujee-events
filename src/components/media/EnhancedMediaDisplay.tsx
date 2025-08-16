@@ -37,19 +37,16 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
 
     if (isImage) {
       return [
-        // 🔥 PRIMARY: Google's CDN - fastest and most reliable
         `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
         `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080`,
         `https://lh3.googleusercontent.com/d/${fileId}`,
-        // 🔥 FALLBACKS: Direct Google Drive URLs
         `https://drive.google.com/uc?export=view&id=${fileId}`,
         `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920-h1080`,
-        // 🔥 LAST RESORT: Fallback image
         'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop'
       ];
     } else if (isVideo) {
       return [
-        // 🔥 PRIMARY: Preview format for videos
+        // For Drive videos we should use the preview URL in an iframe
         `https://drive.google.com/file/d/${fileId}/preview`,
         `https://drive.google.com/uc?export=download&id=${fileId}`,
         `https://drive.google.com/file/d/${fileId}/view`
@@ -134,7 +131,11 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
     setUrlIndex(0);
   }, [src, googleDriveFileId, type, mimeType, alt]);
 
-  // 🔥 LOADING STATE: Enhanced loading indicator
+  // If file is a Google Drive video, render an iframe preview instead of <video>
+  const isDriveVideo = type === 'video' && (
+    !!googleDriveFileId || currentSrc.includes('drive.google.com')
+  );
+
   if (isLoading && !loadError) {
     return (
       <div className={`bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse flex items-center justify-center ${className}`}>
@@ -149,7 +150,6 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
     );
   }
 
-  // 🔥 ERROR STATE: Enhanced error display
   if (loadError) {
     return (
       <div className={`bg-gradient-to-br from-red-900/20 to-gray-800 flex items-center justify-center ${className} border border-red-500/30`}>
@@ -196,8 +196,22 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
     );
   }
 
-  // 🔥 VIDEO ELEMENT: Enhanced with error handling
   if (type === 'video') {
+    if (isDriveVideo) {
+      const fileId = googleDriveFileId || extractFileId(currentSrc) || '';
+      const previewUrl = fileId ? `https://drive.google.com/file/d/${fileId}/preview` : currentSrc;
+      return (
+        <iframe
+          src={previewUrl}
+          title={alt}
+          className={className}
+          allow="autoplay; fullscreen"
+          onLoad={handleLoad}
+          onError={handleError as any}
+        />
+      );
+    }
+
     return (
       <video
         src={currentSrc}
@@ -215,7 +229,6 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
     );
   }
 
-  // 🔥 IMAGE ELEMENT: CORS-safe implementation
   return (
     <img
       src={currentSrc}
@@ -226,8 +239,6 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
       loading="lazy"
       style={{ objectFit: 'cover' }}
       decoding="async"
-      // 🔥 REMOVED: crossOrigin to prevent CORS issues
-      // 🔥 REMOVED: referrerPolicy to prevent issues
     />
   );
 };
