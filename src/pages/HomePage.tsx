@@ -1,4 +1,4 @@
-// src/pages/HomePage.tsx - COMPLETE CORS-SAFE VERSION
+// src/pages/HomePage.tsx - COMPLETE UPDATED VERSION WITH HYBRID SUPPORT
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicNavbar } from '../components/navigation/PublicNavbar';
@@ -21,96 +21,9 @@ interface MediaItem {
   uploadedAt: string;
   googleDriveFileId?: string;
   mimeType?: string;
+  supabaseStoragePath?: string;
+  storageStrategy?: string;
 }
-
-interface FloatingElement {
-  id: string;
-  url: string;
-  x: number;
-  y: number;
-  size: number;
-  speed: number;
-  rotation: number;
-  opacity: number;
-}
-
-// Floating Images Component
-const FloatingImages: React.FC<{ images: MediaItem[] }> = ({ images }) => {
-  const [floatingElements, setFloatingElements] = useState<FloatingElement[]>([]);
-  const animationRef = useRef<number>();
-
-  useEffect(() => {
-    if (images.length === 0) return;
-
-    const elements: FloatingElement[] = [];
-    const numElements = Math.min(images.length, 8);
-
-    for (let i = 0; i < numElements; i++) {
-      const image = images[i % images.length];
-      elements.push({
-        id: `float-${i}`,
-        url: image.thumbnailUrl || image.url,
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        size: 50 + Math.random() * 100,
-        speed: 0.2 + Math.random() * 0.8,
-        rotation: Math.random() * 360,
-        opacity: 0.1 + Math.random() * 0.3
-      });
-    }
-
-    setFloatingElements(elements);
-  }, [images]);
-
-  useEffect(() => {
-    const animate = () => {
-      setFloatingElements(prev => 
-        prev.map(element => ({
-          ...element,
-          x: (element.x + element.speed) % (window.innerWidth + element.size),
-          y: element.y + Math.sin(Date.now() * 0.001 + element.x * 0.01) * 0.5,
-          rotation: element.rotation + 0.2
-        }))
-      );
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
-      {floatingElements.map(element => (
-        <div
-          key={element.id}
-          className="absolute rounded-full overflow-hidden blur-sm"
-          style={{
-            left: `${element.x}px`,
-            top: `${element.y}px`,
-            width: `${element.size}px`,
-            height: `${element.size}px`,
-            transform: `rotate(${element.rotation}deg)`,
-            opacity: element.opacity,
-            filter: 'blur(2px)',
-            transition: 'none'
-          }}
-        >
-          <EnhancedMediaDisplay
-            src={element.url}
-            alt="Floating decoration"
-            className="w-full h-full object-cover"
-            type="image"
-          />
-        </div>
-      ))}
-    </div>
-  );
-};
 
 // Parallax Background Component
 const ParallaxBackground: React.FC<{ media?: MediaItem }> = ({ media }) => {
@@ -273,6 +186,12 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
                 <p className="text-gray-300 text-sm">
                   {image.description || `Uploaded ${new Date(image.uploadedAt).toLocaleDateString()}`}
                 </p>
+                {/* Storage indicator for debugging */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="mt-2 text-xs text-gray-400">
+                    {image.supabaseStoragePath ? '☁️ Supabase' : '🌐 Google Drive'}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -294,34 +213,58 @@ const ImageCarousel: React.FC<{ images: MediaItem[] }> = ({ images }) => {
   );
 };
 
-// 🔥 ENHANCED: Media URL Processing Function
-const processMediaUrl = (mediaFile: any): { url: string; directUrl: string; thumbnailUrl?: string } => {
+// Enhanced URL Processing Function - Prioritizes Supabase URLs
+const processMediaUrl = (mediaFile: any): { 
+  url: string; 
+  directUrl: string; 
+  thumbnailUrl?: string;
+  supabaseStoragePath?: string;
+  storageStrategy?: string;
+} => {
   const fileId = mediaFile.google_drive_file_id;
   const isImage = mediaFile.mime_type?.startsWith('image/') || mediaFile.file_type === 'image';
   const isVideo = mediaFile.mime_type?.startsWith('video/') || mediaFile.file_type === 'video';
 
-  // 🔥 CRITICAL: Use optimal URLs for Google Drive files
-  if (fileId) {
-    if (isImage) {
-      return {
-        url: `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
-        directUrl: `https://lh3.googleusercontent.com/d/${fileId}=w1920-h1080-c`,
-        thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300`
-      };
-    } else if (isVideo) {
-      return {
-        url: `https://drive.google.com/file/d/${fileId}/preview`,
-        directUrl: `https://drive.google.com/file/d/${fileId}/preview`,
-        thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300`
-      };
-    }
+  // PRIORITY 1: Use Supabase URL if available (from hybrid system)
+  if (mediaFile.supabase_storage_path && mediaFile.download_url?.includes('supabase')) {
+    console.log(`Using Supabase URL for ${mediaFile.name}:`, mediaFile.download_url);
+    return {
+      url: mediaFile.download_url,
+      directUrl: mediaFile.download_url,
+      thumbnailUrl: mediaFile.thumbnail_url || mediaFile.download_url,
+      supabaseStoragePath: mediaFile.supabase_storage_path,
+      storageStrategy: mediaFile.storage_strategy || 'hybrid'
+    };
+  }
+  
+  // PRIORITY 2: Use optimized Google Drive URLs if file ID available
+  if (fileId && isImage) {
+    console.log(`Using Google Drive image URL for ${mediaFile.name}`);
+    return {
+      url: `https://lh3.googleusercontent.com/d/${fileId}=s1920`, // Using =s1920 instead of =w1920-h1080-c
+      directUrl: `https://lh3.googleusercontent.com/d/${fileId}=s1920`,
+      thumbnailUrl: `https://lh3.googleusercontent.com/d/${fileId}=s400`,
+      storageStrategy: 'drive_only'
+    };
   }
 
-  // Fallback to stored URLs
+  if (fileId && isVideo) {
+    console.log(`Using Google Drive video URL for ${mediaFile.name}`);
+    return {
+      url: `https://drive.google.com/file/d/${fileId}/preview`,
+      directUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400-h300`,
+      storageStrategy: 'drive_only'
+    };
+  }
+  
+  // PRIORITY 3: Fallback to stored URLs
+  console.log(`Using fallback URL for ${mediaFile.name}:`, mediaFile.download_url);
   return {
     url: mediaFile.download_url || mediaFile.web_view_link || '',
     directUrl: mediaFile.download_url || mediaFile.web_view_link || '',
-    thumbnailUrl: mediaFile.thumbnail_url
+    thumbnailUrl: mediaFile.thumbnail_url,
+    storageStrategy: 'unknown'
   };
 };
 
@@ -331,22 +274,18 @@ const HomePage: React.FC = () => {
   const { user, profile } = useAuth();
   const [allMedia, setAllMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [storageStats, setStorageStats] = useState<{
+    supabaseFiles: number;
+    driveOnlyFiles: number;
+    totalFiles: number;
+  }>({ supabaseFiles: 0, driveOnlyFiles: 0, totalFiles: 0 });
 
-  // Mouse tracking for interactive effects
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // 🔥 ENHANCED: Media loading with optimal URL processing
+  // Enhanced media loading with hybrid URL processing and error handling
   const loadMediaFromDatabase = useCallback(async () => {
     try {
-      console.log('📡 Loading media from database...');
+      console.log('Loading media from database...');
+      setLoadingError(null);
       
       const { data, error } = await supabase
         .from('homepage_media')
@@ -369,14 +308,19 @@ const HomePage: React.FC = () => {
             web_view_link,
             thumbnail_url,
             file_type,
-            uploaded_by
+            uploaded_by,
+            supabase_storage_path,
+            supabase_storage_bucket,
+            storage_strategy,
+            transfer_status
           )
         `)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 
       if (error) {
-        console.warn('⚠️ Database query failed, falling back to localStorage:', error);
+        console.error('Database query failed:', error);
+        setLoadingError(`Database error: ${error.message}`);
         loadMediaFromLocalStorage();
         return;
       }
@@ -385,11 +329,11 @@ const HomePage: React.FC = () => {
         const mediaFile = Array.isArray(item.media_file) ? item.media_file[0] : item.media_file;
         
         if (!mediaFile) {
-          console.warn('⚠️ Homepage media item has no associated media file:', item.id);
+          console.warn('Homepage media item has no associated media file:', item.id);
           return null;
         }
 
-        const { url, directUrl, thumbnailUrl } = processMediaUrl(mediaFile);
+        const { url, directUrl, thumbnailUrl, supabaseStoragePath, storageStrategy } = processMediaUrl(mediaFile);
 
         return {
           id: item.id,
@@ -405,12 +349,24 @@ const HomePage: React.FC = () => {
           uploadedBy: mediaFile.uploaded_by || 'Unknown',
           uploadedAt: item.created_at,
           googleDriveFileId: mediaFile.google_drive_file_id,
-          mimeType: mediaFile.mime_type
+          mimeType: mediaFile.mime_type,
+          supabaseStoragePath,
+          storageStrategy
         };
       }).filter(Boolean) as MediaItem[];
 
       setAllMedia(formattedMedia);
-      console.log(`✅ Loaded ${formattedMedia.length} media items from database`);
+      
+      // Calculate storage statistics
+      const supabaseFiles = formattedMedia.filter(m => m.supabaseStoragePath).length;
+      const driveOnlyFiles = formattedMedia.filter(m => !m.supabaseStoragePath && m.googleDriveFileId).length;
+      setStorageStats({
+        supabaseFiles,
+        driveOnlyFiles,
+        totalFiles: formattedMedia.length
+      });
+
+      console.log(`Loaded ${formattedMedia.length} media items: ${supabaseFiles} from Supabase, ${driveOnlyFiles} from Google Drive`);
 
       // Update localStorage for offline functionality
       const localStorageData = formattedMedia.map(item => ({
@@ -427,19 +383,22 @@ const HomePage: React.FC = () => {
         uploadedBy: item.uploadedBy,
         uploadedAt: item.uploadedAt,
         googleDriveFileId: item.googleDriveFileId,
-        mimeType: item.mimeType
+        mimeType: item.mimeType,
+        supabaseStoragePath: item.supabaseStoragePath,
+        storageStrategy: item.storageStrategy
       }));
       
       localStorage.setItem('boujee_all_media', JSON.stringify(localStorageData));
-      console.log('💾 Updated localStorage cache');
+      console.log('Updated localStorage cache');
 
       // Dispatch event for real-time updates
       window.dispatchEvent(new CustomEvent('mediaUpdated', { 
         detail: { count: formattedMedia.length, timestamp: new Date().toISOString() }
       }));
 
-    } catch (error) {
-      console.error('⚠️ Database loading failed, falling back to localStorage:', error);
+    } catch (error: any) {
+      console.error('Database loading failed:', error);
+      setLoadingError(`Loading failed: ${error.message}`);
       loadMediaFromLocalStorage();
     } finally {
       setLoading(false);
@@ -452,12 +411,13 @@ const HomePage: React.FC = () => {
       if (savedMedia) {
         const mediaData = JSON.parse(savedMedia);
         setAllMedia(mediaData);
-        console.log('📱 Loaded media from localStorage:', mediaData.length, 'items');
+        console.log('Loaded media from localStorage:', mediaData.length, 'items');
       } else {
         setAllMedia([]);
+        console.log('No media found in localStorage');
       }
     } catch (error) {
-      console.error('⚠️ Failed to load from localStorage:', error);
+      console.error('Failed to load from localStorage:', error);
       setAllMedia([]);
     } finally {
       setLoading(false);
@@ -469,23 +429,27 @@ const HomePage: React.FC = () => {
     loadMediaFromDatabase();
 
     if (supabase) {
+      console.log('Setting up real-time subscription...');
       const subscription = supabase
         .channel('homepage_media_realtime')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'homepage_media' }, 
           (payload) => {
-            console.log('🔄 Real-time update received:', payload.eventType);
+            console.log('Real-time update received:', payload.eventType);
             setTimeout(() => loadMediaFromDatabase(), 500);
           }
         )
         .subscribe();
 
-      return () => subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+        console.log('Real-time subscription cleaned up');
+      };
     }
 
     // Listen for manual updates from admin panel
     const handleMediaUpdate = () => {
-      console.log('📢 Manual media update triggered');
+      console.log('Manual media update triggered');
       loadMediaFromDatabase();
     };
 
@@ -548,8 +512,10 @@ const HomePage: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4 animate-spin">✨</div>
-          <p className="text-white text-xl animate-pulse">Loading your magical experience...</p>
-          <p className="text-gray-400 text-sm mt-2">Connecting to Google Drive...</p>
+          <p className="text-white text-xl animate-pulse">Loading your experience...</p>
+          <p className="text-gray-400 text-sm mt-2">
+            {loadingError ? `Error: ${loadingError}` : 'Connecting to database...'}
+          </p>
         </div>
       </div>
     );
@@ -561,23 +527,10 @@ const HomePage: React.FC = () => {
     <div className="min-h-screen bg-black overflow-x-hidden">
       <PublicNavbar />
       
-      {/* Floating Images */}
-      <FloatingImages images={activeGalleryImages.slice(0, 8)} />
-      
       {/* Hero Section with Parallax */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Parallax Background */}
         <ParallaxBackground media={backgroundMedia} />
-        
-        {/* Interactive cursor effect */}
-        <div 
-          className="fixed pointer-events-none z-20 w-8 h-8 rounded-full bg-yellow-400/20 blur-sm transition-all duration-300"
-          style={{
-            left: mousePosition.x - 16,
-            top: mousePosition.y - 16,
-            transform: `scale(${Math.sin(Date.now() * 0.005) * 0.5 + 1})`
-          }}
-        />
 
         {/* Hero Content */}
         <div className="relative z-30 text-center px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
@@ -777,6 +730,36 @@ const HomePage: React.FC = () => {
         </section>
       )}
 
+      {/* Storage Stats for Admin */}
+      {(profile?.role === 'admin' || profile?.role === 'organizer') && process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
+          <div className="font-bold mb-2">🛠️ Storage Debug</div>
+          <div>Total Media: {storageStats.totalFiles}</div>
+          <div>Supabase: {storageStats.supabaseFiles}</div>
+          <div>Google Drive: {storageStats.driveOnlyFiles}</div>
+          <div>BG Videos: {getActiveMedia('background_video').length}</div>
+          <div>Hero Images: {getActiveMedia('hero_image').length}</div>
+          <div>Gallery: {getActiveMedia('gallery_image').length}</div>
+          <div>Banners: {getActiveMedia('banner').length}</div>
+          <button
+            onClick={() => loadMediaFromDatabase()}
+            className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
+          >
+            🔄 Force Refresh
+          </button>
+          <button
+            onClick={() => {
+              console.log('🏠 Current media:', allMedia);
+              console.log('💾 LocalStorage data:', localStorage.getItem('boujee_all_media'));
+              window.dispatchEvent(new CustomEvent('mediaUpdated'));
+            }}
+            className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
+          >
+            📢 Test Update
+          </button>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -795,36 +778,6 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </footer>
-
-      {/* Enhanced Debug Panel */}
-      {(profile?.role === 'admin' || profile?.role === 'organizer') && (
-        <div className="fixed top-20 right-4 bg-black/90 text-white p-3 rounded-lg text-xs z-50 max-w-xs">
-          <div className="font-bold mb-2">🛠️ Admin Debug</div>
-          <div>Total Media: {allMedia.length}</div>
-          <div>BG Videos: {getActiveMedia('background_video').length}</div>
-          <div>Hero Images: {getActiveMedia('hero_image').length}</div>
-          <div>Gallery: {getActiveMedia('gallery_image').length}</div>
-          <div>Banners: {getActiveMedia('banner').length}</div>
-          <div className="mt-2 text-xs">
-            Drive IDs: {allMedia.filter(m => m.googleDriveFileId).length}
-          </div>
-          <button
-            onClick={() => loadMediaFromDatabase()}
-            className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs w-full"
-          >
-            🔄 Force Refresh
-          </button>
-          <button
-            onClick={() => {
-              console.log('🏠 Current media:', allMedia);
-              window.dispatchEvent(new CustomEvent('mediaUpdated'));
-            }}
-            className="mt-1 px-2 py-1 bg-green-600 rounded text-xs w-full"
-          >
-            📢 Test Update
-          </button>
-        </div>
-      )}
 
       <style jsx>{`
         @keyframes fadeIn {
