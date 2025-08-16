@@ -198,6 +198,23 @@ export const EnhancedMediaDisplay: React.FC<EnhancedMediaDisplayProps> = ({
 
   // 🔥 VIDEO ELEMENT: Enhanced with error handling
   if (type === 'video') {
+    const fileId = googleDriveFileId || extractFileId(currentSrc);
+    const isDrivePreview = currentSrc.includes('drive.google.com') || (fileId && !currentSrc.includes('supabase'));
+
+    if (isDrivePreview && fileId) {
+      const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+      return (
+        <iframe
+          src={previewUrl}
+          className={className}
+          allow="autoplay; encrypted-media"
+          onLoad={handleLoad as any}
+          onError={handleError as any}
+          style={{ border: 'none' }}
+        />
+      );
+    }
+
     return (
       <video
         src={currentSrc}

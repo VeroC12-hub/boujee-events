@@ -169,9 +169,12 @@ class HybridMediaService {
         throw new Error('File not found in Google Drive');
       }
 
-      // Get access token for download
-      const token = gapi.auth.getToken();
-      if (!token?.access_token) {
+      // Get access token for download from gapi client (preferred)
+      let accessToken: string | undefined = gapi?.client?.getToken?.()?.access_token;
+      if (!accessToken && (googleDriveService as any).accessToken) {
+        accessToken = (googleDriveService as any).accessToken;
+      }
+      if (!accessToken) {
         throw new Error('No valid access token available');
       }
 
@@ -181,7 +184,7 @@ class HybridMediaService {
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         {
           headers: {
-            'Authorization': `Bearer ${token.access_token}`
+            'Authorization': `Bearer ${accessToken}`
           }
         }
       );

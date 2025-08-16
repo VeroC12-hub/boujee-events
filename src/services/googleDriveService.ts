@@ -36,6 +36,7 @@ class GoogleDriveService {
   private currentUser: any = null;
   private authenticationInProgress = false;
   private initializationPromise: Promise<boolean> | null = null;
+  private accessToken: string | null = null;
 
   constructor() {
     console.log('🔧 Initializing Google Drive service...');
@@ -184,6 +185,13 @@ class GoogleDriveService {
               throw new Error(`Authentication failed: ${response.error}`);
             }
 
+            // Bind token to gapi client for subsequent API calls
+            const receivedAccessToken = response.access_token;
+            if (receivedAccessToken && this.gapi?.client?.setToken) {
+              this.gapi.client.setToken({ access_token: receivedAccessToken });
+              this.accessToken = receivedAccessToken;
+            }
+
             const userInfo = await this.getUserInfo();
             this.currentUser = userInfo;
             this.authenticated = true;
@@ -224,8 +232,13 @@ class GoogleDriveService {
     }
     
     try {
+      // Prefer checking gapi client's token presence
+      const token = this.gapi?.client?.getToken?.();
+      if (!token?.access_token && !this.accessToken) {
+        return false;
+      }
+
       if (this.authenticated && this.currentUser) {
-        // Verify token is still valid
         try {
           await this.gapi.client.drive.about.get({ fields: 'user' });
           return true;
@@ -455,7 +468,11 @@ class GoogleDriveService {
         xhr.onerror = () => reject(new Error('Network error during upload'));
         xhr.ontimeout = () => reject(new Error('Upload timed out'));
 
-        const accessToken = this.gapi.auth.getToken()?.access_token;
+        // Use token from gapi client or stored token
+        let accessToken: string | undefined = this.gapi?.client?.getToken?.()?.access_token;
+        if (!accessToken && this.accessToken) {
+          accessToken = this.accessToken;
+        }
         if (!accessToken) {
           reject(new Error('No access token available. Please re-authenticate.'));
           return;
@@ -694,12 +711,17 @@ class GoogleDriveService {
   async signOut(): Promise<void> {
     try {
       if (this.authenticated && window.google?.accounts?.oauth2) {
-        const token = this.gapi.auth.getToken();
-        if (token) {
+        const token = this.gapi?.client?.getToken?.();
+        if (token?.access_token) {
           window.google.accounts.oauth2.revoke(token.access_token);
         }
       }
       
+      // Clear gapi client token state
+      if (this.gapi?.client?.setToken) {
+        this.gapi.client.setToken(null);
+      }
+      this.accessToken = null;
       this.authenticated = false;
       this.currentUser = null;
       console.log('✅ Signed out successfully');
