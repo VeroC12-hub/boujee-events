@@ -1,4 +1,4 @@
-// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE UPDATED VERSION
+// src/components/admin/ProtectedHomepageMediaManager.tsx - COMPLETE FIXED VERSION
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../../lib/supabase';
@@ -241,7 +241,7 @@ const HybridTransferPanel: React.FC<{
   );
 };
 
-// Google Drive File Browser Modal (keeping existing implementation)
+// Google Drive File Browser Modal
 const GoogleDriveModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -755,7 +755,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     disabled: uploading
   });
 
-  // File upload with automatic public access
+  // File upload with automatic public access and duplicate handling
   const handleFileUpload = async (files: File[]) => {
     setUploading(true);
     setUploadError(null);
@@ -807,7 +807,7 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
           console.log('Uploaded to Drive:', driveFile);
 
-          // Create database records
+          // Create database records with duplicate handling
           const mediaFileId = await createMediaFileRecord(driveFile, file);
           await createHomepageMediaEntry(mediaFileId, selectedCategory);
 
@@ -894,11 +894,23 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
     }
   };
 
-  // Create media file record with optimal URLs
+  // Create media file record with duplicate handling - FIXED VERSION
   const createMediaFileRecord = async (driveFile: any, originalFile?: File): Promise<string> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+
+      // Check if file already exists to prevent duplicate key errors
+      const { data: existingFile } = await supabase
+        .from('media_files')
+        .select('id')
+        .eq('google_drive_file_id', driveFile.id)
+        .maybeSingle();
+
+      if (existingFile) {
+        console.log(`File already exists in database: ${driveFile.name}`);
+        return existingFile.id;
+      }
 
       const isImage = driveFile.mimeType?.startsWith('image/') || originalFile?.type.startsWith('image/');
       const isVideo = driveFile.mimeType?.startsWith('video/') || originalFile?.type.startsWith('video/');
@@ -943,7 +955,25 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
       if (error) throw error;
       console.log(`Created media file record: ${data.id}`);
       return data.id;
-    } catch (error) {
+    } catch (error: any) {
+      // If it's a duplicate key error, try to get the existing record
+      if (error.message?.includes('duplicate key') || error.code === '23505') {
+        console.log('Duplicate file detected, fetching existing record...');
+        try {
+          const { data: existingFile } = await supabase
+            .from('media_files')
+            .select('id')
+            .eq('google_drive_file_id', driveFile.id)
+            .single();
+          
+          if (existingFile) {
+            return existingFile.id;
+          }
+        } catch (fetchError) {
+          console.error('Failed to fetch existing file:', fetchError);
+        }
+      }
+      
       console.error('Failed to create media file record:', error);
       throw error;
     }
@@ -951,6 +981,19 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
   const createHomepageMediaEntry = async (mediaFileId: string, mediaType: string): Promise<void> => {
     try {
+      // Check if homepage entry already exists
+      const { data: existingEntry } = await supabase
+        .from('homepage_media')
+        .select('id')
+        .eq('media_file_id', mediaFileId)
+        .eq('media_type', mediaType)
+        .maybeSingle();
+
+      if (existingEntry) {
+        console.log(`Homepage media entry already exists for ${mediaType}`);
+        return;
+      }
+
       const { data: maxOrderData } = await supabase
         .from('homepage_media')
         .select('display_order')
@@ -975,7 +1018,12 @@ export const ProtectedHomepageMediaManager: React.FC = () => {
 
       if (error) throw error;
       console.log(`Created homepage media entry for ${mediaType}`);
-    } catch (error) {
+    } catch (error: any) {
+      // If it's a duplicate, that's fine - just log it
+      if (error.message?.includes('duplicate') || error.code === '23505') {
+        console.log('Homepage media entry already exists');
+        return;
+      }
       console.error('Failed to create homepage media entry:', error);
       throw error;
     }
