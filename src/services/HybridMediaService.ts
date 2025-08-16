@@ -1,4 +1,4 @@
-// src/services/HybridMediaService.ts
+// src/services/HybridMediaService.ts - COMPLETE CORRECTED VERSION
 import { supabase } from '../lib/supabase';
 import { googleDriveService, DriveFile } from './googleDriveService';
 
@@ -34,33 +34,53 @@ class HybridMediaService {
   private readonly MAX_SUPABASE_STORAGE = 8 * 1024 * 1024 * 1024; // 8GB in bytes
   
   constructor() {
-    this.initializeStorage();
+    // Skip auto-initialization since bucket is created via Supabase Dashboard
+    // this.initializeStorage(); 
+    console.log('HybridMediaService initialized - bucket managed via dashboard');
   }
 
   /**
-   * Initialize Supabase Storage bucket
+   * Initialize Supabase Storage bucket (now disabled - using dashboard instead)
    */
   private async initializeStorage(): Promise<void> {
     try {
+      // Verify bucket exists (but don't create it)
       const { data: buckets } = await supabase.storage.listBuckets();
       const bucketExists = buckets?.some(bucket => bucket.name === this.STORAGE_BUCKET);
       
-      if (!bucketExists) {
-        console.log('Creating Supabase storage bucket...');
-        const { error } = await supabase.storage.createBucket(this.STORAGE_BUCKET, {
-          public: true,
-          allowedMimeTypes: ['image/*', 'video/*'],
-          fileSizeLimit: 100 * 1024 * 1024 // 100MB per file
-        });
-        
-        if (error && !error.message.includes('already exists')) {
-          console.error('Failed to create storage bucket:', error);
-        } else {
-          console.log('Storage bucket created successfully');
-        }
+      if (bucketExists) {
+        console.log(`Storage bucket '${this.STORAGE_BUCKET}' verified`);
+      } else {
+        console.warn(`Storage bucket '${this.STORAGE_BUCKET}' not found. Please create it via Supabase Dashboard.`);
       }
     } catch (error) {
-      console.error('Storage initialization failed:', error);
+      console.error('Storage verification failed:', error);
+    }
+  }
+
+  /**
+   * Verify storage bucket exists and is properly configured
+   */
+  async verifyStorageSetup(): Promise<boolean> {
+    try {
+      const { data: buckets, error } = await supabase.storage.listBuckets();
+      
+      if (error) {
+        console.error('Failed to list buckets:', error);
+        return false;
+      }
+
+      const bucket = buckets?.find(b => b.name === this.STORAGE_BUCKET);
+      if (!bucket) {
+        console.error(`Bucket '${this.STORAGE_BUCKET}' not found`);
+        return false;
+      }
+
+      console.log(`Storage bucket verified: ${bucket.name} (public: ${bucket.public})`);
+      return true;
+    } catch (error) {
+      console.error('Storage verification failed:', error);
+      return false;
     }
   }
 
@@ -75,6 +95,12 @@ class HybridMediaService {
     try {
       console.log(`Starting transfer for ${driveFileId}`);
       
+      // Verify storage setup first
+      const storageReady = await this.verifyStorageSetup();
+      if (!storageReady) {
+        throw new Error('Storage bucket not properly configured');
+      }
+
       onProgress?.({
         loaded: 0,
         total: 100,
@@ -129,7 +155,7 @@ class HybridMediaService {
   }
 
   /**
-   * Download file from Google Drive
+   * Download file from Google Drive using proper API access
    */
   private async downloadFromGoogleDrive(fileId: string): Promise<{ blob: Blob; metadata: any } | null> {
     try {
@@ -142,8 +168,14 @@ class HybridMediaService {
         }
       }
 
+      // Access gapi through the service's property
+      const gapi = (googleDriveService as any).gapi;
+      if (!gapi) {
+        throw new Error('Google API not initialized');
+      }
+
       // Get file metadata
-      const response = await googleDriveService.gapi.client.drive.files.get({
+      const response = await gapi.client.drive.files.get({
         fileId: fileId,
         fields: 'name,mimeType,size,createdTime,modifiedTime'
       });
@@ -152,18 +184,24 @@ class HybridMediaService {
         throw new Error('File not found in Google Drive');
       }
 
+      // Get access token for download
+      const token = gapi.auth.getToken();
+      if (!token?.access_token) {
+        throw new Error('No valid access token available');
+      }
+
       // Download file content using Google Drive API
       const downloadResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         {
           headers: {
-            'Authorization': `Bearer ${googleDriveService.gapi.auth.getToken().access_token}`
+            'Authorization': `Bearer ${token.access_token}`
           }
         }
       );
 
       if (!downloadResponse.ok) {
-        throw new Error(`Download failed: ${downloadResponse.statusText}`);
+        throw new Error(`Download failed: ${downloadResponse.status} ${downloadResponse.statusText}`);
       }
 
       const blob = await downloadResponse.blob();
@@ -200,6 +238,8 @@ class HybridMediaService {
       // Check storage quota before upload
       await this.ensureStorageSpace(blob.size);
 
+      console.log(`Uploading to Supabase: ${filePath} (${this.formatBytes(blob.size)})`);
+
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from(this.STORAGE_BUCKET)
@@ -227,7 +267,7 @@ class HybridMediaService {
         bucket: this.STORAGE_BUCKET
       };
 
-      console.log(`Uploaded to Supabase: ${filePath}`);
+      console.log(`Upload successful: ${urlData.publicUrl}`);
       return supabaseFile;
 
     } catch (error: any) {
@@ -447,6 +487,51 @@ class HybridMediaService {
   }
 
   /**
+   * Get files that can be transferred (Google Drive only, not yet in Supabase)
+   */
+  async getTransferableFiles(): Promise<{
+    fileId: string;
+    name: string;
+    mediaType: string;
+    size: number;
+  }[]> {
+    try {
+      const { data: files, error } = await supabase
+        .from('homepage_media')
+        .select(`
+          media_type,
+          media_file:media_files(
+            google_drive_file_id,
+            name,
+            file_size,
+            supabase_storage_path
+          )
+        `)
+        .eq('is_active', true)
+        .is('media_file.supabase_storage_path', null)
+        .not('media_file.google_drive_file_id', 'is', null);
+
+      if (error) {
+        throw error;
+      }
+
+      return (files || []).map(item => {
+        const mediaFile = Array.isArray(item.media_file) ? item.media_file[0] : item.media_file;
+        return {
+          fileId: mediaFile.google_drive_file_id,
+          name: mediaFile.name,
+          mediaType: item.media_type,
+          size: mediaFile.file_size || 0
+        };
+      }).filter(file => file.fileId);
+
+    } catch (error: any) {
+      console.error('Failed to get transferable files:', error);
+      return [];
+    }
+  }
+
+  /**
    * Ensure we have enough Supabase storage space
    */
   private async ensureStorageSpace(requiredBytes: number): Promise<void> {
@@ -482,7 +567,7 @@ class HybridMediaService {
   }
 
   /**
-   * Format bytes to human readable
+   * Format bytes to human readable string
    */
   private formatBytes(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
@@ -490,6 +575,22 @@ class HybridMediaService {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Manual initialization for testing
+   */
+  async initialize(): Promise<boolean> {
+    try {
+      const verified = await this.verifyStorageSetup();
+      if (verified) {
+        console.log('HybridMediaService ready for use');
+      }
+      return verified;
+    } catch (error) {
+      console.error('HybridMediaService initialization failed:', error);
+      return false;
+    }
   }
 }
 
